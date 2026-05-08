@@ -71,7 +71,12 @@ export function calcLineItem(
     cajaBlancoKg;
 
   // Costo del rollo
-  const costoRolloMXN = (costoTotalKgMXN + transpKgMXN) * pbReal;
+  // IMPORTANTE: Diego computa por PN (peso neto), no PB. Convención:
+  // el cono se amortiza en el costo base via "Caja Blanca" y en el "Costo del cono"
+  // del header EDSA, no se multiplica explicitamente. El flete tambien se distribuye
+  // por PN (no PB), porque el flete_kg lo calcula como transport_USD*TC / total_PN.
+  // Verificado contra el camion real de Level Packaging (5to abril 2026).
+  const costoRolloMXN = (costoTotalKgMXN + transpKgMXN) * pnReal;
   const costoRolloUSD = tc > 0 ? costoRolloMXN / tc : 0;
 
   // Utilidad (markup sobre costo, NO gross margin)
@@ -113,12 +118,12 @@ export function calcLineItem(
 // Algoritmo de sugerencia inversa (corazón de Tab 2).
 // Dado precio_cliente y margen_objetivo, despeja el largo real necesario.
 //
-// Matemática:
+// Matemática (verificada contra Excel real de Diego):
 //   costoRolloUSD_max = precio / (1 + marginTarget)
 //   costoRolloMXN_max = costoRolloUSD_max * tc
-//   pbReal_needed     = costoRolloMXN_max / (costoBaseTotal + transpKgMXN)
-//   pnReal_needed     = pbReal_needed - cono
+//   pnReal_needed     = costoRolloMXN_max / (costoBaseTotal + transpKgMXN)
 //   lReal             = pnReal_needed / (aReal * calReal * 1.8148e-6)
+// Nota: PN (no PB) — Diego computa costo por kg de resina neta.
 export function suggestRealSpec(params: {
   precio: number;
   tc: number;
@@ -154,8 +159,8 @@ export function suggestRealSpec(params: {
   const costoTotalKg = costoBaseTotal + transpKgMXN;
   if (costoTotalKg <= 0) return null;
 
-  const pbReal_needed = costoRolloMXN_max / costoTotalKg;
-  const pnReal_needed = pbReal_needed - cono;
+  // Despejar PN directo (no PB - menos cono). Convención de Diego.
+  const pnReal_needed = costoRolloMXN_max / costoTotalKg;
   if (pnReal_needed <= 0) return null;
 
   const lReal = pnReal_needed / (aReal * calReal * PN_FORMULA_CONST);
