@@ -40,12 +40,18 @@ export default function TopBar(p: Props) {
           <div className="flex items-center gap-2">
             <Package className="w-5 h-5 text-bnp-green" />
             <div>
-              <h1 className="text-sm font-semibold leading-tight">
+              <h1 className="text-sm font-semibold leading-tight flex items-center gap-1.5">
                 <span className="text-bnp-green">SICE</span>{' '}
                 <span className="text-text-muted">·</span>{' '}
                 <span className="text-text-primary">Cotizador</span>
+                <span
+                  className="ml-1 px-1.5 py-0.5 rounded text-2xs font-bold tracking-wider bg-bnp-amber/20 text-bnp-amber border border-bnp-amber/40"
+                  title="Beta — reportar bugs y sugerencias"
+                >
+                  BETA
+                </span>
               </h1>
-              <p className="text-2xs text-text-muted leading-tight">BioNovaPack LLC</p>
+              <p className="text-2xs text-text-muted leading-tight">BioNovaPack LLC · v0.1.0</p>
             </div>
           </div>
         </div>

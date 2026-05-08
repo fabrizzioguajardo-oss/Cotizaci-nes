@@ -13,6 +13,7 @@ import TopBar from './components/TopBar';
 import ItemList from './components/ItemList';
 import TabPedido from './components/TabPedido';
 import TabSugerencia from './components/TabSugerencia';
+import FeedbackButton from './components/FeedbackButton';
 import { Layers, Sparkles, Save } from 'lucide-react';
 
 export default function CotizadorPage() {
@@ -210,6 +211,8 @@ export default function CotizadorPage() {
           )}
         </main>
       </div>
+
+      <FeedbackButton />
     </div>
   );
 }
