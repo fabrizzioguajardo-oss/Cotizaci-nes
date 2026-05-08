@@ -1,181 +1,131 @@
 'use client';
 
-import { useState, useRef } from 'react';
-import { parseExcelFile, type ParsedPrecio } from '@/lib/excelParser';
-import { fmtNum } from '@/lib/format';
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle, ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
 import Link from 'next/link';
+import { ArrowLeft, FileSpreadsheet, Database, Layers, Box } from 'lucide-react';
+import UploadZone from './components/UploadZone';
+import { invalidatePriceData } from '@/lib/dataStore';
 
+// Pagina central de upload de los 3 archivos que arman la base de precios
+// del cotizador. Diego sube cada uno y el server lo parsea + persiste.
 export default function PreciosPage() {
-  const [parsed, setParsed] = useState<ParsedPrecio[] | null>(null);
-  const [filename, setFilename] = useState<string>('');
-  const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadCount, setUploadCount] = useState(0);
 
-  async function handleFile(file: File) {
-    setFilename(file.name);
-    setUploadResult(null);
-    const buffer = await file.arrayBuffer();
-    try {
-      const rows = parseExcelFile(buffer);
-      setParsed(rows);
-    } catch (err) {
-      setParsed([]);
-      console.error(err);
-    }
-  }
-
-  async function handleConfirmUpload() {
-    if (!parsed || parsed.length === 0) return;
-    setUploading(true);
-    try {
-      const res = await fetch('/api/precios/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ precios: parsed, archivo_origen: filename }),
-      });
-      const data = await res.json();
-      setUploadResult(data.message || `${data.inserted ?? 0} precios cargados`);
-    } catch (err) {
-      setUploadResult('Error al cargar precios. Verifica configuración de Supabase.');
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  const validRows = parsed?.filter((p) => !p.warning) ?? [];
-  const warningRows = parsed?.filter((p) => p.warning) ?? [];
+  const handleSuccess = () => {
+    invalidatePriceData(); // limpiar cache para que el cotizador jale frescos
+    setUploadCount((c) => c + 1);
+  };
 
   return (
     <div className="min-h-screen bg-bg p-6">
-      <div className="max-w-6xl mx-auto">
-        <Link href="/cotizador" className="text-2xs text-text-muted hover:text-text-primary inline-flex items-center gap-1 mb-3">
+      <div className="max-w-7xl mx-auto">
+        <Link
+          href="/cotizador"
+          className="text-2xs text-text-muted hover:text-text-primary inline-flex items-center gap-1 mb-3"
+        >
           <ArrowLeft className="w-3 h-3" /> Volver al cotizador
         </Link>
 
-        <div className="card p-6 mb-4">
-          <h1 className="text-xl font-semibold mb-1">Precios EDSA / Extruidos</h1>
+        <div className="card p-6 mb-5">
+          <h1 className="text-xl font-semibold mb-1 flex items-center gap-2">
+            <FileSpreadsheet className="w-5 h-5 text-bnp-green" />
+            Carga de archivos de precios
+          </h1>
           <p className="text-sm text-text-secondary">
-            Carga el Excel que envía Diego Cortés con los precios actualizados.
-            Soporta los archivos <span className="mono text-text-primary">Precios_de_producto_EDSA</span> y
-            <span className="mono text-text-primary"> Precios_Color</span>.
+            Sube los 3 archivos que Diego envía. El cotizador los usa
+            automáticamente para sugerir conos, calcular costos y precios.
           </p>
+          <div className="grid grid-cols-3 gap-4 mt-4 text-2xs">
+            <div className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-bnp-green mt-1" />
+              <span className="text-text-muted">
+                <span className="text-text-primary font-semibold">EDSA Extruidos</span> →
+                precios base de stretch films por cono y peso total
+              </span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-bnp-cyan mt-1" />
+              <span className="text-text-muted">
+                <span className="text-text-primary font-semibold">Color</span> →
+                precios para productos con color, R-V, intenso, master
+              </span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-bnp-purple mt-1" />
+              <span className="text-text-muted">
+                <span className="text-text-primary font-semibold">Tarima</span> →
+                catálogo de SKUs históricos + reglas de rollos por tarima
+              </span>
+            </div>
+          </div>
         </div>
 
-        {!parsed && (
-          <div
-            onClick={() => fileRef.current?.click()}
-            onDrop={(e) => {
-              e.preventDefault();
-              const f = e.dataTransfer.files[0];
-              if (f) handleFile(f);
-            }}
-            onDragOver={(e) => e.preventDefault()}
-            className="card p-12 border-2 border-dashed border-border hover:border-bnp-green/60 transition-colors cursor-pointer text-center"
-          >
-            <Upload className="w-10 h-10 text-text-muted mx-auto mb-3" />
-            <p className="text-base font-semibold mb-1">Arrastra el Excel aquí</p>
-            <p className="text-sm text-text-muted">o haz clic para seleccionar archivo</p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".xlsx,.xls,.xlsm"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFile(f);
-              }}
-              className="hidden"
-            />
+        {uploadCount > 0 && (
+          <div className="card p-4 mb-5 border-bnp-green/40">
+            <p className="text-sm">
+              <span className="text-bnp-green font-semibold">✓ {uploadCount} archivo{uploadCount > 1 ? 's' : ''} cargado{uploadCount > 1 ? 's' : ''}</span>
+              <span className="text-text-muted ml-2">
+                — el cotizador ya está usando los datos nuevos
+              </span>
+            </p>
           </div>
         )}
 
-        {parsed && (
-          <>
-            <div className="card p-4 mb-4 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <FileSpreadsheet className="w-5 h-5 text-bnp-green" />
-                <div>
-                  <p className="text-sm font-semibold">{filename}</p>
-                  <p className="text-2xs text-text-muted">
-                    {validRows.length} filas válidas · {warningRows.length} con advertencia
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setParsed(null);
-                    setFilename('');
-                    setUploadResult(null);
-                  }}
-                  className="btn-secondary text-xs"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleConfirmUpload}
-                  disabled={uploading || validRows.length === 0}
-                  className="btn-primary text-xs"
-                >
-                  {uploading ? 'Cargando...' : `Confirmar carga (${validRows.length})`}
-                </button>
-              </div>
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <UploadZone
+            kind="edsa"
+            title="EDSA / Extruidos"
+            description="Precios de producto Manual, Semi/Auto, Pre-estirado"
+            expectedSheets="Hojas: Cono de 0.350, 0.400, ... + Semi/Auto"
+            accentColor="#5BAA47"
+            icon={<Database className="w-5 h-5" />}
+            onUploadSuccess={handleSuccess}
+          />
 
-            {uploadResult && (
-              <div className="card p-4 mb-4 border-bnp-green/40">
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-bnp-green" />
-                  <p className="text-sm font-semibold text-bnp-green">{uploadResult}</p>
-                </div>
-              </div>
-            )}
+          <UploadZone
+            kind="color"
+            title="Color / R-V / Intenso"
+            description="Precios para producto terminado con color"
+            expectedSheets="Hojas: Color 300, R-V 400, Color Auto X.X, etc."
+            accentColor="#009FE3"
+            icon={<Layers className="w-5 h-5" />}
+            onUploadSuccess={handleSuccess}
+          />
 
-            <div className="card overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-bg-surface border-b border-border-subtle">
-                  <tr className="text-2xs text-text-secondary uppercase tracking-wider">
-                    <th className="px-3 py-2 text-left">Resina</th>
-                    <th className="px-3 py-2 text-left">Color</th>
-                    <th className="px-3 py-2 text-right">Ancho (in)</th>
-                    <th className="px-3 py-2 text-right">Calibre (GA)</th>
-                    <th className="px-3 py-2 text-right">PN (kg)</th>
-                    <th className="px-3 py-2 text-right">Cono (kg)</th>
-                    <th className="px-3 py-2 text-right">Precio MXN/kg</th>
-                    <th className="px-3 py-2 text-left">Estado</th>
-                  </tr>
-                </thead>
-                <tbody className="mono">
-                  {parsed.map((p, i) => (
-                    <tr key={i} className="border-b border-border-subtle hover:bg-bg-hover">
-                      <td className="px-3 py-2">{p.tipo_resina}</td>
-                      <td className="px-3 py-2">{p.tipo_color || '—'}</td>
-                      <td className="px-3 py-2 text-right">{p.ancho_in ?? '—'}</td>
-                      <td className="px-3 py-2 text-right">{p.calibre_ga ?? '—'}</td>
-                      <td className="px-3 py-2 text-right">{p.peso_neto_kg !== null ? fmtNum(p.peso_neto_kg, 3) : '—'}</td>
-                      <td className="px-3 py-2 text-right">{p.cono_kg !== null ? fmtNum(p.cono_kg, 3) : '—'}</td>
-                      <td className="px-3 py-2 text-right font-semibold">{fmtNum(p.precio_mxn_kg, 3)}</td>
-                      <td className="px-3 py-2">
-                        {p.warning ? (
-                          <span className="inline-flex items-center gap-1 text-bnp-amber text-2xs">
-                            <AlertTriangle className="w-3 h-3" />
-                            {p.warning}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-bnp-green text-2xs">
-                            <CheckCircle className="w-3 h-3" />
-                            OK
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </>
-        )}
+          <UploadZone
+            kind="tarima"
+            title="Cantidad por Tarima"
+            description="Catálogo SKU histórico + reglas de rollos/tarima"
+            expectedSheets="Hojas: General, Filtros (catálogo)"
+            accentColor="#6B2C91"
+            icon={<Box className="w-5 h-5" />}
+            onUploadSuccess={handleSuccess}
+          />
+        </div>
+
+        <div className="card p-4 mt-5 bg-bg-surface">
+          <h4 className="text-xs font-semibold uppercase tracking-wider mb-2">
+            Notas para Diego
+          </h4>
+          <ul className="text-2xs text-text-secondary space-y-1.5">
+            <li>
+              • Si subes un archivo nuevo del mismo tipo, las versiones anteriores se
+              marcan como obsoletas pero <span className="text-text-primary">se mantienen en historial</span>
+            </li>
+            <li>
+              • El parser tolera el formato actual de tus Excels — no necesitas cambiar
+              nada de cómo los armas
+            </li>
+            <li>
+              • Si aparecen warnings, revisa las primeras filas que se mostrarán abajo —
+              probablemente son hojas extra que el parser ignoró
+            </li>
+            <li>
+              • Los precios se aplican <span className="text-text-primary">inmediatamente</span> al cotizador
+              de los vendedores
+            </li>
+          </ul>
+        </div>
       </div>
     </div>
   );

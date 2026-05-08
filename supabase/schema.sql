@@ -62,6 +62,25 @@ CREATE INDEX IF NOT EXISTS idx_catalog_vigente ON cost_catalog(vigente) WHERE vi
 ALTER TABLE cost_catalog ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "allow_all_cost_catalog" ON cost_catalog FOR ALL USING (true) WITH CHECK (true);
 
+-- Archivos de precios parseados (EDSA, Color, Tarima)
+-- Diego sube los Excel y aqui se guarda el resultado del parser.
+-- El cotizador lee siempre el row vigente mas reciente por kind.
+CREATE TABLE IF NOT EXISTS price_data_files (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  kind VARCHAR(20) NOT NULL,                -- 'edsa', 'color', 'tarima'
+  source_filename VARCHAR(500),
+  uploaded_by VARCHAR(100),
+  uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+  stats JSONB,                              -- { rows, warnings, sheets_processed, etc. }
+  data JSONB NOT NULL,                      -- output del parser (rows: ParsedPriceRow[])
+  vigente BOOLEAN DEFAULT TRUE
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_data_kind_vigente ON price_data_files(kind, uploaded_at DESC) WHERE vigente = TRUE;
+
+ALTER TABLE price_data_files ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_all_price_data_files" ON price_data_files FOR ALL USING (true) WITH CHECK (true);
+
 -- Historial de cambios de precio (auditoría)
 CREATE TABLE IF NOT EXISTS precios_historial (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,

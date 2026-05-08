@@ -49,7 +49,7 @@ export default function BasePricesView() {
         </div>
         <Link href="/cotizador/precios" className="btn-primary text-xs">
           <Upload className="w-3.5 h-3.5" />
-          Cargar nuevo Excel
+          Cargar archivos (EDSA, Color, Tarima)
         </Link>
       </div>
 

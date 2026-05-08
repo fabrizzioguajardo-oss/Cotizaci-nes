@@ -26,12 +26,34 @@ export interface PriceData {
 let _cache: PriceData | null = null;
 let _loadingPromise: Promise<PriceData | null> | null = null;
 
+// Limpia el cache para que el proximo loadPriceData() jale datos frescos.
+// Usar despues de subir un archivo nuevo desde el admin.
+export function invalidatePriceData(): void {
+  _cache = null;
+  _loadingPromise = null;
+}
+
 // Singleton loader. Cualquier consumer obtiene la misma instancia.
 export async function loadPriceData(): Promise<PriceData | null> {
   if (_cache) return _cache;
   if (_loadingPromise) return _loadingPromise;
 
   _loadingPromise = (async () => {
+    // 1) Primero intentar Supabase (datos vigentes que Diego subio desde el admin)
+    try {
+      const res = await fetch('/api/data/current', { cache: 'no-store' });
+      if (res.ok) {
+        const data = (await res.json()) as PriceData;
+        _cache = data;
+        return data;
+      }
+      // 204 = no hay datos en Supabase, caer al fallback
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[dataStore] /api/data/current falló, intento fallback estatico:', err);
+    }
+
+    // 2) Fallback: JSON estatico precompilado en build time
     try {
       const res = await fetch('/data/precios.json', { cache: 'force-cache' });
       if (!res.ok) {
