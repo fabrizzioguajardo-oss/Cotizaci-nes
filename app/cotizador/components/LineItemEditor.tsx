@@ -3,6 +3,11 @@
 import type { LineItem, CalcResult, ResinType, ColorType, Unit } from '@/types';
 import { fmtNum, fmtUSD } from '@/lib/format';
 import CatalogPicker from './CatalogPicker';
+import ConeSelectorPanel from './ConeSelectorPanel';
+import MatchQualityBadge from './MatchQualityBadge';
+import { usePriceData } from '@/lib/dataStore';
+import { buildAutoFill, type ConoOption } from '@/lib/lookupEngine';
+import { useState } from 'react';
 
 interface Props {
   item: LineItem;
@@ -16,6 +21,11 @@ interface Props {
 //   3) Costos MXN/kg              - base + adders
 // + campo de precio del cliente al final
 export default function LineItemEditor({ item, result, onChange }: Props) {
+  const { data } = usePriceData();
+  // Calidad del último match aplicado (para mostrar badge en la sección de costos)
+  const [matchQuality, setMatchQuality] = useState<'exact' | 'close' | 'interpolated' | null>(null);
+  const [matchSource, setMatchSource] = useState<string>('');
+
   const num = (key: keyof LineItem) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
       onChange({ [key]: parseFloat(e.target.value) || 0 } as Partial<LineItem>);
@@ -23,6 +33,57 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
   const str = (key: keyof LineItem) =>
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       onChange({ [key]: e.target.value } as Partial<LineItem>);
+
+  // Cuando el vendedor elige un cono del panel, auto-llenamos:
+  // cono, rollos/tarima, costo base, master, intenso (cuando aplica)
+  const handleConePick = (option: ConoOption) => {
+    if (!data) return;
+
+    // Mapear ColorType del item a resin_class del lookup
+    const resinClass: 'virgen' | 'reciclado' | 'color' =
+      item.tipoResina === 'reciclado'
+        ? 'reciclado'
+        : item.tipoResina === 'color' || item.tipoColor !== 'clear'
+          ? 'color'
+          : 'virgen';
+
+    const fill = buildAutoFill({
+      ancho: item.aCliente,
+      calibre: item.calCliente,
+      largo_ft: item.lCliente,
+      cono: option.cono,
+      resin_class: resinClass,
+      preciosEDSA: data.precios_edsa,
+      preciosColor: data.precios_color,
+      rangos: data.rangos_tarima,
+    });
+
+    if (!fill) {
+      // No encontramos precio - solo aplicamos cono y rollos/tarima
+      onChange({
+        cono: option.cono,
+        aReal: item.aCliente,
+        calReal: item.calCliente,
+        lReal: item.lCliente,
+        rollosPallet: option.rollos_por_tarima || item.rollosPallet,
+      });
+      setMatchQuality(null);
+      return;
+    }
+
+    onChange({
+      cono: fill.cono,
+      aReal: item.aCliente,
+      calReal: item.calCliente,
+      lReal: item.lCliente,
+      rollosPallet: fill.rollos_por_tarima || item.rollosPallet,
+      costoBase: fill.costo_base_mxn_kg,
+      master: fill.master_mxn_kg || item.master,
+      intenso: fill.intenso_mxn_kg || item.intenso,
+    });
+    setMatchQuality(fill.match_quality);
+    setMatchSource(fill.source_note);
+  };
 
   return (
     <div className="space-y-5">
@@ -137,6 +198,15 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
         </div>
       </section>
 
+      {/* === Selector de cono inteligente === */}
+      <ConeSelectorPanel
+        ancho={item.aCliente}
+        calibre={item.calCliente}
+        largo={item.lCliente}
+        selectedCono={item.cono}
+        onPick={handleConePick}
+      />
+
       {/* === Sección 2: Configuración logística === */}
       <section className="border border-border bg-bg-surface rounded-lg p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -182,11 +252,14 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
 
       {/* === Sección 3: Costos MXN/kg (build-up) === */}
       <section className="border border-border bg-bg-surface rounded-lg p-4">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="w-2 h-2 rounded-full bg-bnp-amber" />
-          <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-            Build-up de costo (MXN/kg)
-          </h4>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-bnp-amber" />
+            <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
+              Build-up de costo (MXN/kg)
+            </h4>
+          </div>
+          <MatchQualityBadge quality={matchQuality} source={matchSource} />
         </div>
         <p className="text-2xs text-text-muted mb-3">
           Cada adder se puede cargar del catálogo central (botón <span className="text-bnp-green">catálogo</span>).
