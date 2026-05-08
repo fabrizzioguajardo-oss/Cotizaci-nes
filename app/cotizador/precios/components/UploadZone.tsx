@@ -1,9 +1,16 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, Download } from 'lucide-react';
 
 export type UploadKind = 'edsa' | 'color' | 'tarima';
+
+// Mapeo de kind → archivo template descargable
+const TEMPLATE_URL: Record<UploadKind, string> = {
+  edsa: '/templates/template_precios_EDSA.xlsx',
+  color: '/templates/template_precios_color.xlsx',
+  tarima: '/templates/template_tarima.xlsx',
+};
 
 interface UploadResult {
   ok: boolean;
@@ -13,6 +20,24 @@ interface UploadResult {
   warnings_count: number;
   sample_warnings?: string[];
   persisted: boolean;
+}
+
+function FormatBadge({ format }: { format: string | number | undefined }) {
+  if (format === 'template') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-semibold bg-bnp-green/15 text-bnp-green border border-bnp-green/30">
+        ✨ Template limpio
+      </span>
+    );
+  }
+  if (format === 'legacy') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-2xs font-semibold bg-bnp-cyan/15 text-bnp-cyan border border-bnp-cyan/30">
+        📄 Formato actual
+      </span>
+    );
+  }
+  return null;
 }
 
 interface Props {
@@ -87,44 +112,60 @@ export default function UploadZone({
       </div>
 
       {!result && !uploading && (
-        <div
-          onClick={() => fileRef.current?.click()}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDragOver(false);
-            const f = e.dataTransfer.files[0];
-            if (f) handleFile(f);
-          }}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          className={`p-8 cursor-pointer text-center border-2 border-dashed m-3 rounded-md transition-colors ${
-            dragOver ? 'bg-bg-hover' : 'border-border'
-          }`}
-          style={{ borderColor: dragOver ? accentColor : undefined }}
-        >
-          <Upload
-            className="w-7 h-7 mx-auto mb-2"
-            style={{ color: dragOver ? accentColor : '#6E7681' }}
-          />
-          <p className="text-sm font-medium mb-1">Arrastra el Excel aquí</p>
-          <p className="text-2xs text-text-muted">o haz clic para seleccionar</p>
-          <p className="text-2xs text-text-muted mt-3 mono">
-            {expectedSheets}
-          </p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".xlsx,.xls,.xlsm"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
+        <>
+          <div
+            onClick={() => fileRef.current?.click()}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const f = e.dataTransfer.files[0];
               if (f) handleFile(f);
             }}
-            className="hidden"
-          />
-        </div>
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            className={`p-8 cursor-pointer text-center border-2 border-dashed m-3 rounded-md transition-colors ${
+              dragOver ? 'bg-bg-hover' : 'border-border'
+            }`}
+            style={{ borderColor: dragOver ? accentColor : undefined }}
+          >
+            <Upload
+              className="w-7 h-7 mx-auto mb-2"
+              style={{ color: dragOver ? accentColor : '#6E7681' }}
+            />
+            <p className="text-sm font-medium mb-1">Arrastra el Excel aquí</p>
+            <p className="text-2xs text-text-muted">o haz clic para seleccionar</p>
+            <p className="text-2xs text-text-muted mt-3 mono">
+              {expectedSheets}
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".xlsx,.xls,.xlsm"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) handleFile(f);
+              }}
+              className="hidden"
+            />
+          </div>
+          <div className="px-4 pb-3 -mt-1 border-t border-border-subtle pt-3">
+            <a
+              href={TEMPLATE_URL[kind]}
+              download
+              className="inline-flex items-center gap-1.5 text-2xs text-text-muted hover:text-text-primary"
+              title="Descarga el template limpio recomendado para este tipo"
+            >
+              <Download className="w-3 h-3" />
+              Descargar template limpio
+            </a>
+            <p className="text-2xs text-text-muted mt-1">
+              Acepta tu formato actual <span className="text-text-primary">o</span> el template limpio. Auto-detect.
+            </p>
+          </div>
+        </>
       )}
 
       {uploading && (
@@ -142,10 +183,13 @@ export default function UploadZone({
           <div className="flex items-start gap-2 mb-3">
             <CheckCircle className="w-4 h-4 mt-0.5" style={{ color: accentColor }} />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold">{result.source_filename}</p>
-              <p className="text-2xs text-text-muted truncate">
-                {result.persisted ? '✓ Guardado en BD' : '⚠ Solo en memoria (Supabase no configurado)'}
-              </p>
+              <p className="text-sm font-semibold truncate">{result.source_filename}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <FormatBadge format={result.stats.format} />
+                <p className="text-2xs text-text-muted">
+                  {result.persisted ? '✓ Guardado en BD' : '⚠ Solo en memoria'}
+                </p>
+              </div>
             </div>
           </div>
 

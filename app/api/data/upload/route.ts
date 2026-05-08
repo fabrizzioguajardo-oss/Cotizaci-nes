@@ -11,6 +11,12 @@ import { getSupabase } from '@/lib/supabase';
 import { parseEDSAFile } from '@/lib/parsers/edsaParser';
 import { parseColorFile } from '@/lib/parsers/colorParser';
 import { parseTarimaFile } from '@/lib/parsers/tarimaParser';
+import {
+  parseEDSATemplate,
+  parseColorTemplate,
+  parseTarimaTemplate,
+  isCleanTemplate,
+} from '@/lib/parsers/flatTemplateParser';
 
 export const runtime = 'nodejs'; // necesitamos Node, no Edge (xlsx usa Buffer)
 
@@ -42,14 +48,23 @@ export async function POST(req: NextRequest) {
   const filename = (file instanceof File ? file.name : '') || `upload-${Date.now()}.xlsx`;
   const buffer = await file.arrayBuffer();
 
-  // Parsear según el tipo
+  // Auto-detect: ¿template limpio o formato legacy?
+  let isTemplate = false;
+  try {
+    isTemplate = isCleanTemplate(buffer, kindStr);
+  } catch {
+    isTemplate = false;
+  }
+
+  // Parsear según el tipo + formato
   let payload: Record<string, unknown>;
   let stats: Record<string, number | string>;
   let warnings: string[];
+  let formatUsed: 'template' | 'legacy';
 
   try {
     if (kindStr === 'edsa') {
-      const r = parseEDSAFile(buffer);
+      const r = isTemplate ? parseEDSATemplate(buffer) : parseEDSAFile(buffer);
       payload = { rows: r.rows };
       stats = {
         rows: r.rows.length,
@@ -58,8 +73,9 @@ export async function POST(req: NextRequest) {
         sheets_skipped: r.sheetsSkipped.length,
       };
       warnings = r.warnings;
+      formatUsed = isTemplate ? 'template' : 'legacy';
     } else if (kindStr === 'color') {
-      const r = parseColorFile(buffer);
+      const r = isTemplate ? parseColorTemplate(buffer) : parseColorFile(buffer);
       payload = { rows: r.rows };
       stats = {
         rows: r.rows.length,
@@ -68,8 +84,9 @@ export async function POST(req: NextRequest) {
         sheets_skipped: r.sheetsSkipped.length,
       };
       warnings = r.warnings;
+      formatUsed = isTemplate ? 'template' : 'legacy';
     } else {
-      const r = parseTarimaFile(buffer);
+      const r = isTemplate ? parseTarimaTemplate(buffer) : parseTarimaFile(buffer);
       payload = { catalogo: r.catalogo, rangos: r.rangos };
       stats = {
         skus: r.catalogo.length,
@@ -77,7 +94,9 @@ export async function POST(req: NextRequest) {
         warnings: r.warnings.length,
       };
       warnings = r.warnings;
+      formatUsed = isTemplate ? 'template' : 'legacy';
     }
+    stats.format = formatUsed;
   } catch (err) {
     return NextResponse.json(
       { error: `Error parseando: ${err instanceof Error ? err.message : 'unknown'}` },
