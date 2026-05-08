@@ -1,0 +1,203 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --color-bg: #0D1117;
+  --color-bg-elevated: #161B22;
+  --color-bg-surface: #1C2129;
+  --color-bg-hover: #21262D;
+  --color-border: #30363D;
+  --color-border-subtle: #21262D;
+  --color-text-primary: #E6EDF3;
+  --color-text-secondary: #8B949E;
+  --color-text-muted: #6E7681;
+  --color-bnp-green: #5BAA47;
+  --color-bnp-purple: #6B2C91;
+  --color-bnp-cyan: #009FE3;
+  --color-bnp-amber: #F59E0B;
+  --color-bnp-red: #EF4444;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tipografía monoespaciada para números */
+.mono, input[type="number"], .num {
+  font-family: 'JetBrains Mono', Menlo, Monaco, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inputs personalizados */
+.input {
+  @apply w-full bg-bg-elevated border border-border rounded-md px-3 py-2 text-sm text-text-primary
+         focus:outline-none focus:border-bnp-green focus:ring-1 focus:ring-bnp-green/30
+         placeholder:text-text-muted transition-colors;
+  font-family: 'JetBrains Mono', Menlo, Monaco, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.input-text {
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+.input-cyan:focus {
+  border-color: #009FE3;
+  box-shadow: 0 0 0 3px rgba(0, 159, 227, 0.15);
+}
+
+.input-purple:focus {
+  border-color: #6B2C91;
+  box-shadow: 0 0 0 3px rgba(107, 44, 145, 0.15);
+}
+
+.input-green:focus {
+  border-color: #5BAA47;
+  box-shadow: 0 0 0 3px rgba(91, 170, 71, 0.15);
+}
+
+.label {
+  @apply block text-2xs font-semibold text-text-secondary uppercase tracking-wider mb-1.5;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium
+         transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply btn bg-bnp-green hover:bg-bnp-green-dark text-white;
+}
+
+.btn-secondary {
+  @apply btn bg-bg-elevated hover:bg-bg-hover text-text-primary border border-border;
+}
+
+.btn-purple {
+  @apply btn bg-bnp-purple hover:bg-bnp-purple-dark text-white;
+}
+
+.card {
+  @apply bg-bg-elevated border border-border rounded-lg;
+}
+
+.card-header {
+  @apply px-4 py-3 border-b border-border-subtle flex items-center justify-between;
+}
+
+.card-body {
+  @apply p-4;
+}
+
+/* Slider personalizado */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  background: #21262D;
+  height: 6px;
+  border-radius: 9999px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #5BAA47;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  border: 2px solid #0D1117;
+  margin-top: -6px;
+  box-shadow: 0 0 0 3px rgba(91, 170, 71, 0.2);
+  transition: transform 0.1s;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+input[type="range"]::-moz-range-track {
+  background: #21262D;
+  height: 6px;
+  border-radius: 9999px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  background: #5BAA47;
+  height: 18px;
+  width: 18px;
+  border-radius: 50%;
+  border: 2px solid #0D1117;
+  box-shadow: 0 0 0 3px rgba(91, 170, 71, 0.2);
+  cursor: pointer;
+}
+
+/* Tabs */
+.tab {
+  @apply px-5 py-2.5 text-sm font-medium border-b-2 border-transparent text-text-secondary
+         hover:text-text-primary transition-colors cursor-pointer;
+}
+
+.tab-active {
+  @apply text-text-primary border-bnp-green;
+}
+
+/* Scrollbar oscura */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0D1117;
+}
+::-webkit-scrollbar-thumb {
+  background: #30363D;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #484F58;
+}
+
+/* Utility para esconder spinner de inputs number */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Animación sutil de cambio de valor */
+.value-pulse {
+  animation: valuePulse 0.4s ease-out;
+}
+@keyframes valuePulse {
+  0% { background-color: rgba(91, 170, 71, 0.2); }
+  100% { background-color: transparent; }
+}
+
+/* Print styles para PDF preview */
+@media print {
+  body { background: white; color: black; }
+}
