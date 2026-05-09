@@ -4,7 +4,7 @@ import { MessageSquarePlus } from 'lucide-react';
 
 // Boton flotante de feedback. Abre mailto con el contexto pre-rellenado
 // (URL, version, fecha) para que el vendedor solo tenga que escribir el bug.
-const FEEDBACK_EMAIL = 'guajardofabrizzio@gmail.com';
+const FEEDBACK_EMAIL = 'fabrizzio.guajardo@bionovapack.com';
 const VERSION = 'v0.1.0-beta';
 
 export default function FeedbackButton() {

@@ -12,7 +12,7 @@ import type {
 export const FC_LBS = 2.20462;
 export const PN_FORMULA_CONST = 0.0000018148;
 export const MARGIN_MIN = 0.12;        // 12% markup mínimo
-export const TRAILER_MAX_KG = 20412;   // capacidad máxima de un trailer
+export const TRAILER_MAX_KG = 19200;   // capacidad máxima de un trailer (kg neto)
 
 // Rangos de validación históricos
 export const REDUCTION_MIN = 0.05;
