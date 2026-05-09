@@ -20,7 +20,6 @@ https://cotizaci-nes-fabrizzioguajardo-4543s-projects.vercel.app/cotizador
 
 > *La URL exacta puede variar — Fabrizzio te la mandará por correo o WhatsApp.*
 
-📷 **[CAPTURA 1 — pantalla principal del cotizador, mostrando los dos tabs y el sidebar de líneas]**
 
 Te recibe la pantalla del cotizador con un cliente de ejemplo cargado (Level Packaging). Para empezar de cero, edita los campos o agrega líneas nuevas.
 
@@ -29,8 +28,6 @@ Te recibe la pantalla del cotizador con un cliente de ejemplo cargado (Level Pac
 # Parte 1 — Para vendedores
 
 ## 1. Conoce la pantalla principal
-
-📷 **[CAPTURA 2 — vista completa de la pantalla con anotaciones numeradas]**
 
 Tres áreas principales:
 
@@ -44,7 +41,7 @@ Tres áreas principales:
 
 ## 2. Llenar los datos generales del camión
 
-📷 **[CAPTURA 3 — top bar con flechas señalando cada campo]**
+
 
 Antes de empezar a cotizar productos:
 
@@ -60,7 +57,6 @@ Antes de empezar a cotizar productos:
 
 ### Sidebar de líneas
 
-📷 **[CAPTURA 4 — sidebar mostrando varias líneas + botón "Nueva línea"]**
 
 Cada producto del camión es una **línea**. En el sidebar izquierdo:
 
@@ -81,7 +77,7 @@ Este es donde vives el 90% del tiempo. Se divide en 4 secciones:
 
 ### 4.1 Spec declarado al cliente (cyan)
 
-📷 **[CAPTURA 5 — sección cyan "Spec declarado al cliente" con flechas a cada campo]**
+
 
 Aquí pones lo que el cliente pidió **literal en el PO**:
 
@@ -95,7 +91,6 @@ Aquí pones lo que el cliente pidió **literal en el PO**:
 
 ### 4.2 Selector de cono (sugerencia automática)
 
-📷 **[CAPTURA 6 — panel "Opciones de fabricación" con cards de cada cono]**
 
 Apenas llenas ancho/calibre/largo, **aparece automáticamente** un panel con todas las opciones de cono disponibles para ese producto.
 
@@ -118,7 +113,6 @@ Cada card muestra:
 
 ### 4.3 Configuración logística
 
-📷 **[CAPTURA 7 — sección morada "Configuración logística"]**
 
 - **Cono (kg)** — se autollenó al elegir cono arriba; puedes ajustar manual
 - **Rollos / tarima** — se autollenó; ajusta si necesitas otra config
@@ -128,7 +122,6 @@ Cada card muestra:
 
 ### 4.4 Build-up de costo (MXN/kg)
 
-📷 **[CAPTURA 8 — sección amber con todos los adders]**
 
 Aquí ves cada componente del costo. Cada uno tiene un link **"catálogo"** al lado que abre el catálogo central:
 
@@ -146,8 +139,6 @@ Aquí ves cada componente del costo. Cada uno tiene un link **"catálogo"** al l
 
 ### 4.5 Precio negociado con el cliente (verde)
 
-📷 **[CAPTURA 9 — sección verde con campo de precio grande y métricas]**
-
 - **Campo de precio grande** — pon el precio en USD por unidad (case / roll / pallet) que negociaste con el cliente
 - A la derecha verás: **Costo USD**, **Margen $**, **Price/lb**
 
@@ -156,8 +147,6 @@ Aquí ves cada componente del costo. Cada uno tiene un link **"catálogo"** al l
 ---
 
 ## 5. Tab 2 — Sugerencia para planta
-
-📷 **[CAPTURA 10 — Tab 2 con slider de margen y card de sugerencia]**
 
 Este tab es la **innovación clave** del cotizador.
 
@@ -185,8 +174,6 @@ Este tab es la **innovación clave** del cotizador.
 
 ## 6. Reportar bugs y sugerencias
 
-📷 **[CAPTURA 11 — botón flotante "Reportar" en la esquina inferior derecha]**
-
 Al pie de la pantalla, abajo a la derecha, hay un botón amber redondo que dice **"Reportar"**.
 
 Al darle click:
@@ -204,8 +191,6 @@ El mensaje llega a Fabrizzio quien revisa y responde.
 
 ## 7. Acceder al panel de admin
 
-📷 **[CAPTURA 12 — botón "Admin de costos" en el top bar]**
-
 Arriba a la derecha en el cotizador hay un botón **"Admin de costos"**. Click lleva a `/cotizador/admin`.
 
 > ⚠️ **Por ahora todos los usuarios ven este botón.** En la siguiente versión solo lo verán Diego y Fabrizzio.
@@ -214,7 +199,6 @@ Arriba a la derecha en el cotizador hay un botón **"Admin de costos"**. Click l
 
 ## 8. Subir los 3 archivos de Diego
 
-📷 **[CAPTURA 13 — página /cotizador/precios con 3 zonas de upload]**
 
 Click **"Carga Excel EDSA"** en el top bar (o desde Admin → "Cargar archivos"). Te lleva a la página de upload con 3 zonas separadas:
 
@@ -230,7 +214,6 @@ Click **"Carga Excel EDSA"** en el top bar (o desde Admin → "Cargar archivos")
 ### 8.3 Tarima (morado)
 - Acepta *Cantidad Producto por Tarima.xlsx*
 
-📷 **[CAPTURA 14 — zona de upload después de cargar exitosamente, con badge "Match" + stats]**
 
 > 💡 **Cada zona tiene un link "Descargar template limpio"** abajo. Diego puede usar ese template más simple en lugar de su formato actual (opcional, ambos funcionan).
 
@@ -238,7 +221,6 @@ Click **"Carga Excel EDSA"** en el top bar (o desde Admin → "Cargar archivos")
 
 ## 9. Catálogo central de adders
 
-📷 **[CAPTURA 15 — pantalla /cotizador/admin con las 8 tabs en el header]**
 
 En `/cotizador/admin` hay 8 tabs:
 
@@ -255,7 +237,6 @@ En `/cotizador/admin` hay 8 tabs:
 
 ### Agregar una entrada nueva
 
-📷 **[CAPTURA 16 — formulario de "Nueva entrada" en la tab de Master color]**
 
 Click **"+ Nueva entrada"** en cualquier tab:
 
@@ -270,7 +251,6 @@ Para **Caja blanca** específicamente, el formulario tiene 3 campos extra (caja_
 
 ### Frescura de los datos
 
-📷 **[CAPTURA 17 — tabla con columna "Última actualización" mostrando colores]**
 
 Cada entrada tiene una columna **"Última actualización"** con semáforo:
 - 🟢 Verde: ≤ 30 días — fresco
@@ -280,8 +260,6 @@ Cada entrada tiene una columna **"Última actualización"** con semáforo:
 En el top bar del cotizador hay un badge global **"Datos hace X días"** que muestra la frescura del dato más viejo. Click → te lleva al admin.
 
 ### Marcar como obsoleta
-
-📷 **[CAPTURA 18 — fila de la tabla con el botón rojo de "Marcar como obsoleta"]**
 
 Para retirar un precio sin borrar (mantener historial), click el ícono 🗑 rojo. La entrada se marca `vigente=false` pero queda en BD.
 
@@ -332,7 +310,7 @@ Por ahora todo se muestra en USD para el cliente y MXN para los costos. Podemos 
 # Contacto y reporte de bugs
 
 - **Botón "Reportar"** — abre correo con contexto pre-rellenado a `fabrizzio.guajardo@bionovapack.com`
-- **WhatsApp** (urgentes) — Fabrizzio
+- **WhatsApp** (urgentes)+52 8126403844 — Fabrizzio
 - **Correo** — `fabrizzio.guajardo@bionovapack.com`
 
 > *Esta es la versión BETA. Es esperado que encuentres bugs y cosas confusas. Cada reporte ayuda a mejorar la herramienta para todo el equipo.*
