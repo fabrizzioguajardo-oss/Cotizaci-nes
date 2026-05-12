@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Database, Palette, Droplet, Package2, Box, Scissors, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import CatalogSection from './components/CatalogSection';
 import BasePricesView from './components/BasePricesView';
+import AdminGuard from '../components/AdminGuard';
 import type { CostCategory } from '@/types';
 
 interface TabDef {
@@ -29,6 +30,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<TabDef['key']>('base');
 
   return (
+    <AdminGuard>
     <div className="min-h-screen bg-bg">
       {/* Header */}
       <header className="border-b border-border bg-bg-elevated">
@@ -159,5 +161,6 @@ export default function AdminPage() {
         )}
       </main>
     </div>
+    </AdminGuard>
   );
 }

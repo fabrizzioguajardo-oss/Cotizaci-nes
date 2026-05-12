@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, FileSpreadsheet, Database, Layers, Box } from 'lucide-react';
 import UploadZone from './components/UploadZone';
+import AdminGuard from '../components/AdminGuard';
 import { invalidatePriceData } from '@/lib/dataStore';
 
 // Pagina central de upload de los 3 archivos que arman la base de precios
@@ -17,6 +18,7 @@ export default function PreciosPage() {
   };
 
   return (
+    <AdminGuard>
     <div className="min-h-screen bg-bg p-6">
       <div className="max-w-7xl mx-auto">
         <Link
@@ -128,5 +130,6 @@ export default function PreciosPage() {
         </div>
       </div>
     </div>
+    </AdminGuard>
   );
 }
