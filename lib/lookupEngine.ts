@@ -126,8 +126,11 @@ export function lookupConoOptions(params: {
 
 // === Lookup de precio dado (ancho, cono, PB, resin_class) ===
 
-// Busca el match mas cercano por PB en el universo de precios filtrado por
-// (ancho, cono, resin_class). Usa interpolación si hay rows arriba y abajo.
+// Busca el match por PB usando semantica de INTERVALO (floor).
+// Los precios en el Excel de Diego representan rangos: el row PB=2.90 cubre
+// pesos [2.90, 3.00), el row 3.00 cubre [3.00, 3.10), etc.
+// Por eso si el usuario cotiza PB=2.96 debe tomar el row de PB=2.90 (no 3.00).
+// La logica anterior tomaba "el mas cercano" lo cual rompia esta convencion.
 export function lookupPrice(params: {
   ancho: number;
   cono: number;
@@ -168,15 +171,24 @@ export function lookupPrice(params: {
 
   if (candidates.length === 0) return null;
 
-  // Encontrar el mas cercano por PB
-  let best = candidates[0];
-  let bestDistance = Math.abs(best.peso_total - pb);
-  for (const c of candidates) {
-    const d = Math.abs(c.peso_total - pb);
-    if (d < bestDistance) {
-      best = c;
-      bestDistance = d;
-    }
+  // Semantica de INTERVALO (floor): tomar el row con PB <= target mas alto.
+  // Ej: target=2.96 → entre [2.90, 3.00) → row PB=2.90.
+  // Tolerancia: 0.005 para que PB=3.00 match el row 3.00 (no caiga al 2.90).
+  const FLOOR_TOLERANCE = 0.005;
+  const lowerOrEqual = candidates.filter((c) => c.peso_total <= pb + FLOOR_TOLERANCE);
+
+  let best: ParsedPriceRow;
+  let bestDistance: number;
+
+  if (lowerOrEqual.length > 0) {
+    // Tomar el de PB MAS ALTO entre los <= target (el inmediatamente abajo)
+    best = lowerOrEqual.reduce((acc, c) => (c.peso_total > acc.peso_total ? c : acc));
+    bestDistance = Math.abs(best.peso_total - pb);
+  } else {
+    // Fallback: ningun row con PB <= target. Tomar el de menor PB disponible.
+    // (Caso edge: el producto es mas pequeño que cualquier row del Excel)
+    best = candidates.reduce((acc, c) => (c.peso_total < acc.peso_total ? c : acc));
+    bestDistance = Math.abs(best.peso_total - pb);
   }
 
   // Calidad del match
@@ -198,7 +210,7 @@ export function lookupPrice(params: {
   };
 }
 
-// Helper interno: busca el precio EDSA mas cercano a (ancho, cono, PB).
+// Helper interno: busca el precio EDSA con semantica de intervalo (floor PB).
 // Acepta cualquier product_type para no perder Auto/Semi/HP cuando aplican.
 function findClosestEDSAPrice(
   preciosEDSA: ParsedPriceRow[],
@@ -214,16 +226,15 @@ function findClosestEDSAPrice(
   // Priorizar exact ancho match si lo hay
   const exactAncho = candidates.filter((c) => c.ancho === ancho);
   const pool = exactAncho.length > 0 ? exactAncho : candidates;
-  let best: ParsedPriceRow | null = null;
-  let bestDist = Infinity;
-  for (const c of pool) {
-    const d = Math.abs(c.peso_total - pb);
-    if (d < bestDist) {
-      best = c;
-      bestDist = d;
-    }
+
+  // Floor: tomar el row con PB <= target mas alto
+  const FLOOR_TOLERANCE = 0.005;
+  const lowerOrEqual = pool.filter((c) => c.peso_total <= pb + FLOOR_TOLERANCE);
+  if (lowerOrEqual.length > 0) {
+    return lowerOrEqual.reduce((acc, c) => (c.peso_total > acc.peso_total ? c : acc));
   }
-  return best;
+  // Fallback: ningun row con PB <= target. Tomar el de menor PB.
+  return pool.reduce((acc, c) => (c.peso_total < acc.peso_total ? c : acc));
 }
 
 // === Helper unificado para auto-llenar el LineItemEditor ===
