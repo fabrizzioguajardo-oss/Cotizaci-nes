@@ -1,7 +1,8 @@
 // Cliente Supabase para Server Components / Route Handlers que usan next/headers.
 //
 // IMPORTANTE: este archivo NO se puede importar desde middleware (Edge runtime).
-// Para middleware usar `lib/supabaseMiddleware.ts` que es Edge-safe.
+// Para middleware y route handlers Edge, el cliente está inline en cada
+// archivo (ver middleware.ts y app/auth/callback/route.ts).
 
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
