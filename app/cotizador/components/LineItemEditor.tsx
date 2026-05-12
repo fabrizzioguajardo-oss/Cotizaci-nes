@@ -5,6 +5,7 @@ import { fmtNum, fmtUSD } from '@/lib/format';
 import CatalogPicker from './CatalogPicker';
 import ConeSelectorPanel from './ConeSelectorPanel';
 import MatchQualityBadge from './MatchQualityBadge';
+import SpecCards from './SpecCards';
 import { usePriceData } from '@/lib/dataStore';
 import { buildAutoFill, type ConoOption } from '@/lib/lookupEngine';
 import { useState } from 'react';
@@ -206,6 +207,9 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
         selectedCono={item.cono}
         onPick={handleConePick}
       />
+
+      {/* === Cards de spec calculado: PN/PB, kg tarima, rollos, kg item === */}
+      <SpecCards item={item} result={result} />
 
       {/* === Sección 2: Configuración logística === */}
       <section className="border border-border bg-bg-surface rounded-lg p-4">
