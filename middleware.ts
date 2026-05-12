@@ -30,10 +30,17 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  // Refresca el token si expiró
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Refresca el token si expiró. Wrap en try/catch para no romper la app
+  // si Supabase tiene un blip transitorio.
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data.user;
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[middleware] auth.getUser falló:', err);
+    return response;
+  }
 
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));

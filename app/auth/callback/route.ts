@@ -1,10 +1,15 @@
 // Route handler de callback de Supabase Auth.
 // Recibe el token del magic link, lo intercambia por sesión, y redirige al
 // usuario al destino original (o /cotizador por default).
-// Cliente Supabase inline para consistency con middleware.
+//
+// PATRÓN OFICIAL Supabase + Next.js App Router con @supabase/ssr.
+// Route handlers corren en Node runtime por default, así que sí podemos
+// usar `cookies()` de `next/headers` (a diferencia del middleware que
+// corre en Edge).
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;
@@ -21,17 +26,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=supabase_not_configured`);
   }
 
-  let response = NextResponse.redirect(`${origin}${next}`);
-
+  // Usar cookies() de next/headers — patron oficial. Las cookies se setean
+  // sobre el cookieStore y Next.js las incluye automáticamente en el response
+  // del Route Handler, así no hay que manipular request/response manualmente.
+  const cookieStore = await cookies();
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
-        return request.cookies.getAll();
+        return cookieStore.getAll();
       },
       setAll(toSet) {
-        toSet.forEach(({ name, value }) => request.cookies.set(name, value));
-        response = NextResponse.redirect(`${origin}${next}`);
-        toSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
+        try {
+          toSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options);
+          });
+        } catch (err) {
+          // eslint-disable-next-line no-console
+          console.warn('[auth/callback] no se pudieron setear cookies:', err);
+        }
       },
     },
   });
@@ -39,9 +51,11 @@ export async function GET(request: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code);
   if (error) {
     // eslint-disable-next-line no-console
-    console.error('[auth/callback] exchange failed:', error);
+    console.error('[auth/callback] exchange failed:', error.message);
     return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  return response;
+  // Cookies de sesión ya están seteadas en cookieStore — el redirect
+  // las incluye automáticamente.
+  return NextResponse.redirect(`${origin}${next}`);
 }
