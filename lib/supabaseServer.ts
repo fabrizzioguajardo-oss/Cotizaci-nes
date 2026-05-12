@@ -1,9 +1,10 @@
-// Cliente Supabase para Server Components / Route Handlers / Middleware.
-// Maneja cookies para refrescar la sesión automáticamente.
+// Cliente Supabase para Server Components / Route Handlers que usan next/headers.
+//
+// IMPORTANTE: este archivo NO se puede importar desde middleware (Edge runtime).
+// Para middleware usar `lib/supabaseMiddleware.ts` que es Edge-safe.
 
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import type { NextRequest, NextResponse } from 'next/server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -23,24 +24,6 @@ export async function getSupabaseServer() {
         } catch {
           // Server Component context — cookies son read-only desde aquí. Ignorar.
         }
-      },
-    },
-  });
-}
-
-// Cliente para Middleware — necesita request y response para manipular cookies.
-export function getSupabaseMiddleware(request: NextRequest, response: NextResponse) {
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return request.cookies.getAll();
-      },
-      setAll(toSet) {
-        toSet.forEach(({ name, value, options }) => {
-          request.cookies.set(name, value);
-          response.cookies.set(name, value, options);
-        });
       },
     },
   });

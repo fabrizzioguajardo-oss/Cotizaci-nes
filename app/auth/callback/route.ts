@@ -3,7 +3,7 @@
 // usuario al destino original (o /cotizador por default).
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSupabaseMiddleware } from '@/lib/supabaseServer';
+import { getSupabaseMiddleware } from '@/lib/supabaseMiddleware';
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = request.nextUrl;

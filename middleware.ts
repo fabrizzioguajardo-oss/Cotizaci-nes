@@ -3,7 +3,7 @@
 // Todo lo demás requiere sesión activa.
 
 import { NextResponse, type NextRequest } from 'next/server';
-import { getSupabaseMiddleware } from '@/lib/supabaseServer';
+import { getSupabaseMiddleware } from '@/lib/supabaseMiddleware';
 
 const PUBLIC_PATHS = ['/login', '/auth/callback', '/auth/check-email'];
 
