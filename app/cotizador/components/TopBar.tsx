@@ -2,9 +2,10 @@
 
 import { fmtUSD, fmtNum } from '@/lib/format';
 import { TRAILER_MAX_KG } from '@/lib/pricingEngine';
-import { Database, FileText, Package, Settings } from 'lucide-react';
+import { Database, Package, Settings, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import GlobalFreshnessBadge from './GlobalFreshnessBadge';
+import { useAuth } from '@/lib/useAuth';
 
 interface Props {
   cliente: string;
@@ -21,6 +22,7 @@ interface Props {
 }
 
 export default function TopBar(p: Props) {
+  const { profile, isAdmin, signOut } = useAuth();
   const utilidadColor =
     p.utilidadGlobal === null
       ? '#64748B'
@@ -58,14 +60,41 @@ export default function TopBar(p: Props) {
 
         <nav className="flex items-center gap-2">
           <GlobalFreshnessBadge />
-          <Link href="/cotizador/admin" className="btn-secondary text-xs">
-            <Settings className="w-3.5 h-3.5" />
-            Admin de costos
-          </Link>
-          <Link href="/cotizador/precios" className="btn-secondary text-xs">
-            <Database className="w-3.5 h-3.5" />
-            Carga Excel EDSA
-          </Link>
+
+          {/* Botones admin solo visibles para usuarios con rol 'admin' */}
+          {isAdmin && (
+            <>
+              <Link href="/cotizador/admin" className="btn-secondary text-xs">
+                <Settings className="w-3.5 h-3.5" />
+                Admin de costos
+              </Link>
+              <Link href="/cotizador/precios" className="btn-secondary text-xs">
+                <Database className="w-3.5 h-3.5" />
+                Carga Excel EDSA
+              </Link>
+            </>
+          )}
+
+          {/* Identidad del usuario actual + logout */}
+          {profile && (
+            <div className="flex items-center gap-2 pl-2 ml-1 border-l border-border-subtle">
+              <div className="text-right hidden sm:block">
+                <p className="text-2xs font-medium text-text-primary leading-tight">
+                  {profile.name || profile.email.split('@')[0]}
+                </p>
+                <p className="text-2xs text-text-muted leading-tight">
+                  {isAdmin ? 'admin' : 'vendedor'}
+                </p>
+              </div>
+              <button
+                onClick={signOut}
+                className="p-1.5 rounded border border-border-subtle hover:border-bnp-red/40 hover:text-bnp-red transition-colors"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </nav>
       </div>
 

@@ -17,18 +17,11 @@ import FeedbackButton from './components/FeedbackButton';
 import { Layers, Sparkles, Save } from 'lucide-react';
 
 export default function CotizadorPage() {
-  // Estado global del camión
-  const [cliente, setCliente] = useState('Level Packaging LLC');
+  // Estado global del camión - arranca vacío para que cada vendedor cotice desde cero
+  const [cliente, setCliente] = useState('');
   const [tc, setTc] = useState(18.5);
-  const [transportUSD, setTransportUSD] = useState(2800);
-  const [items, setItems] = useState<LineItem[]>([
-    {
-      ...newLineItem(1),
-      desc: 'PALLET WRAP CLEAR',
-      qty: 192,
-      precioCliente: 8.66,
-    },
-  ]);
+  const [transportUSD, setTransportUSD] = useState(0);
+  const [items, setItems] = useState<LineItem[]>([newLineItem(1)]);
   const [activeId, setActiveId] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<'pedido' | 'sugerencia'>('pedido');
 
