@@ -6,6 +6,7 @@ import { Database, Package, Settings, LogOut } from 'lucide-react';
 import Link from 'next/link';
 import GlobalFreshnessBadge from './GlobalFreshnessBadge';
 import { useAuth } from '@/lib/useAuth';
+import { APP_VERSION_LABEL, APP_ORG } from '@/lib/version';
 
 interface Props {
   cliente: string;
@@ -53,7 +54,7 @@ export default function TopBar(p: Props) {
                   BETA
                 </span>
               </h1>
-              <p className="text-2xs text-text-muted leading-tight">BioNovaPack LLC · v0.1.0</p>
+              <p className="text-2xs text-text-muted leading-tight">{APP_ORG} · {APP_VERSION_LABEL}</p>
             </div>
           </div>
         </div>

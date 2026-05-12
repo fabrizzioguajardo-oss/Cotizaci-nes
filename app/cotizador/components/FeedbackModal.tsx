@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, Mail, Copy, Check, ExternalLink } from 'lucide-react';
+import { APP_VERSION_FULL } from '@/lib/version';
 
 const FEEDBACK_EMAIL = 'fabrizzio.guajardo@bionovapack.com';
 
@@ -38,7 +39,7 @@ export default function FeedbackModal({ open, onClose }: Props) {
     '',
     '',
     '──────────────────────────',
-    'Version: v0.1.0-beta',
+    `Version: ${APP_VERSION_FULL}`,
     `URL: ${typeof window !== 'undefined' ? window.location.href : ''}`,
     `Fecha: ${new Date().toLocaleString('es-MX')}`,
     `Navegador: ${typeof navigator !== 'undefined' ? navigator.userAgent : ''}`,

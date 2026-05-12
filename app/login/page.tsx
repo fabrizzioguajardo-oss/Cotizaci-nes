@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getSupabaseBrowser } from '@/lib/supabase';
 import { Package, Mail, Loader2, AlertCircle } from 'lucide-react';
+import { APP_VERSION_FULL, APP_ORG } from '@/lib/version';
 
 function LoginInner() {
   const router = useRouter();
@@ -59,7 +60,7 @@ function LoginInner() {
               <span className="text-text-muted">·</span>{' '}
               <span className="text-text-primary">Cotizador</span>
             </h1>
-            <p className="text-2xs text-text-muted">BioNovaPack LLC</p>
+            <p className="text-2xs text-text-muted">{APP_ORG}</p>
           </div>
         </div>
 
@@ -116,7 +117,7 @@ function LoginInner() {
         </div>
 
         <p className="text-2xs text-text-muted text-center mt-4">
-          BETA v0.1.0 · Cotizador interno BioNovaPack
+          {APP_VERSION_FULL} · Cotizador interno BioNovaPack
         </p>
       </div>
     </div>

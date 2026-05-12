@@ -1,6 +1,6 @@
 # Guía de uso — Cotizador SICE BioNovaPack
 
-> **Versión:** v0.1.0 BETA · **Última actualización:** Mayo 2026
+> **Versión:** v1.02 BETA · **Última actualización:** Mayo 2026 · [Ver changelog](./CHANGELOG.md)
 
 Esta guía explica paso a paso cómo usar el cotizador. Está dividida en dos secciones:
 - **Para vendedores** (Evers y equipo comercial)
