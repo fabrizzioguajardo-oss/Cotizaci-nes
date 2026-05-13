@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import type { LineItem } from '@/types';
 import {
   newLineItem,
@@ -8,13 +8,15 @@ import {
   calcTrailerTotals,
 } from '@/lib/pricingEngine';
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
+import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
 
 import TopBar from './components/TopBar';
 import ItemList from './components/ItemList';
 import TabPedido from './components/TabPedido';
 import TabSugerencia from './components/TabSugerencia';
 import FeedbackButton from './components/FeedbackButton';
-import { Layers, Sparkles, Save } from 'lucide-react';
+import AutosaveIndicator from './components/AutosaveIndicator';
+import { Layers, Sparkles, FilePlus } from 'lucide-react';
 
 export default function CotizadorPage() {
   // Estado global del camión - arranca vacío para que cada vendedor cotice desde cero
@@ -24,6 +26,10 @@ export default function CotizadorPage() {
   const [items, setItems] = useState<LineItem[]>([newLineItem(1)]);
   const [activeId, setActiveId] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<'pedido' | 'sugerencia'>('pedido');
+
+  // Bandera para evitar que el autosave dispare durante la carga inicial del draft
+  const [autosaveEnabled, setAutosaveEnabled] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   // Cálculos derivados (en orden: trailer totals primero, luego cada item)
   const trailerTotals = useMemo(
@@ -42,6 +48,52 @@ export default function CotizadorPage() {
   const activeIndex = items.findIndex((i) => i.id === activeId);
   const activeItem = items[activeIndex] ?? items[0];
   const activeResult = results[activeIndex] ?? results[0];
+
+  // === AUTO-SAVE de borradores ===
+  const autosave = useCotizacionAutosave({
+    cliente,
+    tc,
+    transport_usd: transportUSD,
+    total_revenue_usd: trailerTotals.totalRevenueUSD,
+    total_cost_usd: trailerTotals.totalCostUSD,
+    utilidad_global: trailerTotals.utilidadGlobal,
+    items,
+    enabled: autosaveEnabled,
+  });
+
+  // Cargar el draft del usuario al montar
+  useEffect(() => {
+    if (draftLoaded) return;
+    autosave.loadDraft().then((draft) => {
+      if (draft && draft.items && draft.items.length > 0) {
+        setCliente(draft.cliente || '');
+        setTc(draft.tc || 18.5);
+        setTransportUSD(draft.transport_usd || 0);
+        setItems(draft.items);
+        const firstId = draft.items[0]?.id ?? 1;
+        setActiveId(firstId);
+      }
+      setDraftLoaded(true);
+      // Habilitar autosave después de un pequeño delay para que el state se asiente
+      setTimeout(() => setAutosaveEnabled(true), 500);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Botón "Nueva cotización" — borra draft en BD y resetea el estado local
+  const handleNuevaCotizacion = useCallback(async () => {
+    if (!confirm('¿Iniciar una cotización nueva? El borrador actual se borrará.')) return;
+    setAutosaveEnabled(false);
+    await autosave.clearDraft();
+    setCliente('');
+    setTc(18.5);
+    setTransportUSD(0);
+    const fresh = newLineItem(1);
+    setItems([fresh]);
+    setActiveId(fresh.id);
+    setActiveTab('pedido');
+    setTimeout(() => setAutosaveEnabled(true), 500);
+  }, [autosave]);
 
   // Mutaciones
   const updateActive = useCallback(
@@ -178,13 +230,21 @@ export default function CotizadorPage() {
                 Sugerencia para planta
               </button>
             </div>
-            <button
-              className="btn-secondary text-xs mb-1.5"
-              onClick={() => alert('Guardado en Supabase pendiente — configurar env vars')}
-            >
-              <Save className="w-3.5 h-3.5" />
-              Guardar borrador
-            </button>
+            <div className="flex items-center gap-3 mb-1.5">
+              <AutosaveIndicator
+                status={autosave.status}
+                lastSavedAt={autosave.lastSavedAt}
+                errorMessage={autosave.errorMessage}
+              />
+              <button
+                className="btn-secondary text-xs"
+                onClick={handleNuevaCotizacion}
+                title="Borra el borrador actual y arranca uno nuevo"
+              >
+                <FilePlus className="w-3.5 h-3.5" />
+                Nueva cotización
+              </button>
+            </div>
           </div>
 
           {activeTab === 'pedido' ? (

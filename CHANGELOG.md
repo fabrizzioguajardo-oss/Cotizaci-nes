@@ -4,6 +4,31 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.03 — Mayo 2026 — Auto-save de borradores + polish
+
+**Foco**: cada cotización se guarda automáticamente en la nube, sin perder trabajo si cierras el browser.
+
+### Nuevo
+- **Auto-save cada 2 segundos** en Supabase. Cuando cambias cualquier dato (cliente, TC, items, precio), se guarda solo a los 2 segundos.
+- **Indicador visual** "Guardando…" / "Guardado hace 3 seg" en el TopBar — sabes en todo momento si tu trabajo está seguro
+- **Carga automática al entrar**: si tenías un borrador en marcha, lo vuelves a ver al volver al cotizador (incluso en otra computadora — está en BD, no localStorage)
+- **Botón "Nueva cotización"** que borra el borrador actual y arranca uno limpio (con confirmación)
+- **Banner cyan con templates** descargables al entrar a /cotizador/precios (Diego puede usar el formato limpio si quiere)
+- **Indicador de "Precios actualizados hace X días"** visible para vendedores también (no solo admins)
+
+### Arreglado
+- **Admin fallback por email**: usuarios admin cuyo profile no se creó por timing del trigger ahora ven botones admin automáticamente. RLS sigue siendo la fuente de verdad en BD.
+- **Build de Vercel** que fallaba con "Edge Function references unsupported modules": cliente Supabase ahora está inline en middleware y route handlers Edge-safe.
+- **Login que rebotaba a /login**: el callback usaba un patrón incorrecto que no persistía cookies de sesión. Ahora usa `cookies()` de `next/headers` (patrón oficial Supabase).
+
+### Técnico
+- Nueva API `/api/cotizaciones/draft` con GET/POST/DELETE
+- Hook `useCotizacionAutosave` con debounce 2s + status `idle/saving/saved/error`
+- Componente `AutosaveIndicator` con tiempo relativo ("hace 5 min")
+- SSOT `lib/adminEmails.ts` para la lista de admins
+
+---
+
 ## v1.02 — Mayo 2026 — Auth y aislamiento por usuario
 
 **Foco**: cada vendedor con su login + admins con privilegios distintos.
