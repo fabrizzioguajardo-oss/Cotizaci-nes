@@ -6,6 +6,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { getSupabaseBrowser } from './supabase';
+import { isAdminEmail } from './adminEmails';
 
 export type UserRole = 'admin' | 'vendedor';
 
@@ -83,11 +84,18 @@ export function useAuth(): AuthState {
     }
   }, []);
 
+  // isAdmin: principal por profile.role, fallback por email match.
+  // El fallback resuelve el caso donde el trigger no creó el profile (usuarios
+  // anteriores a la migración 002, o si el trigger falló silenciosamente).
+  // La BD sigue siendo la fuente de verdad — los writes admin pasan por RLS
+  // que verifica el role real en user_profiles, NO este flag UI.
+  const isAdmin = profile?.role === 'admin' || isAdminEmail(user?.email);
+
   return {
     user,
     profile,
     loading,
-    isAdmin: profile?.role === 'admin',
+    isAdmin,
     signOut,
   };
 }

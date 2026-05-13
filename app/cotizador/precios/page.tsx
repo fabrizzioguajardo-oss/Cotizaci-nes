@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, FileSpreadsheet, Database, Layers, Box } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, Database, Layers, Box, Download, Sparkles } from 'lucide-react';
 import UploadZone from './components/UploadZone';
 import AdminGuard from '../components/AdminGuard';
 import { invalidatePriceData } from '@/lib/dataStore';
@@ -72,6 +72,52 @@ export default function PreciosPage() {
             </p>
           </div>
         )}
+
+        {/* === Banner prominente: templates limpios para Diego === */}
+        <div className="card p-5 mb-5 border-bnp-cyan/40 bg-bnp-cyan/5">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full bg-bnp-cyan/15 text-bnp-cyan">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-sm font-semibold mb-1">
+                ¿Primera vez que Diego sube precios desde aquí?
+              </h3>
+              <p className="text-xs text-text-secondary mb-3">
+                Diego puede usar sus Excels actuales (el sistema los acepta auto-detectando el formato) <strong>O</strong> bajar estos 3 templates limpios con UNA sola hoja por archivo. Más fácil de mantener:
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <a
+                  href="/templates/template_precios_EDSA.xlsx"
+                  download
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-bnp-green/40 bg-bnp-green/10 text-bnp-green hover:bg-bnp-green/20 transition-colors text-xs font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Template EDSA
+                </a>
+                <a
+                  href="/templates/template_precios_color.xlsx"
+                  download
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-bnp-cyan/40 bg-bnp-cyan/10 text-bnp-cyan hover:bg-bnp-cyan/20 transition-colors text-xs font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Template Color
+                </a>
+                <a
+                  href="/templates/template_tarima.xlsx"
+                  download
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-bnp-purple/40 bg-bnp-purple/10 text-bnp-purple hover:bg-bnp-purple/20 transition-colors text-xs font-semibold"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Template Tarima
+                </a>
+              </div>
+              <p className="text-2xs text-text-muted mt-2">
+                Cada template trae README con instrucciones + filas de ejemplo pre-cargadas con datos reales para entender el formato.
+              </p>
+            </div>
+          </div>
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <UploadZone
