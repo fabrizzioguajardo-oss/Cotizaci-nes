@@ -64,12 +64,16 @@ export function useCotizacionAutosave(
     draftId: null,
   });
 
-  // Refs para timer y para acceder al estado más reciente sin re-renders
+  // Refs para timer y para acceder al estado más reciente sin re-renders.
+  // draftIdRef evita recrear saveDraft cuando draftId cambia (lo que causaría
+  // un save "fantasma" 2s después de cada save real).
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const paramsRef = useRef(params);
   paramsRef.current = params;
+  const draftIdRef = useRef<string | null>(null);
 
-  // Función que realmente hace el POST
+  // Función que realmente hace el POST. Callback estable (deps vacías) - lee
+  // params y draftId siempre de refs, así no se recrea en cada render.
   const saveDraft = useCallback(async (): Promise<void> => {
     const p = paramsRef.current;
     setState((s) => ({ ...s, status: 'saving', errorMessage: null }));
@@ -79,7 +83,7 @@ export function useCotizacionAutosave(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: state.draftId,
+          id: draftIdRef.current,
           cliente: p.cliente,
           tc: p.tc,
           transport_usd: p.transport_usd,
@@ -101,11 +105,15 @@ export function useCotizacionAutosave(
         return;
       }
 
+      // Actualizar ref antes de setState para que el próximo save tenga el id correcto
+      const newId = data.id ?? draftIdRef.current;
+      draftIdRef.current = newId;
+
       setState((s) => ({
         ...s,
         status: 'saved',
         lastSavedAt: new Date(),
-        draftId: data.id ?? s.draftId,
+        draftId: newId,
         errorMessage: null,
       }));
     } catch (err) {
@@ -115,7 +123,7 @@ export function useCotizacionAutosave(
         errorMessage: err instanceof Error ? err.message : 'unknown error',
       }));
     }
-  }, [state.draftId]);
+  }, []);
 
   // Trigger autosave con debounce cuando cualquier campo cambia
   useEffect(() => {
@@ -140,7 +148,8 @@ export function useCotizacionAutosave(
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-    // Re-trigger cuando cualquier campo del state cambia
+    // Re-trigger solo cuando cambian campos del usuario - saveDraft es estable
+    // (deps vacías), así que no hace falta incluirlo aquí.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     enabled,
@@ -152,7 +161,6 @@ export function useCotizacionAutosave(
     params.total_cost_usd,
     params.utilidad_global,
     JSON.stringify(params.items),
-    saveDraft,
   ]);
 
   // Save manual inmediato (sin debounce)
@@ -166,6 +174,7 @@ export function useCotizacionAutosave(
     if (timerRef.current) clearTimeout(timerRef.current);
     try {
       await fetch('/api/cotizaciones/draft', { method: 'DELETE' });
+      draftIdRef.current = null;
       setState({ status: 'idle', lastSavedAt: null, errorMessage: null, draftId: null });
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -181,6 +190,7 @@ export function useCotizacionAutosave(
       const data = await res.json();
       if (!data.draft) return null;
 
+      draftIdRef.current = data.draft.id;
       setState((s) => ({
         ...s,
         draftId: data.draft.id,
