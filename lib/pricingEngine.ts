@@ -253,9 +253,10 @@ export function calcTrailerTotals(
     unidadesTotales += unidadesItem;
   }
 
-  // Sumar el flete una sola vez al costo total (ya está distribuido en costoRolloUSD,
-  // pero se puede ajustar si la distribución no es exacta)
-  const utilidadGlobal = totalCostUSD > 0
+  // Utilidad global: solo calcular cuando hay revenue Y costo. Si el usuario
+  // todavia no llena precios, mostrar null (= "Sin precio") en lugar de -100%.
+  // Esto es congruente con la utilidad por linea individual.
+  const utilidadGlobal = (totalCostUSD > 0 && totalRevenueUSD > 0)
     ? (totalRevenueUSD - totalCostUSD) / totalCostUSD
     : null;
 

@@ -108,7 +108,23 @@ export async function POST(req: NextRequest) {
       .eq('user_id', user.id) // RLS extra check
       .select('id')
       .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error('[draft][update]', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        user_id: user.id,
+        draft_id: body.id,
+      });
+      return NextResponse.json({
+        error: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      }, { status: 500 });
+    }
     return NextResponse.json({ saved: true, id: data?.id ?? body.id });
   }
 
@@ -118,7 +134,26 @@ export async function POST(req: NextRequest) {
     .insert([row])
     .select('id')
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    // eslint-disable-next-line no-console
+    console.error('[draft][insert]', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      user_id: user.id,
+      cliente: row.cliente,
+      tc: row.tc,
+      transport_usd: row.transport_usd,
+      items_count: Array.isArray(row.items) ? row.items.length : 'not array',
+    });
+    return NextResponse.json({
+      error: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+    }, { status: 500 });
+  }
   return NextResponse.json({ saved: true, id: data.id });
 }
 
