@@ -4,6 +4,26 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.04 — Mayo 2026 — Bug fixes críticos del autosave
+
+**Foco**: arreglar los bugs que reportaron Fabrizzio y Evers después de probar v1.03 en vivo.
+
+### Arreglado
+- **🔴 "Error al guardar" en el autosave**: la policy RLS de `user_profiles` tenía recursión infinita (`error 42P17`). Eso bloqueaba todas las queries a `user_profiles` y, en cascada, las inserts en `cotizaciones` (porque la policy de cotizaciones consulta user_profiles). Fix SQL: dropear la policy `admins_see_all_profiles` recursiva. Los admins siguen viendo todas las cotizaciones porque su propio profile lo dice (vía `users_see_own_profile`).
+- **🔴 Utilidad global mostrando "-100%" sin precio**: cuando agregabas un producto y todavía no llenabas el precio del cliente, la utilidad del trailer aparecía como -100% en rojo. Matemáticamente correcto (0 - costo)/costo = -100%, pero engañoso. Ahora muestra "Sin precio" en gris (consistente con la utilidad por línea individual).
+- **🟡 Save fantasma del autosave**: cada save real generaba un segundo save inocuo 2 segundos después por un closure problem con React. Idempotente pero gastaba requests. Fix: usar `draftIdRef` en lugar de `state.draftId` en las deps del callback.
+
+### Mejorado
+- **Logging del API `/api/cotizaciones/draft`**: cuando Supabase rechaza un insert/update, el response ahora incluye `error.code`, `details` y `hint` (no solo `message`). Útil para diagnosticar problemas de RLS o schema en producción.
+
+### Importante para el admin
+- **Si tienes un proyecto Supabase ya migrado a v1.02**, corre este SQL en SQL Editor para aplicar el fix de recursión:
+  ```sql
+  DROP POLICY IF EXISTS "admins_see_all_profiles" ON user_profiles;
+  ```
+
+---
+
 ## v1.03 — Mayo 2026 — Auto-save de borradores + polish
 
 **Foco**: cada cotización se guarda automáticamente en la nube, sin perder trabajo si cierras el browser.
