@@ -35,6 +35,18 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
     (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
       onChange({ [key]: e.target.value } as Partial<LineItem>);
 
+  // Cuando el vendedor modifica ancho o calibre del SPEC CLIENTE, el SPEC REAL
+  // debe seguir el mismo valor. Solo el LARGO real puede diferir (eso es lo que
+  // ajustamos para subir margen). Esto evita drift donde aReal != aCliente.
+  const setAnchoCliente = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value) || 0;
+    onChange({ aCliente: v, aReal: v });
+  };
+  const setCalibreCliente = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = parseFloat(e.target.value) || 0;
+    onChange({ calCliente: v, calReal: v });
+  };
+
   // Cuando el vendedor elige un cono del panel, auto-llenamos:
   // cono, rollos/tarima, costo base, master, intenso (cuando aplica)
   const handleConePick = (option: ConoOption) => {
@@ -138,7 +150,7 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
             <input
               type="number" step="0.1"
               value={item.aCliente || ''}
-              onChange={num('aCliente')}
+              onChange={setAnchoCliente}
               className="input input-cyan"
             />
           </div>
@@ -147,7 +159,7 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
             <input
               type="number" step="1"
               value={item.calCliente || ''}
-              onChange={num('calCliente')}
+              onChange={setCalibreCliente}
               className="input input-cyan"
             />
           </div>

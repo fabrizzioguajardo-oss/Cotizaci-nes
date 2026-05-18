@@ -4,6 +4,24 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.05 — Mayo 2026 — Bug fixes de spec real + warning de precios viejos
+
+**Foco**: arreglar 3 bugs reportados al usar v1.04, y agregar un warning visible cuando el cotizador está usando precios viejos del build.
+
+### Arreglado
+- **🔴 Ancho/calibre se podían modificar en Tab 2 (Sugerencia para planta)**: el editor manual permitía editar `aReal` y `calReal`, lo cual rompe la regla de negocio (solo el largo se ajusta para subir margen, nunca el ancho ni el calibre). Ahora ambos campos están `read-only` (con icono de candado) y siguen automáticamente lo que escribiste en Tab 1.
+- **🔴 `aReal`/`calReal` se quedaban desactualizados si editabas Tab 1 después de elegir un cono**: si después de elegir un cono cambiabas el ancho declarado al cliente, el ancho real se quedaba con el valor viejo. Ahora cuando modificas `ancho` o `calibre` en Tab 1, el spec real se actualiza automático.
+- **🟡 Adders heredados al agregar línea nueva**: al hacer "+ Nueva línea", el item nuevo heredaba `costoBase`, `refilado` y `cono` del item activo. Eso causaba que la línea nueva apareciera con refilado o costo base ya seteados aunque el producto fuera distinto. Ahora SOLO se hereda lo que es del trailer compartido (tipo de resina, tarimas por trailer). Cada línea arranca limpia y usa su propio cone selector para autofill.
+
+### Mejorado
+- **Warning visible cuando se usan precios viejos**: si Diego no ha subido los Excels actuales, el cotizador usa el `precios.json` bundled del build (que tiene los datos de abril 2026). Antes funcionaba en silencio. Ahora en el panel de "Opciones de fabricación" aparece un banner amber que dice *"Precios viejos del build (referencia). Pídele a Diego que suba los Excels nuevos."* El sistema sigue funcionando con esos precios para no bloquear cotizaciones, pero el vendedor sabe que necesita actualizar.
+
+### Pendiente para v1.06
+- Multi-trailer con UI drag-and-drop: cuando un pedido excede capacidad de un camión (19,200 kg) o tiene múltiples destinos, mostrar bloques visuales por trailer y permitir arrastrar líneas entre ellos.
+- Catálogo de rutas logísticas en lugar de teclear el costo de transporte.
+
+---
+
 ## v1.04 — Mayo 2026 — Bug fixes críticos del autosave
 
 **Foco**: arreglar los bugs que reportaron Fabrizzio y Evers después de probar v1.03 en vivo.

@@ -21,6 +21,9 @@ export interface PriceData {
   catalogo_tarima: ParsedTarimaRow[];
   rangos_tarima: ParsedTarimaRange[];
   stats: Record<string, number>;
+  // De donde vienen los datos: 'supabase' = vigentes que subio Diego;
+  // 'static' = fallback al precios.json del build (datos viejos, advertir).
+  source?: 'supabase' | 'static';
 }
 
 let _cache: PriceData | null = null;
@@ -44,6 +47,7 @@ export async function loadPriceData(): Promise<PriceData | null> {
       const res = await fetch('/api/data/current', { cache: 'no-store' });
       if (res.ok) {
         const data = (await res.json()) as PriceData;
+        data.source = 'supabase';
         _cache = data;
         return data;
       }
@@ -62,6 +66,7 @@ export async function loadPriceData(): Promise<PriceData | null> {
         return null;
       }
       const data = (await res.json()) as PriceData;
+      data.source = 'static';
       _cache = data;
       return data;
     } catch (err) {

@@ -104,6 +104,24 @@ export default function ConeSelectorPanel({
         <span className="text-2xs text-text-muted">{options.length} opciones</span>
       </div>
 
+      {/* Warning visible cuando los datos vienen del fallback estatico (build-time).
+          Significa que Diego no ha subido excels recientes y los precios pueden
+          estar desactualizados. El cone selector sigue funcionando con esos
+          precios pero el admin debe subir excels nuevos para tener confianza. */}
+      {data.source === 'static' && (
+        <div className="px-4 py-2 border-b border-bnp-amber/30 bg-bnp-amber/5">
+          <p className="text-2xs text-bnp-amber inline-flex items-center gap-1.5">
+            <AlertCircle className="w-3 h-3" />
+            <span>
+              <strong>Precios viejos del build (referencia).</strong>{' '}
+              Pídele a Diego que suba los Excels nuevos en{' '}
+              <span className="mono">Admin → Carga Excel EDSA</span>{' '}
+              para que estos números sean exactos.
+            </span>
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 p-3">
         {options.map((opt) => {
           const isSelected = Math.abs(opt.cono - (selectedCono ?? -99)) < 0.01;

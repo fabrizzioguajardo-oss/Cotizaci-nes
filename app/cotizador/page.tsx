@@ -109,14 +109,14 @@ export default function CotizadorPage() {
     setItems((prev) => {
       const nextId = (prev[prev.length - 1]?.id ?? 0) + 1;
       const next = newLineItem(nextId);
-      // Heredar costo base del item activo para no re-tipear todo
+      // Heredar SOLO datos del trailer compartido (tipo resina, config logistica
+      // de tarima) del item activo. NO heredar adders ni precios — cada linea
+      // tiene su propio mix de master/intenso/aditivo/refilado/caja segun el
+      // producto especifico. El cone selector autollenara costoBase, master,
+      // intenso cuando el vendedor escoja.
       const active = prev.find((i) => i.id === activeId);
       if (active) {
-        next.costoBase = active.costoBase;
-        next.refilado = active.refilado;
         next.tipoResina = active.tipoResina;
-        next.cono = active.cono;
-        next.rollosPallet = active.rollosPallet;
         next.palletTrailer = active.palletTrailer;
       }
       setActiveId(nextId);
