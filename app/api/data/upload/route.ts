@@ -7,7 +7,8 @@
 // lo guarde donde quiera (localStorage / sessionStorage).
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import { parseEDSAFile } from '@/lib/parsers/edsaParser';
 import { parseColorFile } from '@/lib/parsers/colorParser';
 import { parseTarimaFile } from '@/lib/parsers/tarimaParser';
@@ -19,6 +20,27 @@ import {
 } from '@/lib/parsers/flatTemplateParser';
 
 export const runtime = 'nodejs'; // necesitamos Node, no Edge (xlsx usa Buffer)
+
+// Cliente Supabase con la sesion del usuario actual (de cookies).
+// Necesario para que las RLS policies (que requieren ser admin) acepten el insert.
+async function getAuthedSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  const cookieStore = await cookies();
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(toSet) {
+        try {
+          toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {}
+      },
+    },
+  });
+}
 
 type Kind = 'edsa' | 'color' | 'tarima';
 
@@ -104,9 +126,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Guardar en Supabase si esta configurado
-  const sb = getSupabase();
+  // Guardar en Supabase usando el cliente AUTENTICADO con sesion del usuario.
+  // Esto es necesario porque las RLS policies en price_data_files requieren
+  // que auth.uid() pertenezca a un user_profiles con role='admin'. Con el
+  // cliente anon (singleton) auth.uid() es null y RLS rechaza con
+  // "new row violates row-level security policy".
+  const sb = await getAuthedSupabase();
   if (sb) {
+    // Verificar que el usuario este autenticado y sea admin antes de intentar
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: 'No estas autenticado. Vuelve a iniciar sesion.' },
+        { status: 401 },
+      );
+    }
+    // El RLS se encarga del resto: si user no es admin, el insert va a fallar
+    // con un mensaje claro
+
     // Marcar versiones anteriores del mismo kind como obsoletas
     await sb.from('price_data_files').update({ vigente: false }).eq('kind', kindStr).eq('vigente', true);
 
@@ -114,15 +151,28 @@ export async function POST(req: NextRequest) {
       {
         kind: kindStr,
         source_filename: filename,
-        uploaded_by: 'Diego Cortes',
+        uploaded_by: user.email ?? 'unknown',
         stats,
         data: payload,
         vigente: true,
       },
     ]);
     if (error) {
+      // Log detalles para diagnostico
+      // eslint-disable-next-line no-console
+      console.error('[upload]', {
+        user: user.email,
+        kind: kindStr,
+        rls_code: error.code,
+        message: error.message,
+      });
+      // Mensaje user-friendly si RLS rechazo (no eres admin)
+      const isRLS = error.message?.includes('row-level security') || error.code === '42501';
+      const userMessage = isRLS
+        ? `Tu cuenta (${user.email}) no tiene permisos de admin para subir precios. Pidele a Fabrizzio que te agregue como admin.`
+        : `Supabase insert fallo: ${error.message}`;
       return NextResponse.json(
-        { error: `Supabase insert falló: ${error.message}`, parsed_stats: stats },
+        { error: userMessage, code: error.code, parsed_stats: stats },
         { status: 500 },
       );
     }
