@@ -5,11 +5,11 @@ import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, Download 
 
 export type UploadKind = 'edsa' | 'color' | 'tarima';
 
-// Mapeo de kind → archivo template descargable
+// Mapeo de kind → archivo template descargable (blank, sin precios reales)
 const TEMPLATE_URL: Record<UploadKind, string> = {
-  edsa: '/templates/template_precios_EDSA.xlsx',
-  color: '/templates/template_precios_color.xlsx',
-  tarima: '/templates/template_tarima.xlsx',
+  edsa: '/templates/template_blank_EDSA.xlsx',
+  color: '/templates/template_blank_color.xlsx',
+  tarima: '/templates/template_blank_tarima.xlsx',
 };
 
 interface UploadResult {

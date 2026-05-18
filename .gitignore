@@ -5,3 +5,11 @@ out
 .env.local
 .DS_Store
 *.log
+
+# Precios reales NO se publican en GitHub. Estos archivos quedan solo locales.
+# El cotizador en produccion lee precios desde Supabase (subidos via /precios).
+/public/data/precios.json
+/public/templates/*.xlsx
+/templates/*.xlsx
+!/public/templates/template_blank_*.xlsx
+!/templates/template_blank_*.xlsx

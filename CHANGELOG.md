@@ -4,6 +4,39 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.06 — Mayo 2026 — Tolerance warning + confidencialidad de precios
+
+**Foco**: nueva información de tolerancia de producción en Tab 2, y limpieza para que ningún precio real quede en el repositorio público.
+
+### Nuevo
+- **🟢 Aviso de tolerancia de producción** en Tab 2 (Sugerencia para planta):
+  - Calcula el rango natural que la planta puede producir: `largo_cliente ± 0.5%`
+  - Compara contra la sugerencia actual de `lReal`
+  - Tres niveles de visualización:
+    - ✓ Verde "DENTRO de tolerancia" — la sugerencia cae en el rango natural, no requiere disclosure al cliente
+    - ⚠ Amber "FUERA de tolerancia natural" — reducción intencional para subir margen, verificar contrato
+    - 🚫 Rojo "MUY POR DEBAJO" — reducción >10pp más allá de tolerancia, considerar validar con Jennifer
+  - Constante `PLANT_TOLERANCE_PCT = 0.005` configurable en `lib/pricingEngine.ts`
+  - Banda visual con marcadores de cliente vs sugerencia
+
+### Cambio importante de seguridad
+- **🔒 Precios reales removidos del repo de GitHub**. Los siguientes archivos NO se versionan más:
+  - `public/data/precios.json` (664 KB de precios EDSA + Color)
+  - `public/templates/template_precios_*.xlsx` (3 archivos con data real abril 2026)
+  - `templates/template_precios_*.xlsx` (mismos)
+- **`.gitignore` actualizado** para que cualquier futuro `*.xlsx` con prefijos de precios reales quede fuera del repo automáticamente.
+- **Templates blank** (estructura + 2-3 filas ficticias) generados como reemplazo:
+  - `template_blank_EDSA.xlsx`
+  - `template_blank_color.xlsx`
+  - `template_blank_tarima.xlsx`
+- **Los botones de descarga** en `/cotizador/precios` apuntan a estos blanks. El admin los llena con datos reales y los sube via el cotizador → van a Supabase, NO al repo.
+- **El cotizador en producción** lee precios desde Supabase. Si no hay datos cargados aún, muestra "Sin precios cargados" hasta que el admin suba los Excels reales.
+
+### Por qué este cambio
+Aunque el repositorio es privado, los precios de venta son información comercial crítica. Mantenerlos fuera del repo elimina riesgos si en algún momento el repo se hace público o se da acceso a un colaborador externo. La verdad de los precios vive ahora en Supabase, accesible solo via login al cotizador.
+
+---
+
 ## v1.05 — Mayo 2026 — Bug fixes de spec real + warning de precios viejos
 
 **Foco**: arreglar 3 bugs reportados al usar v1.04, y agregar un warning visible cuando el cotizador está usando precios viejos del build.

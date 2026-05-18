@@ -88,28 +88,28 @@ export default function PreciosPage() {
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                 <a
-                  href="/templates/template_precios_EDSA.xlsx"
+                  href="/templates/template_blank_EDSA.xlsx"
                   download
                   className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-bnp-green/40 bg-bnp-green/10 text-bnp-green hover:bg-bnp-green/20 transition-colors text-xs font-semibold"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Template EDSA
+                  Template EDSA (blank)
                 </a>
                 <a
-                  href="/templates/template_precios_color.xlsx"
+                  href="/templates/template_blank_color.xlsx"
                   download
                   className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-bnp-cyan/40 bg-bnp-cyan/10 text-bnp-cyan hover:bg-bnp-cyan/20 transition-colors text-xs font-semibold"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Template Color
+                  Template Color (blank)
                 </a>
                 <a
-                  href="/templates/template_tarima.xlsx"
+                  href="/templates/template_blank_tarima.xlsx"
                   download
                   className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded-md border border-bnp-purple/40 bg-bnp-purple/10 text-bnp-purple hover:bg-bnp-purple/20 transition-colors text-xs font-semibold"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  Template Tarima
+                  Template Tarima (blank)
                 </a>
               </div>
               <p className="text-2xs text-text-muted mt-2">

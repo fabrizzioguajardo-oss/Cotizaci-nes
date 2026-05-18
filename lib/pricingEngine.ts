@@ -14,6 +14,13 @@ export const PN_FORMULA_CONST = 0.0000018148;
 export const MARGIN_MIN = 0.12;        // 12% markup mínimo
 export const TRAILER_MAX_KG = 19200;   // capacidad máxima de un trailer (kg neto)
 
+// Tolerancia natural de produccion de la planta. Cuando declaramos al cliente
+// un largo de X ft, la planta puede producir entre X*(1-tolerance) y X*(1+tolerance)
+// como variacion normal de proceso. Reducciones MAS ALLA de esto son una
+// decision comercial intencional (subir margen reduciendo material).
+// Configurable: bajar a 0.003 si la planta es muy precisa, subir a 0.01 si es laxa.
+export const PLANT_TOLERANCE_PCT = 0.005;  // ±0.5%
+
 // Rangos de validación históricos
 export const REDUCTION_MIN = 0.05;
 export const REDUCTION_MAX = 0.40;

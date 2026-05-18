@@ -6,6 +6,7 @@ import { suggestRealSpec, sumAdders, MARGIN_MIN } from '@/lib/pricingEngine';
 import MarginSlider from './MarginSlider';
 import SuggestionCard from './SuggestionCard';
 import RealSpecEditor from './RealSpecEditor';
+import ToleranceWarning from './ToleranceWarning';
 import { fmtUSD, fmtNum, fmtPct } from '@/lib/format';
 
 interface Props {
@@ -101,6 +102,14 @@ export default function TabSugerencia({
 
       {/* Tarjeta de sugerencia */}
       <SuggestionCard item={item} suggestion={suggestion} onApply={handleApply} />
+
+      {/* Warning de tolerancia de produccion: compara el largo declarado al
+          cliente contra el largo real (sugerido o manual) y avisa si excede
+          la tolerancia natural de la planta (±0.5%) */}
+      <ToleranceWarning
+        largoCliente={item.lCliente}
+        largoReal={suggestion?.lReal ?? item.lReal}
+      />
 
       {/* Editor manual del spec real */}
       <RealSpecEditor item={item} onChange={onChange} />
