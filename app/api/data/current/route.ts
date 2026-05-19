@@ -1,9 +1,14 @@
 // GET /api/data/current
-// Devuelve el snapshot mas reciente de los 3 tipos de archivo (edsa, color, tarima).
-// Si Supabase no tiene nada, responde 204 para que el cliente caiga al JSON estatico.
+// Devuelve el snapshot mas reciente disponible (1-3 tipos) de los archivos
+// que admin ha subido al cotizador.
+//
+// IMPORTANTE: usa cliente AUTENTICADO con cookies del usuario porque las
+// RLS policies en price_data_files requieren auth.uid() IS NOT NULL.
+// Con cliente anon, las queries devuelven 0 rows aunque la data esté.
 
 import { NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 import type { ParsedPriceRow, ParsedTarimaRow, ParsedTarimaRange } from '@/lib/parsers/types';
 
 export const runtime = 'nodejs';
@@ -16,8 +21,27 @@ interface RowFromDB {
   data: { rows?: ParsedPriceRow[]; catalogo?: ParsedTarimaRow[]; rangos?: ParsedTarimaRange[] };
 }
 
+async function getAuthedSupabase() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  const cookieStore = await cookies();
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(toSet) {
+        try {
+          toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+        } catch {}
+      },
+    },
+  });
+}
+
 export async function GET() {
-  const sb = getSupabase();
+  const sb = await getAuthedSupabase();
   if (!sb) {
     return new NextResponse(null, { status: 204 });
   }
@@ -29,7 +53,9 @@ export async function GET() {
     .order('uploaded_at', { ascending: false });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // eslint-disable-next-line no-console
+    console.error('[data/current] read error:', error.code, error.message);
+    return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
   }
   if (!data || data.length === 0) {
     return new NextResponse(null, { status: 204 });
@@ -45,26 +71,34 @@ export async function GET() {
   const color = byKind.get('color');
   const tarima = byKind.get('tarima');
 
-  // Si no hay alguno, devolver 204 - mejor que el cliente caiga al JSON estatico
-  if (!edsa || !color || !tarima) {
+  // Devolver lo que esté disponible. Si nada → 204 para que UI muestre "sin precios".
+  // Si hay AL MENOS uno, mandar partial — el cotizador maneja datos parciales
+  // (ej. tiene EDSA pero no Tarima → cone selector limitado pero EDSA prices ok).
+  if (!edsa && !color && !tarima) {
     return new NextResponse(null, { status: 204 });
   }
 
+  const mostRecent = [edsa, color, tarima]
+    .filter((x): x is RowFromDB => !!x)
+    .map((x) => new Date(x.uploaded_at).getTime())
+    .reduce((acc, t) => Math.max(acc, t), 0);
+
   const result = {
-    generated_at: edsa.uploaded_at,
+    generated_at: new Date(mostRecent).toISOString(),
     source_files: {
-      edsa: edsa.source_filename ?? '',
-      color: color.source_filename ?? '',
-      tarima: tarima.source_filename ?? '',
+      edsa: edsa?.source_filename ?? '',
+      color: color?.source_filename ?? '',
+      tarima: tarima?.source_filename ?? '',
     },
-    precios_edsa: edsa.data.rows ?? [],
-    precios_color: color.data.rows ?? [],
-    catalogo_tarima: tarima.data.catalogo ?? [],
-    rangos_tarima: tarima.data.rangos ?? [],
+    precios_edsa: edsa?.data?.rows ?? [],
+    precios_color: color?.data?.rows ?? [],
+    catalogo_tarima: tarima?.data?.catalogo ?? [],
+    rangos_tarima: tarima?.data?.rangos ?? [],
     stats: {
-      ...edsa.stats,
-      ...color.stats,
-      ...tarima.stats,
+      ...edsa?.stats,
+      ...color?.stats,
+      ...tarima?.stats,
+      kinds_loaded: [edsa && 'edsa', color && 'color', tarima && 'tarima'].filter(Boolean).join(','),
     },
   };
 
