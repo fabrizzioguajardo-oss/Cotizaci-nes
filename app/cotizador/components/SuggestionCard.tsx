@@ -2,16 +2,17 @@
 
 import type { LineItem, SuggestionResult } from '@/types';
 import { fmtNum, fmtPct, fmtUSD } from '@/lib/format';
-import { AlertTriangle, CheckCircle, ArrowRight } from 'lucide-react';
+import { AlertTriangle, CheckCircle, ArrowRight, Package } from 'lucide-react';
 
 interface Props {
   item: LineItem;
   suggestion: SuggestionResult | null;
   onApply: () => void;
+  onPickAlternative?: (cono: number) => void;
 }
 
 // Tarjeta principal de Tab 2: muestra el spec sugerido para la planta
-export default function SuggestionCard({ item, suggestion, onApply }: Props) {
+export default function SuggestionCard({ item, suggestion, onApply, onPickAlternative }: Props) {
   if (!suggestion) {
     return (
       <div className="card p-6 text-center">
@@ -58,7 +59,17 @@ export default function SuggestionCard({ item, suggestion, onApply }: Props) {
             <p className="mono text-2xl font-semibold mb-1">
               {item.aCliente}″ × {item.lCliente}′
             </p>
-            <p className="mono text-sm text-text-secondary">{item.calCliente} GA</p>
+            <p className="mono text-sm text-text-secondary mb-2">{item.calCliente} GA</p>
+            <div className="pt-2 mt-2 border-t border-bnp-cyan/20 text-2xs">
+              <div className="flex justify-between text-text-secondary">
+                <span>Cono cliente:</span>
+                <span className="mono text-text-primary">{fmtNum(item.cono, 3)} kg</span>
+              </div>
+              <div className="flex justify-between text-text-secondary mt-0.5">
+                <span>PB esperado:</span>
+                <span className="mono text-bnp-cyan font-semibold">{fmtNum(suggestion.pbCliente, 2)} kg</span>
+              </div>
+            </div>
           </div>
 
           {/* Realmente fabricar */}
@@ -69,7 +80,73 @@ export default function SuggestionCard({ item, suggestion, onApply }: Props) {
             <p className="mono text-2xl font-semibold mb-1">
               {item.aReal}″ × {suggestion.lReal}′
             </p>
-            <p className="mono text-sm text-text-secondary">{item.calReal} GA</p>
+            <p className="mono text-sm text-text-secondary mb-2">{item.calReal} GA</p>
+            <div className="pt-2 mt-2 border-t border-bnp-green/20 text-2xs">
+              <div className="flex justify-between text-text-secondary">
+                <span>Cono sugerido:</span>
+                <span className="mono text-bnp-green font-semibold">
+                  {fmtNum(suggestion.conoSugerido, 3)} kg
+                  <span className="text-text-muted ml-1">(+{fmtNum(suggestion.conoSugerido - item.cono, 2)})</span>
+                </span>
+              </div>
+              <div className="flex justify-between text-text-secondary mt-0.5">
+                <span>PB resultante:</span>
+                <span className="mono text-bnp-green font-semibold">{fmtNum(suggestion.pbConCompensacion, 2)} kg</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card explicativa: cono compensation */}
+        <div className="mt-4 p-3 rounded-md bg-bnp-purple/5 border border-bnp-purple/20">
+          <div className="flex items-start gap-2">
+            <Package className="w-3.5 h-3.5 text-bnp-purple mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-2xs font-semibold text-bnp-purple uppercase tracking-wider mb-1">
+                Compensación de cono — para mantener el peso bruto cercano al esperado
+              </p>
+              <p className="text-2xs text-text-secondary">
+                Al reducir el largo, el rollo pesaría {fmtNum(suggestion.pbCliente - suggestion.pnReal, 2)} kg
+                menos del PB que el cliente espera. Subiendo el cono de{' '}
+                <span className="mono text-text-primary">{fmtNum(item.cono, 2)} kg</span> a{' '}
+                <span className="mono text-bnp-green font-semibold">{fmtNum(suggestion.conoSugerido, 2)} kg</span>,
+                el paquete final pesa{' '}
+                <span className="mono text-text-primary">{fmtNum(suggestion.pbConCompensacion, 2)} kg</span>
+                {' '}({suggestion.pbDiffCompensado >= 0 ? '+' : ''}
+                {fmtNum(suggestion.pbDiffCompensado, 2)} kg vs lo esperado,{' '}
+                <span style={{ color: Math.abs(suggestion.pbDiffCompensado) < 0.1 ? '#5BAA47' : '#F59E0B' }}>
+                  {Math.abs(suggestion.pbDiffCompensado / suggestion.pbCliente * 100).toFixed(1)}%
+                </span>).
+              </p>
+              <p className="text-2xs text-text-muted mt-1">
+                Cono ideal exacto: {fmtNum(suggestion.conoIdeal, 3)} kg (no es tamaño estándar, sugiero el más cercano sin exceder).
+              </p>
+
+              {/* Opciones alternativas de cono */}
+              {suggestion.conosAlternativos.length > 1 && onPickAlternative && (
+                <div className="mt-2 flex items-center gap-1.5">
+                  <span className="text-2xs text-text-muted">Otras opciones:</span>
+                  {suggestion.conosAlternativos.map((c) => {
+                    const isCurrent = Math.abs(c - suggestion.conoSugerido) < 0.001;
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => onPickAlternative(c)}
+                        disabled={isCurrent}
+                        className={`px-2 py-0.5 rounded mono text-2xs font-semibold transition-colors ${
+                          isCurrent
+                            ? 'bg-bnp-green/20 text-bnp-green border border-bnp-green/40 cursor-default'
+                            : 'bg-bg-surface text-text-secondary border border-border-subtle hover:border-border'
+                        }`}
+                      >
+                        {fmtNum(c, 2)} kg
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

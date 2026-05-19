@@ -64,12 +64,20 @@ export interface CalcResult {
 
 export interface SuggestionResult {
   lReal: number;                   // largo real sugerido (ft)
-  pnReal: number;                  // peso neto real necesario (kg)
-  pbReal: number;                  // peso bruto real necesario (kg)
+  pnReal: number;                  // peso neto real (kg) con el lReal sugerido
+  pbReal: number;                  // peso bruto real con cono actual (kg)
   reduction: number;               // reducción vs spec declarado
   pricePerLb: number;              // price/lb resultante
-  isValid: boolean;                // si está en rangos aceptables
-  warnings: string[];              // advertencias específicas
+  isValid: boolean;
+  warnings: string[];
+
+  // Compensación de cono (estrategia: subir cono para que PB_real ≈ PB_cliente)
+  conoSugerido: number;            // cono estándar más cercano al ideal sin exceder
+  conoIdeal: number;               // cono ideal exacto (puede no ser estándar)
+  pbCliente: number;               // PB que el cliente espera (PN_cliente + cono actual)
+  pbConCompensacion: number;       // PB resultante usando conoSugerido
+  pbDiffCompensado: number;        // pbConCompensacion - pbCliente (signed)
+  conosAlternativos: number[];     // opciones estándar alrededor del ideal
 }
 
 export interface MarginStatus {

@@ -21,6 +21,33 @@ export const TRAILER_MAX_KG = 19200;   // capacidad máxima de un trailer (kg ne
 // Configurable: bajar a 0.003 si la planta es muy precisa, subir a 0.01 si es laxa.
 export const PLANT_TOLERANCE_PCT = 0.005;  // ±0.5%
 
+// Tamaños estandar de cono disponibles (kg). Extraidos de los Excels de Diego
+// (sheets "Cono de X.XXX" y "Color X" donde X mapea a peso del core).
+// La sugerencia de cono usa estos como universo de opciones.
+export const STANDARD_CONOS = [
+  0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.44, 0.5,
+  0.55, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0,
+];
+
+// Encuentra el cono estandar mas grande que NO exceda el target.
+// Estrategia conservadora: prefiere NO sobre-compensar el PB del cliente.
+// Si target es 0.72, retorna 0.7 (no 0.8) para no entregar mas peso del declarado.
+export function findClosestStandardConoDown(target: number): number {
+  if (target <= 0) return STANDARD_CONOS[0];
+  for (let i = STANDARD_CONOS.length - 1; i >= 0; i--) {
+    if (STANDARD_CONOS[i] <= target) return STANDARD_CONOS[i];
+  }
+  return STANDARD_CONOS[0];
+}
+
+// Retorna 1-3 conos estandar alrededor del ideal para que el vendedor escoja.
+// Util para mostrar "tienes estas opciones, escoge segun riesgo aceptable".
+export function getConoOptionsNear(target: number, count = 3): number[] {
+  if (target <= 0) return STANDARD_CONOS.slice(0, count);
+  const sorted = [...STANDARD_CONOS].sort((a, b) => Math.abs(a - target) - Math.abs(b - target));
+  return sorted.slice(0, count).sort((a, b) => a - b);
+}
+
 // Rangos de validación históricos
 export const REDUCTION_MIN = 0.05;
 export const REDUCTION_MAX = 0.40;
@@ -210,6 +237,23 @@ export function suggestRealSpec(params: {
     warnings.push('Largo sugerido > largo declarado, no tiene sentido reducir');
   }
 
+  // === Compensación de cono ===
+  // Estrategia de Evers: cuando reducimos el largo (y por ende el PN), el cliente
+  // recibe un paquete que pesa MENOS de lo que esperaba (porque PB_real < PB_cliente).
+  // Para mitigar, se sube el cono de forma que PB_real ≈ PB_cliente. El cliente
+  // pesa el paquete y "siente" el peso esperado, aunque en realidad parte del peso
+  // es cartón del cono (no película).
+  //
+  // El cono ideal sería: cono + PN_reducido. Pero los conos son discretos (estándar),
+  // así que escogemos el cono estándar más cercano sin exceder (conservador).
+  const pbCliente = pnTeoricoCliente + cono;
+  const pnReducido = pnTeoricoCliente - pnReal_needed;
+  const conoIdeal = cono + pnReducido;
+  const conoSugerido = findClosestStandardConoDown(conoIdeal);
+  const pbConCompensacion = pnReal_needed + conoSugerido;
+  const pbDiffCompensado = pbConCompensacion - pbCliente;
+  const conosAlternativos = getConoOptionsNear(conoIdeal, 3);
+
   return {
     lReal: Math.round(lReal),
     pnReal: pnReal_needed,
@@ -218,6 +262,12 @@ export function suggestRealSpec(params: {
     pricePerLb,
     isValid,
     warnings,
+    conoSugerido,
+    conoIdeal,
+    pbCliente,
+    pbConCompensacion,
+    pbDiffCompensado,
+    conosAlternativos,
   };
 }
 

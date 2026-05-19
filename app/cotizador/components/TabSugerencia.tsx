@@ -47,11 +47,23 @@ export default function TabSugerencia({
     });
   }, [item, result, marginTarget]);
 
-  // Necesitamos el TC real - lo derivamos del costo MXN/USD del rollo actual
-  // Mejor: pasar tc explícito - ajustar props
+  // Aplicar sugerencia completa: largo real + cono sugerido (compensación PB)
   const handleApply = () => {
     if (suggestion) {
-      onChange({ lReal: suggestion.lReal });
+      onChange({
+        lReal: suggestion.lReal,
+        cono: suggestion.conoSugerido,
+      });
+    }
+  };
+
+  // Vendedor escoge un cono alternativo de los estándar mostrados
+  const handlePickAlternativeCono = (cono: number) => {
+    if (suggestion) {
+      onChange({
+        lReal: suggestion.lReal,
+        cono,
+      });
     }
   };
 
@@ -101,7 +113,12 @@ export default function TabSugerencia({
       </div>
 
       {/* Tarjeta de sugerencia */}
-      <SuggestionCard item={item} suggestion={suggestion} onApply={handleApply} />
+      <SuggestionCard
+        item={item}
+        suggestion={suggestion}
+        onApply={handleApply}
+        onPickAlternative={handlePickAlternativeCono}
+      />
 
       {/* Warning de tolerancia de produccion: compara el largo declarado al
           cliente contra el largo real (sugerido o manual) y avisa si excede

@@ -4,6 +4,34 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.07 — Mayo 2026 — Compensación automática de cono (cuidar el peso bruto)
+
+**Foco**: Tab 2 ahora también sugiere subir el cono para mantener el peso bruto del paquete cercano a lo que el cliente espera, mimicando la estrategia que Evers usa manualmente.
+
+### Nuevo
+- **Sugerencia de cono compensatorio**: cuando el algoritmo reduce el largo para subir margen, el cliente recibe menos PN (resina). Si el cono se queda igual, el paquete pesa visiblemente menos de lo declarado. Ahora el sistema sugiere subir el cono lo suficiente para que **PB_real ≈ PB_cliente**.
+  - Algoritmo: `cono_ideal = cono_cliente + PN_reducido`. El sistema escoge el cono estándar más cercano sin exceder (conservador).
+  - 20 tamaños estándar de cono (0.1 a 2.0 kg).
+- **Card visual en Tab 2 con 3 paneles**:
+  - "Cliente cree que recibe" — ancho × largo declarado + cono cliente + PB esperado
+  - "Realmente fabricar" — largo sugerido + cono sugerido (+delta) + PB resultante
+  - Card explicativa con el cálculo en lenguaje claro: *"Subiendo el cono de X a Y, el paquete final pesa Z kg (+0.05 kg vs lo esperado, 0.7%)"*
+- **Botones de conos alternativos**: el vendedor puede elegir entre 3 conos estándar alrededor del ideal (más conservador, exacto, más agresivo). Click → aplica al instante.
+- **`handleApply`** ahora actualiza tanto `lReal` como `cono`.
+
+### Verificación contra el 10mo camión Level Packaging
+- Línea 1 (9.87×80): Evers usó cono 0.9 (compensación parcial 36%), mi sugerencia es 1.2 (compensación 100%). Ambas válidas, el vendedor escoge.
+- Línea 2 (3×70): Match exacto con Evers (cono 0.15).
+- Línea 3 (5×70): Sugiero 0.2, Evers usó 0.25 (Evers sobre-compensó). Diferencia mínima.
+- Línea 4 (20×75): Sugiero cono 0.7 (compensación total), Evers usó 0.25 (sin compensar). Mi sugerencia da PB casi exacto.
+
+El vendedor mantiene control: la sugerencia es el "default óptimo matemáticamente" y puede ajustarla según criterio operativo (costo de cono, disponibilidad del proveedor, riesgo aceptable de detección).
+
+### Tipos modificados
+- `SuggestionResult` ahora incluye: `conoSugerido`, `conoIdeal`, `pbCliente`, `pbConCompensacion`, `pbDiffCompensado`, `conosAlternativos`.
+
+---
+
 ## v1.06 — Mayo 2026 — Tolerance warning + confidencialidad de precios
 
 **Foco**: nueva información de tolerancia de producción en Tab 2, y limpieza para que ningún precio real quede en el repositorio público.
