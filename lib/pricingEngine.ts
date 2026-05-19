@@ -6,6 +6,7 @@ import type {
   CalcResult,
   SuggestionResult,
   MarginStatus,
+  Trailer,
 } from '@/types';
 
 // Constantes de negocio
@@ -279,7 +280,77 @@ export function marginStatus(u: number | null): MarginStatus {
   return { label: `OK (${(u * 100).toFixed(1)}%)`, color: '#5BAA47', level: 'ok' };
 }
 
+// Resumen por trailer (peso, capacidad, items)
+export interface TrailerSummary {
+  trailerId: number;
+  kgNetoTotal: number;        // suma de PN × rolls de las lineas del trailer
+  capacityPct: number;        // kgNetoTotal / kg_max (0 a 1+)
+  itemCount: number;
+  totalRevenueUSD: number;
+  totalCostUSD: number;
+  utilidad: number | null;
+  exceedsCapacity: boolean;   // > 100% del kg_max
+}
+
+// Calcula totales POR trailer. Cada trailer tiene su propio flete que se
+// distribuye SOLO entre sus líneas. Esto es la matemática correcta para
+// pedidos multi-trailer (ej. parte va a Ohio, parte a Monterrey).
+//
+// Compatibilidad: si no se pasan trailers (legacy), se asume 1 trailer con
+// transport_usd global recibido como parámetro.
+export function calcAllTrailerTotals(
+  items: LineItem[],
+  trailers: Trailer[],
+  tc: number,
+): {
+  perTrailer: TrailerSummary[];
+  totalRevenueUSD: number;
+  totalCostUSD: number;
+  utilidadGlobal: number | null;
+  kgNetoTotal: number;
+  unidadesTotales: number;
+} {
+  const perTrailer: TrailerSummary[] = trailers.map((t) => {
+    const trailerItems = items.filter((it) => it.trailerId === t.id);
+    let kg = 0;
+    for (const it of trailerItems) {
+      const pn = calcPN(it.aReal, it.lReal, it.calReal);
+      kg += it.rollosPallet * it.palletTrailer * pn;
+    }
+    let revenue = 0;
+    let cost = 0;
+    for (const it of trailerItems) {
+      const r = calcLineItem(it, tc, t.transport_usd, kg);
+      const unidades = it.rollosPallet * it.palletTrailer;
+      revenue += it.precioCliente * unidades;
+      cost += r.costoRolloUSD * unidades;
+    }
+    const utilidad = (cost > 0 && revenue > 0) ? (revenue - cost) / cost : null;
+    return {
+      trailerId: t.id,
+      kgNetoTotal: kg,
+      capacityPct: t.kg_max > 0 ? kg / t.kg_max : 0,
+      itemCount: trailerItems.length,
+      totalRevenueUSD: revenue,
+      totalCostUSD: cost,
+      utilidad,
+      exceedsCapacity: kg > t.kg_max,
+    };
+  });
+
+  const totalRevenueUSD = perTrailer.reduce((a, t) => a + t.totalRevenueUSD, 0);
+  const totalCostUSD = perTrailer.reduce((a, t) => a + t.totalCostUSD, 0);
+  const kgNetoTotal = perTrailer.reduce((a, t) => a + t.kgNetoTotal, 0);
+  const unidadesTotales = items.reduce((a, it) => a + it.rollosPallet * it.palletTrailer, 0);
+  const utilidadGlobal = (totalCostUSD > 0 && totalRevenueUSD > 0)
+    ? (totalRevenueUSD - totalCostUSD) / totalCostUSD
+    : null;
+
+  return { perTrailer, totalRevenueUSD, totalCostUSD, utilidadGlobal, kgNetoTotal, unidadesTotales };
+}
+
 // Calcula totales del trailer completo (revenue, costo, utilidad, kg neto)
+// Legacy: usado por código viejo de trailer único. Mantenido por compat.
 export function calcTrailerTotals(
   items: LineItem[],
   tc: number,
@@ -334,9 +405,12 @@ export function sumAdders(item: Pick<LineItem,
 
 // Crea un item nuevo con campos numéricos en 0 y selects en sus defaults mínimos.
 // El vendedor llena ancho/calibre/largo y el selector de cono auto-llena el resto.
-export function newLineItem(id: number): LineItem {
+// trailerId default 1 — el primer trailer del pedido. Vendedor puede arrastrar
+// a otro trailer despues.
+export function newLineItem(id: number, trailerId = 1): LineItem {
   return {
     id,
+    trailerId,
     desc: '',
     unit: 'Cases',
     qty: 0,

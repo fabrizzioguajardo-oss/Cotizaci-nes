@@ -4,6 +4,68 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.08 — Mayo 2026 — Multi-trailer con drag-and-drop estilo Scratch
+
+**Foco**: una cotización ahora puede tener varios camiones, cada uno con su propio destino, costo de flete y capacidad. Las líneas se arrastran entre camiones como bloques de Scratch. El flete se distribuye SOLO entre las líneas del mismo trailer.
+
+### Nuevo
+- **`Trailer` como entidad de primera clase**: `{ id, destino, transport_usd, kg_max }`. Default: 1 trailer con capacidad 19,200 kg.
+- **`trailerId` en `LineItem`**: cada línea pertenece a un trailer. Backward-compat: items sin `trailerId` se migran al trailer 1.
+- **`calcAllTrailerTotals(items, trailers, tc)`**: nueva función en pricing engine. Calcula totales **por trailer** — kg neto, capacidad %, revenue, costo, utilidad. El flete de cada trailer se distribuye solo entre sus líneas.
+- **`TrailerStack` + `TrailerBlock` + `DraggableLineItem`**: tres componentes nuevos. El sidebar izquierdo del cotizador ahora muestra los trailers como bloques apilados estilo Scratch.
+
+### UI del sidebar
+```
+┌────────────────────────────────────────┐
+│ [1] 🚛  Columbus OH         🗑          │
+│ Flete USD: $6,900                       │
+│ Capacidad: 12,400 / 19,200 kg (65%)    │
+│ ▮▮▮▮▮▮▮▮░░░░░░░░░                       │
+│ ┌──────────────────────────────────┐   │
+│ │ ⋮⋮ 9.87×80 Orange  ●12.5%  📋🗑 │   │ ← draggable
+│ │ ⋮⋮ 3×70 Bandling   ●5.0%        │   │
+│ │ ⋮⋮ 5×70 Bandling   ●5.0%        │   │
+│ └──────────────────────────────────┘   │
+│ [+ Nueva línea en este trailer]        │
+└────────────────────────────────────────┘
+┌────────────────────────────────────────┐
+│ [2] 🚛  Monterrey          🗑           │
+│ Flete USD: $4,500                       │
+│ Capacidad: 7,200 / 19,200 kg (37%)     │
+│ ▮▮▮▮▮░░░░░░░░░░░░░░                     │
+│ ┌──────────────────────────────────┐   │
+│ │ ⋮⋮ 20×75 Ext Core  ●14.2%       │   │
+│ └──────────────────────────────────┘   │
+│ [+ Nueva línea en este trailer]        │
+└────────────────────────────────────────┘
+[+ Agregar trailer]
+```
+
+### Drag-and-drop
+- Powered by `@dnd-kit/core`
+- Cada línea tiene un handle (⋮⋮) que el vendedor arrastra
+- El trailer destino se ilumina verde cuando recibe drop
+- Visual "ghost" del item siendo arrastrado en DragOverlay
+- 5px threshold antes de iniciar drag (evita drags accidentales al hacer click)
+
+### Capacidad por trailer
+- Barra de progreso verde → ámbar (>85%) → rojo (>100%)
+- Warning visible cuando excede 19,200 kg: "Excede capacidad — separa en otro trailer"
+- El vendedor decide manualmente (no auto-split) para mantener control
+
+### Costos
+- Cada trailer tiene su propio `transport_usd` editable inline en el header del bloque
+- El flete por kg se calcula con el `kg_neto` del trailer (NO el global)
+- Si un trailer tiene 12,000 kg y flete $6,000 → cada kg absorbe $0.50 de flete. Las líneas de OTRO trailer no comparten ese costo.
+- TopBar global muestra la suma de `transport_usd` de todos los trailers (informativo)
+
+### Backwards compat
+- Drafts viejos sin `trailerId` en items → migrados a trailer 1 al cargar
+- `transport_usd` viejo se asigna al trailer 1
+- Función `calcTrailerTotals` (legacy) preservada para código que aún la usa
+
+---
+
 ## v1.07 — Mayo 2026 — Compensación automática de cono (cuidar el peso bruto)
 
 **Foco**: Tab 2 ahora también sugiere subir el cono para mantener el peso bruto del paquete cercano a lo que el cliente espera, mimicando la estrategia que Evers usa manualmente.

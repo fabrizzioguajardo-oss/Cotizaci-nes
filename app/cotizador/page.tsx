@@ -1,29 +1,38 @@
 'use client';
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import type { LineItem } from '@/types';
+import type { LineItem, Trailer } from '@/types';
 import {
   newLineItem,
   calcLineItem,
-  calcTrailerTotals,
+  calcAllTrailerTotals,
+  TRAILER_MAX_KG,
 } from '@/lib/pricingEngine';
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
 
 import TopBar from './components/TopBar';
-import ItemList from './components/ItemList';
+import TrailerStack from './components/TrailerStack';
 import TabPedido from './components/TabPedido';
 import TabSugerencia from './components/TabSugerencia';
 import FeedbackButton from './components/FeedbackButton';
 import AutosaveIndicator from './components/AutosaveIndicator';
 import { Layers, Sparkles, FilePlus } from 'lucide-react';
 
+// Factory para crear un trailer nuevo con defaults
+function newTrailer(id: number, destino = ''): Trailer {
+  return { id, destino, transport_usd: 0, kg_max: TRAILER_MAX_KG };
+}
+
 export default function CotizadorPage() {
   // Estado global del camión - arranca vacío para que cada vendedor cotice desde cero
   const [cliente, setCliente] = useState('');
   const [tc, setTc] = useState(18.5);
-  const [transportUSD, setTransportUSD] = useState(0);
-  const [items, setItems] = useState<LineItem[]>([newLineItem(1)]);
+
+  // Multi-trailer: el pedido se compone de uno o más camiones, cada uno con
+  // su propio costo logístico y capacidad. Default: 1 trailer.
+  const [trailers, setTrailers] = useState<Trailer[]>([newTrailer(1)]);
+  const [items, setItems] = useState<LineItem[]>([newLineItem(1, 1)]);
   const [activeId, setActiveId] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<'pedido' | 'sugerencia'>('pedido');
 
@@ -31,19 +40,28 @@ export default function CotizadorPage() {
   const [autosaveEnabled, setAutosaveEnabled] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
 
-  // Cálculos derivados (en orden: trailer totals primero, luego cada item)
+  // Cálculos derivados (multi-trailer aware)
   const trailerTotals = useMemo(
-    () => calcTrailerTotals(items, tc, transportUSD),
-    [items, tc, transportUSD],
+    () => calcAllTrailerTotals(items, trailers, tc),
+    [items, trailers, tc],
   );
 
+  // Para legacy: el flete distribuido depende del trailer al que pertenece la línea
   const results = useMemo(
     () =>
-      items.map((item) =>
-        calcLineItem(item, tc, transportUSD, trailerTotals.kgNetoTotal),
-      ),
-    [items, tc, transportUSD, trailerTotals.kgNetoTotal],
+      items.map((item) => {
+        const trailerSummary = trailerTotals.perTrailer.find((t) => t.trailerId === item.trailerId);
+        const trailer = trailers.find((t) => t.id === item.trailerId);
+        const kgTrailer = trailerSummary?.kgNetoTotal ?? 0;
+        const transportTrailer = trailer?.transport_usd ?? 0;
+        return calcLineItem(item, tc, transportTrailer, kgTrailer);
+      }),
+    [items, trailers, tc, trailerTotals.perTrailer],
   );
+
+  // Para compatibilidad con TopBar (que muestra "transport USD" global, no por trailer)
+  // Mostramos la suma de todos los trailers
+  const transportUSDTotal = trailers.reduce((a, t) => a + t.transport_usd, 0);
 
   const activeIndex = items.findIndex((i) => i.id === activeId);
   const activeItem = items[activeIndex] ?? items[0];
@@ -53,7 +71,7 @@ export default function CotizadorPage() {
   const autosave = useCotizacionAutosave({
     cliente,
     tc,
-    transport_usd: transportUSD,
+    transport_usd: transportUSDTotal,
     total_revenue_usd: trailerTotals.totalRevenueUSD,
     total_cost_usd: trailerTotals.totalCostUSD,
     utilidad_global: trailerTotals.utilidadGlobal,
@@ -61,16 +79,24 @@ export default function CotizadorPage() {
     enabled: autosaveEnabled,
   });
 
-  // Cargar el draft del usuario al montar
+  // Cargar el draft del usuario al montar.
+  // Backwards compat: si items vienen sin trailerId, se asignan al trailer 1.
   useEffect(() => {
     if (draftLoaded) return;
     autosave.loadDraft().then((draft) => {
       if (draft && draft.items && draft.items.length > 0) {
         setCliente(draft.cliente || '');
         setTc(draft.tc || 18.5);
-        setTransportUSD(draft.transport_usd || 0);
-        setItems(draft.items);
-        const firstId = draft.items[0]?.id ?? 1;
+        // Migración: items sin trailerId → asignar a trailer 1
+        const migrated = draft.items.map((it) =>
+          it.trailerId ? it : { ...it, trailerId: 1 },
+        );
+        setItems(migrated);
+        // El draft viejo solo tenia 1 transport_usd, lo asignamos al trailer 1
+        if (draft.transport_usd) {
+          setTrailers([{ id: 1, destino: '', transport_usd: draft.transport_usd, kg_max: TRAILER_MAX_KG }]);
+        }
+        const firstId = migrated[0]?.id ?? 1;
         setActiveId(firstId);
       }
       setDraftLoaded(true);
@@ -87,13 +113,41 @@ export default function CotizadorPage() {
     await autosave.clearDraft();
     setCliente('');
     setTc(18.5);
-    setTransportUSD(0);
-    const fresh = newLineItem(1);
+    setTrailers([newTrailer(1)]);
+    const fresh = newLineItem(1, 1);
     setItems([fresh]);
     setActiveId(fresh.id);
     setActiveTab('pedido');
     setTimeout(() => setAutosaveEnabled(true), 500);
   }, [autosave]);
+
+  // Mutaciones de trailers
+  const addTrailer = useCallback(() => {
+    setTrailers((prev) => {
+      const nextId = Math.max(0, ...prev.map((t) => t.id)) + 1;
+      return [...prev, newTrailer(nextId)];
+    });
+  }, []);
+
+  const removeTrailer = useCallback((id: number) => {
+    setTrailers((prev) => {
+      if (prev.length <= 1) return prev; // no permitir borrar el último
+      const remaining = prev.filter((t) => t.id !== id);
+      const fallback = remaining[0]?.id ?? 1;
+      // Reasignar items del trailer borrado al primero disponible
+      setItems((its) => its.map((it) => (it.trailerId === id ? { ...it, trailerId: fallback } : it)));
+      return remaining;
+    });
+  }, []);
+
+  const updateTrailer = useCallback((id: number, patch: Partial<Trailer>) => {
+    setTrailers((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)));
+  }, []);
+
+  // Mover una línea a un trailer distinto (drag-and-drop)
+  const moveItemToTrailer = useCallback((itemId: number, trailerId: number) => {
+    setItems((prev) => prev.map((it) => (it.id === itemId ? { ...it, trailerId } : it)));
+  }, []);
 
   // Mutaciones
   const updateActive = useCallback(
@@ -105,16 +159,18 @@ export default function CotizadorPage() {
     [activeId],
   );
 
-  const addItem = useCallback(() => {
+  const addItem = useCallback((targetTrailerId?: number) => {
     setItems((prev) => {
       const nextId = (prev[prev.length - 1]?.id ?? 0) + 1;
-      const next = newLineItem(nextId);
+      const active = prev.find((i) => i.id === activeId);
+      // Si no se especificó trailer, usa el del item activo o el primero
+      const trailerId = targetTrailerId ?? active?.trailerId ?? 1;
+      const next = newLineItem(nextId, trailerId);
       // Heredar SOLO datos del trailer compartido (tipo resina, config logistica
       // de tarima) del item activo. NO heredar adders ni precios — cada linea
       // tiene su propio mix de master/intenso/aditivo/refilado/caja segun el
       // producto especifico. El cone selector autollenara costoBase, master,
       // intenso cuando el vendedor escoja.
-      const active = prev.find((i) => i.id === activeId);
       if (active) {
         next.tipoResina = active.tipoResina;
         next.palletTrailer = active.palletTrailer;
@@ -162,7 +218,7 @@ export default function CotizadorPage() {
       numero: `Q-${Date.now().toString().slice(-6)}`,
       vendedor: 'Evers Lopez',
       tc,
-      transportUSD,
+      transportUSD: transportUSDTotal,
     };
     const doc = generateQuotePDF(items, results, meta);
     savePDF(doc, `Quotation_${cliente.replace(/\s+/g, '_')}_${meta.numero}.pdf`);
@@ -175,7 +231,7 @@ export default function CotizadorPage() {
       numero: `PO-${Date.now().toString().slice(-6)}`,
       vendedor: 'Evers Lopez',
       tc,
-      transportUSD,
+      transportUSD: transportUSDTotal,
     };
     const doc = generatePOPDF(items, results, meta);
     savePDF(doc, `PurchaseOrder_${meta.numero}.pdf`);
@@ -189,8 +245,8 @@ export default function CotizadorPage() {
         fecha={new Date().toLocaleDateString('es-MX')}
         tc={tc}
         onTcChange={setTc}
-        transportUSD={transportUSD}
-        onTransportChange={setTransportUSD}
+        transportUSD={transportUSDTotal}
+        onTransportChange={() => {}} /* read-only: ahora se edita por trailer */
         totalRevenue={trailerTotals.totalRevenueUSD}
         totalCost={trailerTotals.totalCostUSD}
         utilidadGlobal={trailerTotals.utilidadGlobal}
@@ -198,16 +254,22 @@ export default function CotizadorPage() {
       />
 
       <div className="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
-        {/* Sidebar: lista de líneas */}
-        <aside className="col-span-3 max-h-[calc(100vh-180px)]">
-          <ItemList
+        {/* Sidebar: bloques de trailer estilo Scratch */}
+        <aside className="col-span-3 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
+          <TrailerStack
+            trailers={trailers}
             items={items}
             results={results}
+            perTrailer={trailerTotals.perTrailer}
             activeId={activeId}
-            onSelect={setActiveId}
-            onAdd={addItem}
-            onDelete={deleteItem}
-            onDuplicate={duplicateItem}
+            onSelectItem={setActiveId}
+            onAddItem={addItem}
+            onDeleteItem={deleteItem}
+            onDuplicateItem={duplicateItem}
+            onAddTrailer={addTrailer}
+            onRemoveTrailer={removeTrailer}
+            onUpdateTrailer={updateTrailer}
+            onMoveItem={moveItemToTrailer}
           />
         </aside>
 

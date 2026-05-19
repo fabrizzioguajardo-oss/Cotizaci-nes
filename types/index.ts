@@ -6,8 +6,19 @@ export type ColorType = 'clear' | 'orange' | 'black' | 'blue' | 'red' | 'green' 
 export type CotizacionStatus = 'draft' | 'sent' | 'accepted' | 'rejected';
 export type DocType = 'quote' | 'po';
 
+// Un trailer (camión) que agrupa varias líneas del pedido.
+// Cada trailer tiene su propio costo logístico y capacidad máxima.
+// El flete se distribuye SOLO entre líneas del mismo trailer.
+export interface Trailer {
+  id: number;
+  destino: string;         // ej. "Columbus OH", "Pickup en planta", "CDMX"
+  transport_usd: number;   // costo logístico USD de ESTE trailer
+  kg_max: number;          // capacidad máxima (default 19200 kg)
+}
+
 export interface LineItem {
   id: number;
+  trailerId: number;       // a qué trailer pertenece esta línea (default 1)
   desc: string;
   unit: Unit;
   qty: number;
