@@ -37,7 +37,7 @@ export default function PreciosPage() {
             Sube los 3 archivos que Diego envía. El cotizador los usa
             automáticamente para sugerir conos, calcular costos y precios.
           </p>
-          <div className="grid grid-cols-3 gap-4 mt-4 text-2xs">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4 text-2xs">
             <div className="flex items-start gap-2">
               <span className="w-1.5 h-1.5 rounded-full bg-bnp-green mt-1" />
               <span className="text-text-muted">
@@ -57,6 +57,13 @@ export default function PreciosPage() {
               <span className="text-text-muted">
                 <span className="text-text-primary font-semibold">Tarima</span> →
                 catálogo de SKUs históricos + reglas de rollos por tarima
+              </span>
+            </div>
+            <div className="flex items-start gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-bnp-amber mt-1" />
+              <span className="text-text-muted">
+                <span className="text-text-primary font-semibold">Productos EDSA</span> →
+                tabla maestra de SKUs (fallback para sugerir cono cuando Tarima no tiene match)
               </span>
             </div>
           </div>
@@ -119,7 +126,7 @@ export default function PreciosPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <UploadZone
             kind="edsa"
             title="EDSA / Extruidos"
@@ -147,6 +154,16 @@ export default function PreciosPage() {
             expectedSheets="Hojas: General, Filtros (catálogo)"
             accentColor="#6B2C91"
             icon={<Box className="w-5 h-5" />}
+            onUploadSuccess={handleSuccess}
+          />
+
+          <UploadZone
+            kind="productos_edsa"
+            title="Productos EDSA (maestra)"
+            description="Tabla maestra de SKUs — referencia adicional de cono"
+            expectedSheets="Hoja: tablaMaestra (CÓDIGO, ANCHO, CALIBRE, PESO CONO…)"
+            accentColor="#F59E0B"
+            icon={<FileSpreadsheet className="w-5 h-5" />}
             onUploadSuccess={handleSuccess}
           />
         </div>

@@ -12,6 +12,7 @@ import { cookies } from 'next/headers';
 import { parseEDSAFile } from '@/lib/parsers/edsaParser';
 import { parseColorFile } from '@/lib/parsers/colorParser';
 import { parseTarimaFile } from '@/lib/parsers/tarimaParser';
+import { parseProductosEDSAFile } from '@/lib/parsers/productosEDSAParser';
 import {
   parseEDSATemplate,
   parseColorTemplate,
@@ -42,10 +43,10 @@ async function getAuthedSupabase() {
   });
 }
 
-type Kind = 'edsa' | 'color' | 'tarima';
+type Kind = 'edsa' | 'color' | 'tarima' | 'productos_edsa';
 
 function isKind(s: string): s is Kind {
-  return s === 'edsa' || s === 'color' || s === 'tarima';
+  return s === 'edsa' || s === 'color' || s === 'tarima' || s === 'productos_edsa';
 }
 
 export async function POST(req: NextRequest) {
@@ -64,18 +65,22 @@ export async function POST(req: NextRequest) {
   }
   const kindStr = typeof kindRaw === 'string' ? kindRaw : '';
   if (!isKind(kindStr)) {
-    return NextResponse.json({ error: 'kind debe ser edsa|color|tarima' }, { status: 400 });
+    return NextResponse.json({ error: 'kind debe ser edsa|color|tarima|productos_edsa' }, { status: 400 });
   }
 
   const filename = (file instanceof File ? file.name : '') || `upload-${Date.now()}.xlsx`;
   const buffer = await file.arrayBuffer();
 
   // Auto-detect: ¿template limpio o formato legacy?
+  // productos_edsa no tiene formato template; siempre se trata como legacy
+  // y se delega al parser dedicado mas abajo.
   let isTemplate = false;
-  try {
-    isTemplate = isCleanTemplate(buffer, kindStr);
-  } catch {
-    isTemplate = false;
+  if (kindStr === 'edsa' || kindStr === 'color' || kindStr === 'tarima') {
+    try {
+      isTemplate = isCleanTemplate(buffer, kindStr);
+    } catch {
+      isTemplate = false;
+    }
   }
 
   // Parsear según el tipo + formato
@@ -107,7 +112,7 @@ export async function POST(req: NextRequest) {
       };
       warnings = r.warnings;
       formatUsed = isTemplate ? 'template' : 'legacy';
-    } else {
+    } else if (kindStr === 'tarima') {
       const r = isTemplate ? parseTarimaTemplate(buffer) : parseTarimaFile(buffer);
       payload = { catalogo: r.catalogo, rangos: r.rangos };
       stats = {
@@ -117,6 +122,17 @@ export async function POST(req: NextRequest) {
       };
       warnings = r.warnings;
       formatUsed = isTemplate ? 'template' : 'legacy';
+    } else {
+      // productos_edsa — tabla maestra de SKUs EDSA (no tiene formato template)
+      const r = parseProductosEDSAFile(buffer);
+      payload = { catalogo: r.catalogo };
+      stats = {
+        skus: r.catalogo.length,
+        sheets_processed: r.sheetsProcessed.length,
+        warnings: r.warnings.length,
+      };
+      warnings = r.warnings;
+      formatUsed = 'legacy';
     }
     stats.format = formatUsed;
   } catch (err) {

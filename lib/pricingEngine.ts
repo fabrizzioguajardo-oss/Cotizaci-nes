@@ -60,8 +60,20 @@ export const PRICE_PER_LB_WARN_HIGH = 1.60;
 
 // Calcula el peso neto del rollo (kg) a partir de ancho (in), largo (ft) y calibre (GA).
 // Fórmula validada contra todos los camiones reales.
+// Valor RAW: util para algoritmo inverso (suggestRealSpec) donde necesitamos precision.
 export function calcPN(ancho: number, largo: number, calibre: number): number {
   return ancho * largo * calibre * PN_FORMULA_CONST;
+}
+
+// Peso neto FACTURABLE: trunca el PN hacia abajo a 2 decimales (NO redondea
+// estandar). Convencion de Diego en su Excel: =REDONDEAR.MENOS(...,2). Para
+// 3″×70GA×1000′ el calculo da 0.381 kg → se factura 0.38 (no 0.39).
+// Razon: "no regalar producto" — siempre cobrar por el siguiente kg solo
+// cuando el rollo lo alcanza completo. Usado en TODOS los flujos de costo y
+// despliegue al cliente (calcLineItem, suggestRealSpec, PDFs, kg trailer).
+export function calcPNFacturable(ancho: number, largo: number, calibre: number): number {
+  const raw = calcPN(ancho, largo, calibre);
+  return Math.floor(raw * 100) / 100;
 }
 
 // Convierte kg a lbs
@@ -77,8 +89,11 @@ export function calcLineItem(
   transportUSD: number,
   totalKgNetoTrailer: number,
 ): CalcResult {
-  // Pesos del rollo real (lo que se fabrica)
-  const pnReal = calcPN(item.aReal, item.lReal, item.calReal);
+  // Pesos del rollo real (lo que se fabrica).
+  // PN se factura redondeado HACIA ABAJO a 2 decimales (convencion Diego).
+  // Costo y kg trailer se calculan con el valor facturable para hacer match
+  // con su Excel y NO regalar producto.
+  const pnReal = calcPNFacturable(item.aReal, item.lReal, item.calReal);
   const pbReal = pnReal + item.cono;
 
   // Peso neto total del item para el trailer
@@ -119,8 +134,9 @@ export function calcLineItem(
     ? (item.precioCliente - costoRolloUSD) / costoRolloUSD
     : null;
 
-  // Pesos teóricos del cliente (lo que el cliente cree que recibe)
-  const pnTeoricoClienteKg = calcPN(item.aCliente, item.lCliente, item.calCliente);
+  // Pesos teóricos del cliente (lo que el cliente cree que recibe).
+  // Tambien facturable — el cliente va a leer este PN en su invoice/PO.
+  const pnTeoricoClienteKg = calcPNFacturable(item.aCliente, item.lCliente, item.calCliente);
   const pnTeoricoClienteLbs = pnTeoricoClienteKg * FC_LBS;
 
   // Price per pound al cliente (sobre lo que el cliente cree que recibe)
@@ -186,30 +202,81 @@ export function suggestRealSpec(params: {
     marginTarget,
   } = params;
 
-  if (precio <= 0 || tc <= 0 || aReal <= 0 || calReal <= 0) return null;
+  if (precio <= 0 || tc <= 0 || aReal <= 0 || calReal <= 0 || lCliente <= 0) return null;
 
   const costoRolloUSD_max = precio / (1 + marginTarget);
   const costoRolloMXN_max = costoRolloUSD_max * tc;
 
   const costoTotalKg = costoBaseTotal + transpKgMXN;
-  if (costoTotalKg <= 0) return null;
+  // Sanidad: si el costo total por kg es menor a 1 MXN, casi seguro la
+  // entrada esta incompleta (faltan costoBase / adders / flete). Sin esto,
+  // pnReal_needed_raw explota a miles de kg y lReal_raw a millones de pies,
+  // produciendo sugerencias absurdas tipo "fabricar 182,768,501 pies".
+  if (costoTotalKg <= 1 || !isFinite(costoTotalKg)) return null;
 
   // Despejar PN directo (no PB - menos cono). Convención de Diego.
-  const pnReal_needed = costoRolloMXN_max / costoTotalKg;
-  if (pnReal_needed <= 0) return null;
+  const pnReal_needed_raw = costoRolloMXN_max / costoTotalKg;
+  if (pnReal_needed_raw <= 0 || !isFinite(pnReal_needed_raw)) return null;
 
-  const lReal = pnReal_needed / (aReal * calReal * PN_FORMULA_CONST);
+  // Largo raw despejado de PN_needed. Lo redondeamos hacia ARRIBA (ceil) para
+  // que el PN facturable resultante >= PN necesario, garantizando el margen
+  // objetivo. Si redondeamos hacia abajo, el PN truncado quedaria por debajo
+  // y el margen real seria menor que el target.
+  const lReal_raw = pnReal_needed_raw / (aReal * calReal * PN_FORMULA_CONST);
 
-  const pnTeoricoCliente = calcPN(aCliente, lCliente, calCliente);
-  const reduction = pnTeoricoCliente > 0
-    ? 1 - pnReal_needed / pnTeoricoCliente
-    : 0;
-
+  const pnTeoricoCliente = calcPNFacturable(aCliente, lCliente, calCliente);
+  const pbCliente = pnTeoricoCliente + cono;
   const pricePerLb = pnTeoricoCliente * FC_LBS > 0
     ? precio / (pnTeoricoCliente * FC_LBS)
     : 0;
 
-  const pbRealKg = pnReal_needed + cono;
+  // ────────────────────────────────────────────────────────────────────────
+  // CAP DURO: si el largo despejado >= largo del cliente, o no es finito, o
+  // es negativo/cero, significa que el precio YA cubre el spec del cliente
+  // con margen sobrado. No tiene sentido sugerir fabricar MAS material que
+  // lo declarado: violaria el PB esperado (subiendo el peso bruto por encima
+  // de lo que el cliente "siente" al pesarlo) y produciria sugerencias
+  // absurdas (eg. 182M pies cuando se piden 1000). Devolvemos un "no-op
+  // suggestion": fabricar tal cual lo pedido, sin compensar el cono.
+  // Esto fixea el bug donde el cono compensatorio fallaba al revez: cuando
+  // lReal_raw > lCliente, pnReducido es NEGATIVO, conoIdeal se vuelve negativo,
+  // y findClosestStandardConoDown retornaba 0.1 sin mas — el cono se quedaba
+  // bajo y el PB real (ya inflado por exceso de largo) terminaba en ~1kg vs
+  // los ~0.48 esperados.
+  // ────────────────────────────────────────────────────────────────────────
+  if (!isFinite(lReal_raw) || lReal_raw <= 0 || lReal_raw >= lCliente) {
+    const pnAtCliente = calcPNFacturable(aReal, lCliente, calReal);
+    return {
+      lReal: lCliente,
+      pnReal: pnAtCliente,
+      pbReal: pnAtCliente + cono,
+      reduction: 0,
+      pricePerLb,
+      isValid: true,
+      warnings: [
+        'El precio cubre el spec del cliente con el margen objetivo. Fabricar tal cual, sin reducir largo ni compensar cono.',
+      ],
+      conoSugerido: cono,
+      conoIdeal: cono,
+      pbCliente,
+      pbConCompensacion: pnAtCliente + cono,
+      pbDiffCompensado: pnAtCliente - pnTeoricoCliente,
+      conosAlternativos: [cono],
+    };
+  }
+
+  // Largo final (entero, redondeado hacia arriba para cubrir el PN minimo).
+  // Red de seguridad: clamp a lCliente como ultimo recurso por si el cap de
+  // arriba no atrapara algun edge case (NaN/Infinity en flotantes raros).
+  const lReal = Math.min(lCliente, Math.ceil(lReal_raw));
+  // PN final que se va a facturar — truncado igual que en calcLineItem.
+  const pnReal_facturable = calcPNFacturable(aReal, lReal, calReal);
+
+  const reduction = pnTeoricoCliente > 0
+    ? 1 - pnReal_facturable / pnTeoricoCliente
+    : 0;
+
+  const pbRealKg = pnReal_facturable + cono;
 
   const isValid =
     reduction >= REDUCTION_MIN &&
@@ -234,9 +301,6 @@ export function suggestRealSpec(params: {
   if (lReal < 500) {
     warnings.push('Largo real muy corto, validar con planta antes de fabricar');
   }
-  if (lReal > lCliente) {
-    warnings.push('Largo sugerido > largo declarado, no tiene sentido reducir');
-  }
 
   // === Compensación de cono ===
   // Estrategia de Evers: cuando reducimos el largo (y por ende el PN), el cliente
@@ -247,17 +311,20 @@ export function suggestRealSpec(params: {
   //
   // El cono ideal sería: cono + PN_reducido. Pero los conos son discretos (estándar),
   // así que escogemos el cono estándar más cercano sin exceder (conservador).
-  const pbCliente = pnTeoricoCliente + cono;
-  const pnReducido = pnTeoricoCliente - pnReal_needed;
-  const conoIdeal = cono + pnReducido;
+  // GARANTIA: el cono sugerido NUNCA hace PB_real > PB_cliente. Si pnReducido < 0
+  // (estamos fabricando MAS material del declarado), el conoIdeal seria menor que
+  // el cono actual y el cap de arriba ya nos llevo al no-op. Por defensa, clamp
+  // a >= cono base: subir cono nunca, bajar nunca por error de redondeo.
+  const pnReducido = pnTeoricoCliente - pnReal_facturable;
+  const conoIdeal = Math.max(cono, cono + pnReducido);
   const conoSugerido = findClosestStandardConoDown(conoIdeal);
-  const pbConCompensacion = pnReal_needed + conoSugerido;
+  const pbConCompensacion = pnReal_facturable + conoSugerido;
   const pbDiffCompensado = pbConCompensacion - pbCliente;
   const conosAlternativos = getConoOptionsNear(conoIdeal, 3);
 
   return {
-    lReal: Math.round(lReal),
-    pnReal: pnReal_needed,
+    lReal,
+    pnReal: pnReal_facturable,
     pbReal: pbRealKg,
     reduction,
     pricePerLb,
@@ -314,7 +381,7 @@ export function calcAllTrailerTotals(
     const trailerItems = items.filter((it) => it.trailerId === t.id);
     let kg = 0;
     for (const it of trailerItems) {
-      const pn = calcPN(it.aReal, it.lReal, it.calReal);
+      const pn = calcPNFacturable(it.aReal, it.lReal, it.calReal);
       kg += it.rollosPallet * it.palletTrailer * pn;
     }
     let revenue = 0;
@@ -362,10 +429,12 @@ export function calcTrailerTotals(
   kgNetoTotal: number;
   unidadesTotales: number;
 } {
-  // Primer pase para totalKgNetoTrailer (necesario para el flete por kg)
+  // Primer pase para totalKgNetoTrailer (necesario para el flete por kg).
+  // Usa PN facturable para que el flete distribuido haga match con lo que
+  // Diego cobra (su Excel tambien factura PN truncado).
   let kgNetoTotal = 0;
   for (const item of items) {
-    const pn = calcPN(item.aReal, item.lReal, item.calReal);
+    const pn = calcPNFacturable(item.aReal, item.lReal, item.calReal);
     kgNetoTotal += item.rollosPallet * item.palletTrailer * pn;
   }
 

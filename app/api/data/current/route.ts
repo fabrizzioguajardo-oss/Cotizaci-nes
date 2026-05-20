@@ -14,7 +14,7 @@ import type { ParsedPriceRow, ParsedTarimaRow, ParsedTarimaRange } from '@/lib/p
 export const runtime = 'nodejs';
 
 interface RowFromDB {
-  kind: 'edsa' | 'color' | 'tarima';
+  kind: 'edsa' | 'color' | 'tarima' | 'productos_edsa';
   source_filename: string | null;
   uploaded_at: string;
   stats: Record<string, unknown>;
@@ -70,15 +70,16 @@ export async function GET() {
   const edsa = byKind.get('edsa');
   const color = byKind.get('color');
   const tarima = byKind.get('tarima');
+  const productosEdsa = byKind.get('productos_edsa');
 
   // Devolver lo que esté disponible. Si nada → 204 para que UI muestre "sin precios".
   // Si hay AL MENOS uno, mandar partial — el cotizador maneja datos parciales
   // (ej. tiene EDSA pero no Tarima → cone selector limitado pero EDSA prices ok).
-  if (!edsa && !color && !tarima) {
+  if (!edsa && !color && !tarima && !productosEdsa) {
     return new NextResponse(null, { status: 204 });
   }
 
-  const mostRecent = [edsa, color, tarima]
+  const mostRecent = [edsa, color, tarima, productosEdsa]
     .filter((x): x is RowFromDB => !!x)
     .map((x) => new Date(x.uploaded_at).getTime())
     .reduce((acc, t) => Math.max(acc, t), 0);
@@ -89,16 +90,24 @@ export async function GET() {
       edsa: edsa?.source_filename ?? '',
       color: color?.source_filename ?? '',
       tarima: tarima?.source_filename ?? '',
+      productos_edsa: productosEdsa?.source_filename ?? '',
     },
     precios_edsa: edsa?.data?.rows ?? [],
     precios_color: color?.data?.rows ?? [],
     catalogo_tarima: tarima?.data?.catalogo ?? [],
     rangos_tarima: tarima?.data?.rangos ?? [],
+    productos_edsa: productosEdsa?.data?.catalogo ?? [],
     stats: {
       ...edsa?.stats,
       ...color?.stats,
       ...tarima?.stats,
-      kinds_loaded: [edsa && 'edsa', color && 'color', tarima && 'tarima'].filter(Boolean).join(','),
+      ...productosEdsa?.stats,
+      kinds_loaded: [
+        edsa && 'edsa',
+        color && 'color',
+        tarima && 'tarima',
+        productosEdsa && 'productos_edsa',
+      ].filter(Boolean).join(','),
     },
   };
 

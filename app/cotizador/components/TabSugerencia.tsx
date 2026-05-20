@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { LineItem, CalcResult } from '@/types';
 import { suggestRealSpec, sumAdders, MARGIN_MIN } from '@/lib/pricingEngine';
 import MarginSlider from './MarginSlider';
@@ -28,6 +28,21 @@ export default function TabSugerencia({
   onGeneratePO,
 }: Props) {
   const [marginTarget, setMarginTarget] = useState(MARGIN_MIN);
+  // Preview local del cono alternativo escogido por el vendedor.
+  // No se commitea a item.cono hasta que pica "Aplicar". De esta forma
+  // el algoritmo de compensacion sigue computando contra el cono original
+  // del cliente (item.cono) y las alternativas no "se mueven" cada click.
+  // Antes: cada click hacia onChange({ cono }) -> item.cono actualizaba ->
+  // suggestRealSpec recomputaba conoIdeal = cono + pnReducido -> sugerido
+  // subia un escalon -> al volver a clicar el "siguiente" sugerido, todo
+  // se desplazaba otro escalon. El vendedor percibia que "el cono suma".
+  const [conoOverride, setConoOverride] = useState<number | null>(null);
+
+  // Resetear el override si el item cambia (otra linea seleccionada) o si
+  // el vendedor edita el spec real manualmente (que cambia item.cono).
+  useEffect(() => {
+    setConoOverride(null);
+  }, [item.id, item.cono, item.aCliente, item.calCliente, item.lCliente]);
 
   // Recalcular sugerencia en tiempo real al mover el slider
   const suggestion = useMemo(() => {
@@ -47,24 +62,30 @@ export default function TabSugerencia({
     });
   }, [item, result, marginTarget]);
 
-  // Aplicar sugerencia completa: largo real + cono sugerido (compensación PB)
+  // El cono efectivo que se va a aplicar/mostrar es el override del vendedor
+  // si existe, si no la sugerencia del algoritmo.
+  const conoEfectivo = conoOverride ?? suggestion?.conoSugerido ?? item.cono;
+
+  // Aplicar sugerencia completa: largo real + cono efectivo (sugerido o override)
   const handleApply = () => {
     if (suggestion) {
       onChange({
         lReal: suggestion.lReal,
-        cono: suggestion.conoSugerido,
+        cono: conoEfectivo,
       });
+      setConoOverride(null);
     }
   };
 
-  // Vendedor escoge un cono alternativo de los estándar mostrados
+  // Vendedor escoge un cono alternativo de los estándar mostrados.
+  // Guardamos la elección como PREVIEW local — NO toca item.cono ni lReal.
+  // El commit ocurre en handleApply cuando el vendedor confirma. Esto evita:
+  //  - El bug del lReal acumulando (cambiar lReal -> kgTrailer -> flete/kg ->
+  //    siguiente sugerencia con lReal aun mayor, hasta 1.8e8 pies)
+  //  - El bug del cono "sumando" (cambiar cono -> conoIdeal sube un escalon ->
+  //    sugerido sube un escalon, repite con cada click)
   const handlePickAlternativeCono = (cono: number) => {
-    if (suggestion) {
-      onChange({
-        lReal: suggestion.lReal,
-        cono,
-      });
-    }
+    setConoOverride(cono);
   };
 
   const pricePerLbColor =
@@ -116,6 +137,7 @@ export default function TabSugerencia({
       <SuggestionCard
         item={item}
         suggestion={suggestion}
+        conoEfectivo={conoEfectivo}
         onApply={handleApply}
         onPickAlternative={handlePickAlternativeCono}
       />

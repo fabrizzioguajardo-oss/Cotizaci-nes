@@ -4,6 +4,48 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.09 — Mayo 2026 — Bug fixes de sugerencia + tabla maestra EDSA
+
+**Foco**: blindar el algoritmo de sugerencia contra entradas incompletas/edge cases que producían números absurdos (lReal de 182M pies, PB de 1kg cuando se esperaba 0.48kg), y agregar la tabla maestra de productos EDSA como fuente adicional para sugerir cono.
+
+### Bugs arreglados (reportados por compañeros — Diego, Evers)
+
+- **Cono sugerido podía inflar PB > PB_cliente.** Con 3″×70GA×1000′ cono 0.150kg PB esperado 0.48kg, el algoritmo (a margen bajo) sugería fabricar más material y terminaba dando PB ~1kg o, en casos extremos, lReal=182M pies. Causa: cuando el precio cubre el spec con margen sobrado, `lReal_raw > lCliente` → `pnReducido` negativo → `conoIdeal` negativo → `findClosestStandardConoDown` retornaba el cono más chico. PB explotaba porque pnReal_facturable ya estaba inflado por el exceso de largo.
+  - Fix en `suggestRealSpec`: cap duro multi-capa. Si `lReal_raw >= lCliente`, NaN, Infinity, `lReal_raw <= 0`, o `costoTotalKg < 1 MXN/kg` (datos incompletos) → retorna no-op suggestion (fabricar tal cual lo pedido, sin compensar).
+  - Red de seguridad final: `lReal = Math.min(lCliente, Math.ceil(lReal_raw))` — imposible exceder el largo del cliente.
+  - Clamp en `conoIdeal = Math.max(cono, cono + pnReducido)` — el cono sugerido nunca queda por debajo del cono base.
+  - **Garantía**: PB_real ≤ PB_cliente siempre. Verificado con `scripts/verify-cono-compensation.ts` contra el 10mo camión de Level Packaging — 4/4 líneas con PB diff entre −6% y 0%, jamás positivo.
+
+- **Los botones de cono alternativo "sumaban" en cada click.** Cada click hacía `onChange({ cono })` → el algoritmo recomputaba `conoIdeal = cono + pnReducido` con el cono nuevo → el sugerido subía un escalón → el siguiente click subía otro escalón. El vendedor percibía que "el cono suma".
+  - Fix: estado local `conoOverride` en `TabSugerencia`. El click solo previsualiza; el commit a `item.cono` ocurre cuando el vendedor pica "Aplicar sugerencia al spec real". El algoritmo siempre computa contra el cono original del cliente.
+  - `SuggestionCard` recibe `conoEfectivo` y resalta el botón realmente seleccionado en vez del que computó el algoritmo.
+
+- **Modal "Reportar bug" persistía el texto entre aperturas.** Al picar "Abrir Gmail web" o "Abrir mi app de correo" el modal no se cerraba (solo abría tab nuevo). El reset del textarea estaba en cleanup de `open=false` que nunca disparaba. Al volver a abrir, aparecía el reporte anterior.
+  - Fix: reset al abrir Y al cerrar (defensa en profundidad). Los handlers de Gmail y mailto llaman `onClose()` después de disparar la acción.
+
+- **Input "Transporte (USD)" del TopBar lucía editable pero no hacía nada.** En v1.08 multi-trailer el flete se edita por bloque de trailer, pero el TopBar todavía tenía un input con `onChange={() => {}}`. El vendedor escribía y el valor se descartaba silenciosamente.
+  - Fix: `readOnly` con tooltip y subtítulo "Suma por trailer · editar en el sidebar". Comportamiento consistente con la arquitectura multi-trailer.
+
+### Feature — Tabla maestra de productos EDSA como fuente de cono
+
+- **Nuevo parser** `lib/parsers/productosEDSAParser.ts` para el archivo `prductosEDSA.xlsx` que manda Diego (tolera el typo "tablaMestra" en el nombre de hoja).
+- **`lookupConoOptions` consulta en cascada**: catálogo de tarima (curado) → tabla maestra EDSA (nuevo, fallback) → universo de precios (último recurso). Esto cubre productos que EDSA fabrica pero que no están en el archivo de rollos por tarima (subset filtrado), y evita que el panel de cono salga vacío para esos specs.
+- **`findCatalogMatches` también busca en productosEDSA** para conservar el `codigo_alterno` cuando el match viene de la tabla maestra.
+- **Endpoint `/api/data/upload`** acepta `kind=productos_edsa`. Aplica el flujo RLS estándar (`getAuthedSupabase()`, marca versiones anteriores como obsoletas).
+- **4ta `UploadZone` en `/cotizador/precios`** (color ámbar) para que el admin suba el archivo. Sin template descargable porque el formato viene del SAP de EDSA y es estable.
+- **`build-static-data.ts` precompila el archivo opcional** si está en `~/Downloads/prductosEDSA.xlsx`. Build vigente: 1,329 SKUs parseados sin warnings.
+
+### Tipos modificados
+
+- `PriceData` (en `lib/dataStore.ts`) ahora tiene `productos_edsa?: ParsedTarimaRow[]`.
+- `SuggestionCard` Props acepta `conoEfectivo?: number`.
+
+### Convenciones reafirmadas
+
+- PN facturable usa `Math.floor(raw * 100) / 100` (`calcPNFacturable`) — verificado: 3″×70GA×1000′ = 0.381 raw → 0.38 facturable. Consistente con `=REDONDEAR.MENOS` del Excel de Diego ("no regalar producto").
+
+---
+
 ## v1.08 — Mayo 2026 — Multi-trailer con drag-and-drop estilo Scratch
 
 **Foco**: una cotización ahora puede tener varios camiones, cada uno con su propio destino, costo de flete y capacidad. Las líneas se arrastran entre camiones como bloques de Scratch. El flete se distribuye SOLO entre las líneas del mismo trailer.

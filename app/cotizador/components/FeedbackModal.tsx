@@ -31,6 +31,19 @@ export default function FeedbackModal({ open, onClose }: Props) {
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
+  // Limpiar el textarea al abrir Y al cerrar. Antes solo limpiaba al cerrar,
+  // pero si el usuario picaba "Abrir Gmail web" / "Abrir mi app de correo"
+  // (que abren ventana nueva sin cerrar este modal) el texto se quedaba.
+  // Al volver a abrir mas tarde, aparecia el mensaje del reporte anterior y
+  // daba la sensacion de que el reporte previo no se habia enviado.
+  // Limpiar tambien al abrir cubre cualquier ruta donde el modal quedo con
+  // state stale (incluyendo si el componente nunca recibio open=false entre
+  // aperturas en algun flujo futuro).
+  useEffect(() => {
+    setMessage('');
+    setCopied(false);
+  }, [open]);
+
   if (!open) return null;
 
   const subject = `[Cotizador BETA] Reporte de ${new Date().toLocaleDateString('es-MX')}`;
@@ -48,11 +61,13 @@ export default function FeedbackModal({ open, onClose }: Props) {
   const handleGmail = () => {
     const url = `https://mail.google.com/mail/?view=cm&to=${FEEDBACK_EMAIL}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
     window.open(url, '_blank', 'noopener,noreferrer');
+    onClose();
   };
 
   const handleMailto = () => {
     const url = `mailto:${FEEDBACK_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`;
     window.location.href = url;
+    onClose();
   };
 
   const handleCopy = async () => {

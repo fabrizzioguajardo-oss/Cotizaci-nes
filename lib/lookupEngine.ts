@@ -61,6 +61,16 @@ export interface PriceLookupResult {
 
 // Para una combinación (ancho, calibre, largo) devuelve las opciones de cono
 // disponibles, ordenadas por uso histórico (catalogo > sin catalogo).
+//
+// Cada opción incluye un precio_estimado que ahora respeta el resin_class
+// del producto (virgen busca en EDSA, color busca en Color, etc.) para que
+// el preview no muestre $47 cuando el real va a ser $36.
+//
+// Universos de busqueda (en orden de preferencia):
+//   1. catalogo (tarima Filtros) — SKUs filtrados por Diego, incluye reglas de tarima
+//   2. productosEDSA (tabla maestra) — universo completo de SKUs EDSA, fallback cuando
+//      tarima no tiene match para el (ancho, calibre) pero EDSA si fabrica algo similar
+//   3. preciosEDSA (precios) — ultimo recurso, deduce conos del archivo de precios
 export function lookupConoOptions(params: {
   ancho: number;
   calibre: number;
@@ -68,16 +78,32 @@ export function lookupConoOptions(params: {
   catalogo: ParsedTarimaRow[];
   rangos: ParsedTarimaRange[];
   preciosEDSA: ParsedPriceRow[];
+  preciosColor?: ParsedPriceRow[];   // OPCIONAL para retro-compat
+  productosEDSA?: ParsedTarimaRow[]; // OPCIONAL: tabla maestra de productos EDSA
+  resin_class?: ResinClass;          // OPCIONAL: si se pasa, preview usa el universo correcto
+  color?: string;                    // OPCIONAL: filter de color para preview
 }): ConoOption[] {
-  const { ancho, calibre, largo_ft, catalogo, rangos, preciosEDSA } = params;
+  const {
+    ancho, calibre, largo_ft, catalogo, rangos, preciosEDSA,
+    preciosColor = [], productosEDSA = [], resin_class = 'virgen', color,
+  } = params;
   const pn = calcPN(ancho, largo_ft, calibre);
 
-  // 1) Ver qué conos están disponibles para este (ancho, calibre)
+  // 1) Catalogo tarima (subconjunto curado, con reglas de tarima)
   let conos = uniqueConosFor(catalogo, ancho, calibre);
 
-  // 2) Si el catálogo no tiene este (ancho, calibre), caer al universo de
-  //    precios — incluye TODOS los product_types (manual, semi, auto, hp...)
-  //    para no perder los machine films / auto products
+  // 2) Fallback: tabla maestra de productos EDSA. Cubre productos que EDSA
+  //    fabrica pero que aun no estan en el catalogo de Tarima/Filtros (el
+  //    documento de rollos por tarima es un subset). Esto evita que el panel
+  //    de cono salga vacio cuando el vendedor cotiza un spec que EDSA si
+  //    tiene en su SAP pero que no aparece en el archivo de tarima.
+  if (conos.length === 0 && productosEDSA.length > 0) {
+    conos = uniqueConosFor(productosEDSA, ancho, calibre);
+  }
+
+  // 3) Ultimo recurso: deducir conos del universo de precios — incluye TODOS
+  //    los product_types (manual, semi, auto, hp...) para no perder los
+  //    machine films / auto products.
   if (conos.length === 0) {
     const universe = new Set<number>();
     // Tolerar pequeño mismatch en ancho (19.7 ≈ 20)
@@ -88,20 +114,39 @@ export function lookupConoOptions(params: {
     conos = Array.from(universe).sort((a, b) => a - b);
   }
 
-  // 3) Para cada cono, calcular PB y reglas de tarima
+  // 4) Para cada cono, calcular PB y reglas de tarima.
+  //    Buscamos match exacto primero en el catalogo tarima (preferido por
+  //    tener largo_real); si no, en productosEDSA (sin largo_real pero con
+  //    codigo_alterno util). Asi conservamos el codigo del SKU aunque venga
+  //    de la tabla maestra.
   const options: ConoOption[] = [];
   for (const cono of conos) {
     const pb = pn + cono;
     const rule = findTarimaRule(rangos, ancho, pb);
-    const exactMatch = findCatalogMatches(catalogo, {
+    let exactMatch = findCatalogMatches(catalogo, {
       ancho,
       calibre,
       pn,
       pnTolerance: 0.1,
     }).find((c) => Math.abs(c.peso_cono - cono) < 0.01);
+    if (!exactMatch && productosEDSA.length > 0) {
+      exactMatch = findCatalogMatches(productosEDSA, {
+        ancho,
+        calibre,
+        pn,
+        pnTolerance: 0.1,
+      }).find((c) => Math.abs(c.peso_cono - cono) < 0.01);
+    }
 
-    // Buscar precio EDSA aproximado para este (ancho, cono, PB)
-    const priceMatch = findClosestEDSAPrice(preciosEDSA, ancho, cono, pb);
+    // Buscar precio en el universo correcto (color o EDSA segun resin_class).
+    // Antes solo miraba EDSA → mostraba ~$47 cuando el producto era color
+    // (que en realidad cuesta ~$36-50). Ahora respeta el resin_class.
+    const priceMatch = lookupPrice({
+      ancho, cono, pb,
+      resin_class,
+      color,
+      preciosEDSA, preciosColor,
+    });
 
     options.push({
       cono,
@@ -124,6 +169,33 @@ export function lookupConoOptions(params: {
   return options;
 }
 
+// Helper interno: busca precio EDSA específicamente. Solo para casos donde
+// el resin_class no es relevante o se quiere comparar contra el base.
+function findClosestEDSAPriceOnly(
+  preciosEDSA: ParsedPriceRow[],
+  ancho: number,
+  cono: number,
+  pb: number,
+): ParsedPriceRow | null {
+  const anchoTol = 0.5;
+  const candidates = preciosEDSA.filter(
+    (r) => Math.abs(r.ancho - ancho) <= anchoTol && Math.abs(r.cono - cono) < 0.01,
+  );
+  if (candidates.length === 0) return null;
+  const exactAncho = candidates.filter((c) => c.ancho === ancho);
+  const pool = exactAncho.length > 0 ? exactAncho : candidates;
+  let best: ParsedPriceRow | null = null;
+  let bestDist = Infinity;
+  for (const c of pool) {
+    const d = Math.abs(c.peso_total - pb);
+    if (d < bestDist) {
+      best = c;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
 // === Lookup de precio dado (ancho, cono, PB, resin_class) ===
 
 // Busca el match por PB usando semantica de INTERVALO (floor).
@@ -136,11 +208,12 @@ export function lookupPrice(params: {
   cono: number;
   pb: number;
   resin_class: ResinClass;
+  color?: string;             // NUEVO: 'orange', 'black', 'clear', etc.
   product_type?: ProductType;
   preciosEDSA: ParsedPriceRow[];
   preciosColor: ParsedPriceRow[];
 }): PriceLookupResult | null {
-  const { ancho, cono, pb, resin_class, product_type = 'manual', preciosEDSA, preciosColor } = params;
+  const { ancho, cono, pb, resin_class, color, product_type = 'manual', preciosEDSA, preciosColor } = params;
 
   // El archivo a usar depende del resin_class
   const universe =
@@ -164,6 +237,20 @@ export function lookupPrice(params: {
   // Filtrar product_type si fue especificado, pero abrir si no hay matches
   const byType = candidates.filter((r) => r.product_type === product_type);
   if (byType.length > 0) candidates = byType;
+
+  // Filtrar por color si fue especificado. El parser de Color guarda
+  // r.color = 'orange'/'black'/etc o 'generic' (cuando la hoja no especifica
+  // un color particular). Si el vendedor pidió 'clear', no aplica filter
+  // (clear no es realmente un color con master adder).
+  // Estrategia: si hay match exacto por color usar eso; si no, usar generic;
+  // si tampoco, usar todos.
+  if (color && color !== 'clear' && color !== 'custom') {
+    const byColor = candidates.filter((r) => r.color === color);
+    const byGeneric = candidates.filter((r) => r.color === 'generic' || r.color === null);
+    if (byColor.length > 0) candidates = byColor;
+    else if (byGeneric.length > 0) candidates = byGeneric;
+    // else: mantener candidates como están
+  }
 
   // Priorizar match exacto de ancho
   const exactAncho = candidates.filter((c) => c.ancho === ancho);
@@ -259,12 +346,13 @@ export function buildAutoFill(params: {
   largo_ft: number;
   cono: number;
   resin_class: ResinClass;
+  color?: string;             // tipoColor del LineItem: 'orange', 'black', 'clear', etc.
   product_type?: ProductType;
   preciosEDSA: ParsedPriceRow[];
   preciosColor: ParsedPriceRow[];
   rangos: ParsedTarimaRange[];
 }): AutoFillResult | null {
-  const { ancho, calibre, largo_ft, cono, resin_class, product_type, preciosEDSA, preciosColor, rangos } = params;
+  const { ancho, calibre, largo_ft, cono, resin_class, color, product_type, preciosEDSA, preciosColor, rangos } = params;
   const pn = calcPN(ancho, largo_ft, calibre);
   const pb = pn + cono;
 
@@ -273,6 +361,7 @@ export function buildAutoFill(params: {
     cono,
     pb,
     resin_class,
+    color,
     product_type,
     preciosEDSA,
     preciosColor,

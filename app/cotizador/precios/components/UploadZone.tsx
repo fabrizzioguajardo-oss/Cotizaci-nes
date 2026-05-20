@@ -3,10 +3,13 @@
 import { useRef, useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertTriangle, Loader2, Download } from 'lucide-react';
 
-export type UploadKind = 'edsa' | 'color' | 'tarima';
+export type UploadKind = 'edsa' | 'color' | 'tarima' | 'productos_edsa';
 
-// Mapeo de kind → archivo template descargable (blank, sin precios reales)
-const TEMPLATE_URL: Record<UploadKind, string> = {
+// Mapeo de kind → archivo template descargable (blank, sin precios reales).
+// productos_edsa no tiene template propio: el formato proviene del SAP de
+// EDSA y es estable, asi que no exponemos descarga de template para evitar
+// confusion. El admin sube el archivo tal cual lo manda Diego.
+const TEMPLATE_URL: Partial<Record<UploadKind, string>> = {
   edsa: '/templates/template_blank_EDSA.xlsx',
   color: '/templates/template_blank_color.xlsx',
   tarima: '/templates/template_blank_tarima.xlsx',
@@ -152,18 +155,26 @@ export default function UploadZone({
             />
           </div>
           <div className="px-4 pb-3 -mt-1 border-t border-border-subtle pt-3">
-            <a
-              href={TEMPLATE_URL[kind]}
-              download
-              className="inline-flex items-center gap-1.5 text-2xs text-text-muted hover:text-text-primary"
-              title="Descarga el template limpio recomendado para este tipo"
-            >
-              <Download className="w-3 h-3" />
-              Descargar template limpio
-            </a>
-            <p className="text-2xs text-text-muted mt-1">
-              Acepta tu formato actual <span className="text-text-primary">o</span> el template limpio. Auto-detect.
-            </p>
+            {TEMPLATE_URL[kind] ? (
+              <>
+                <a
+                  href={TEMPLATE_URL[kind]}
+                  download
+                  className="inline-flex items-center gap-1.5 text-2xs text-text-muted hover:text-text-primary"
+                  title="Descarga el template limpio recomendado para este tipo"
+                >
+                  <Download className="w-3 h-3" />
+                  Descargar template limpio
+                </a>
+                <p className="text-2xs text-text-muted mt-1">
+                  Acepta tu formato actual <span className="text-text-primary">o</span> el template limpio. Auto-detect.
+                </p>
+              </>
+            ) : (
+              <p className="text-2xs text-text-muted">
+                Sube el archivo tal cual lo manda EDSA — el parser detecta automáticamente la hoja maestra.
+              </p>
+            )}
           </div>
         </>
       )}

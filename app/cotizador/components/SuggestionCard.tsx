@@ -7,12 +7,17 @@ import { AlertTriangle, CheckCircle, ArrowRight, Package } from 'lucide-react';
 interface Props {
   item: LineItem;
   suggestion: SuggestionResult | null;
+  // Cono efectivo a mostrar: el override que el vendedor escogio entre las
+  // alternativas, o la sugerencia del algoritmo si no hay override. Permite
+  // previsualizar el PB resultante con el cono seleccionado sin escribirlo
+  // a item.cono (que dispararia el bucle de "el cono suma").
+  conoEfectivo?: number;
   onApply: () => void;
   onPickAlternative?: (cono: number) => void;
 }
 
 // Tarjeta principal de Tab 2: muestra el spec sugerido para la planta
-export default function SuggestionCard({ item, suggestion, onApply, onPickAlternative }: Props) {
+export default function SuggestionCard({ item, suggestion, conoEfectivo, onApply, onPickAlternative }: Props) {
   if (!suggestion) {
     return (
       <div className="card p-6 text-center">
@@ -36,6 +41,13 @@ export default function SuggestionCard({ item, suggestion, onApply, onPickAltern
       : suggestion.reduction > 0.25
       ? 'Media'
       : 'Conservadora';
+
+  // Cono final: override del vendedor o sugerencia. PB final se recalcula
+  // contra el cono final para que la tarjeta muestre lo que de verdad se
+  // entregaria si se aplica.
+  const conoFinal = conoEfectivo ?? suggestion.conoSugerido;
+  const pbFinal = suggestion.pnReal + conoFinal;
+  const pbDiffFinal = pbFinal - suggestion.pbCliente;
 
   return (
     <div className="space-y-4">
@@ -83,15 +95,15 @@ export default function SuggestionCard({ item, suggestion, onApply, onPickAltern
             <p className="mono text-sm text-text-secondary mb-2">{item.calReal} GA</p>
             <div className="pt-2 mt-2 border-t border-bnp-green/20 text-2xs">
               <div className="flex justify-between text-text-secondary">
-                <span>Cono sugerido:</span>
+                <span>{conoFinal !== suggestion.conoSugerido ? 'Cono escogido:' : 'Cono sugerido:'}</span>
                 <span className="mono text-bnp-green font-semibold">
-                  {fmtNum(suggestion.conoSugerido, 3)} kg
-                  <span className="text-text-muted ml-1">(+{fmtNum(suggestion.conoSugerido - item.cono, 2)})</span>
+                  {fmtNum(conoFinal, 3)} kg
+                  <span className="text-text-muted ml-1">(+{fmtNum(conoFinal - item.cono, 2)})</span>
                 </span>
               </div>
               <div className="flex justify-between text-text-secondary mt-0.5">
                 <span>PB resultante:</span>
-                <span className="mono text-bnp-green font-semibold">{fmtNum(suggestion.pbConCompensacion, 2)} kg</span>
+                <span className="mono text-bnp-green font-semibold">{fmtNum(pbFinal, 2)} kg</span>
               </div>
             </div>
           </div>
@@ -109,25 +121,28 @@ export default function SuggestionCard({ item, suggestion, onApply, onPickAltern
                 Al reducir el largo, el rollo pesaría {fmtNum(suggestion.pbCliente - suggestion.pnReal, 2)} kg
                 menos del PB que el cliente espera. Subiendo el cono de{' '}
                 <span className="mono text-text-primary">{fmtNum(item.cono, 2)} kg</span> a{' '}
-                <span className="mono text-bnp-green font-semibold">{fmtNum(suggestion.conoSugerido, 2)} kg</span>,
+                <span className="mono text-bnp-green font-semibold">{fmtNum(conoFinal, 2)} kg</span>,
                 el paquete final pesa{' '}
-                <span className="mono text-text-primary">{fmtNum(suggestion.pbConCompensacion, 2)} kg</span>
-                {' '}({suggestion.pbDiffCompensado >= 0 ? '+' : ''}
-                {fmtNum(suggestion.pbDiffCompensado, 2)} kg vs lo esperado,{' '}
-                <span style={{ color: Math.abs(suggestion.pbDiffCompensado) < 0.1 ? '#5BAA47' : '#F59E0B' }}>
-                  {Math.abs(suggestion.pbDiffCompensado / suggestion.pbCliente * 100).toFixed(1)}%
+                <span className="mono text-text-primary">{fmtNum(pbFinal, 2)} kg</span>
+                {' '}({pbDiffFinal >= 0 ? '+' : ''}
+                {fmtNum(pbDiffFinal, 2)} kg vs lo esperado,{' '}
+                <span style={{ color: Math.abs(pbDiffFinal) < 0.1 ? '#5BAA47' : '#F59E0B' }}>
+                  {Math.abs(suggestion.pbCliente > 0 ? pbDiffFinal / suggestion.pbCliente * 100 : 0).toFixed(1)}%
                 </span>).
               </p>
               <p className="text-2xs text-text-muted mt-1">
                 Cono ideal exacto: {fmtNum(suggestion.conoIdeal, 3)} kg (no es tamaño estándar, sugiero el más cercano sin exceder).
               </p>
 
-              {/* Opciones alternativas de cono */}
+              {/* Opciones alternativas de cono.
+                  isCurrent compara contra conoFinal (que respeta el override
+                  del vendedor) — no contra suggestion.conoSugerido. Asi el
+                  boton seleccionado refleja la elección real del usuario. */}
               {suggestion.conosAlternativos.length > 1 && onPickAlternative && (
                 <div className="mt-2 flex items-center gap-1.5">
                   <span className="text-2xs text-text-muted">Otras opciones:</span>
                   {suggestion.conosAlternativos.map((c) => {
-                    const isCurrent = Math.abs(c - suggestion.conoSugerido) < 0.001;
+                    const isCurrent = Math.abs(c - conoFinal) < 0.001;
                     return (
                       <button
                         key={c}

@@ -127,11 +127,16 @@ export default function TopBar(p: Props) {
         <div className="col-span-2">
           <label className="label">Transporte (USD)</label>
           <input
-            type="number" step="100"
-            value={p.transportUSD || ''}
-            onChange={(e) => p.onTransportChange(parseFloat(e.target.value) || 0)}
-            className="input"
+            type="number"
+            value={p.transportUSD || 0}
+            readOnly
+            tabIndex={-1}
+            className="input opacity-70 cursor-not-allowed"
+            title="Suma de los fletes por trailer. Editar en cada bloque de trailer del sidebar izquierdo."
           />
+          <p className="text-2xs text-text-muted mt-0.5">
+            Suma por trailer · editar en el sidebar
+          </p>
         </div>
 
         <div className="col-span-5 grid grid-cols-4 gap-3">

@@ -15,11 +15,16 @@ export interface PriceData {
     edsa: string;
     color: string;
     tarima: string;
+    productos_edsa?: string;       // OPCIONAL: tabla maestra de SKUs EDSA
   };
   precios_edsa: ParsedPriceRow[];
   precios_color: ParsedPriceRow[];
   catalogo_tarima: ParsedTarimaRow[];
   rangos_tarima: ParsedTarimaRange[];
+  // Tabla maestra de productos EDSA (catalogo completo de SKUs reales).
+  // Sirve como segundo universo de sugerencia de cono cuando el catalogo
+  // de tarima (subconjunto filtrado) no tiene match para un (ancho, calibre).
+  productos_edsa?: ParsedTarimaRow[];
   stats: Record<string, number>;
   // De donde vienen los datos: 'supabase' = vigentes que subio Diego;
   // 'static' = fallback al precios.json del build (datos viejos, advertir).
