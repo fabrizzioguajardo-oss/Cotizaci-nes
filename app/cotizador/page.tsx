@@ -10,6 +10,7 @@ import {
 } from '@/lib/pricingEngine';
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
+import { computeQuote, partitionWarnings } from '@/lib/computeQuote';
 
 import TopBar from './components/TopBar';
 import TrailerStack from './components/TrailerStack';
@@ -208,8 +209,31 @@ export default function CotizadorPage() {
     [],
   );
 
+  // Verifica las invariantes de negocio (PB≤PB_cliente, margen≥12%,
+  // capacidad trailer, spec completo) antes de generar PDFs. Si hay
+  // violaciones, pide confirmación al vendedor con el detalle.
+  // Retorna true si se puede proceder, false si el vendedor canceló.
+  const confirmarAntesPDF = (tipo: 'cotización al cliente' | 'PO a Extruidos'): boolean => {
+    const quote = computeQuote(items, trailers, tc);
+    const { errors, warns } = partitionWarnings(quote.warnings);
+    if (errors.length === 0 && warns.length === 0) return true;
+
+    const lineas: string[] = [];
+    if (errors.length > 0) {
+      lineas.push(`⚠ ${errors.length} error${errors.length === 1 ? '' : 'es'}:`);
+      for (const e of errors) lineas.push(`  • ${e.message}`);
+    }
+    if (warns.length > 0) {
+      lineas.push(`${errors.length > 0 ? '\n' : ''}${warns.length} advertencia${warns.length === 1 ? '' : 's'}:`);
+      for (const w of warns) lineas.push(`  • ${w.message}`);
+    }
+    lineas.push(`\n¿Generar la ${tipo} de todos modos?`);
+    return window.confirm(lineas.join('\n'));
+  };
+
   // Generadores de PDF
   const handleGenerateQuote = () => {
+    if (!confirmarAntesPDF('cotización al cliente')) return;
     const meta = {
       cliente,
       contacto: 'Chad Bartling',
@@ -225,6 +249,7 @@ export default function CotizadorPage() {
   };
 
   const handleGeneratePO = () => {
+    if (!confirmarAntesPDF('PO a Extruidos')) return;
     const meta = {
       cliente: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',
       fecha: new Date().toLocaleDateString('en-US'),

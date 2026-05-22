@@ -4,6 +4,46 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.10 — Mayo 2026 — Red de seguridad: paridad PDFs + invariantes ejecutables
+
+**Foco**: invisibles al vendedor pero crítico. Convertir las invariantes que viven en comentarios del código (PB_real ≤ PB_cliente, margen ≥ 12%, capacidad trailer 19,200 kg) en **assertions ejecutables**, y garantizar que los DOS PDFs (cotización al cliente vs PO a Extruidos) salgan del mismo árbol de cálculo. Es el primer entregable del plan de 3 semanas que salió de la auditoría con la Mesa Redonda.
+
+### Nuevo
+
+- **`lib/computeQuote.ts`**: único entry point de cálculo para una cotización. Envuelve `calcAllTrailerTotals` + `calcLineItem` y produce un objeto `QuoteResult` con `perItem`, `perTrailer`, `totals` y `warnings`. Los dos PDFs deben consumir este resultado — su paridad subyacente es la razón de existir de SICE.
+- **5 invariantes de negocio ejecutables** dentro de `computeQuote`:
+  - `pb_excedido`: PB_real > PB_cliente (con tolerancia 0.5% por floating point). **error.** Cubre regresiones del bug v1.07-v1.08 donde el cono compensatorio inflaba el peso bruto arriba del esperado.
+  - `margen_perdida`: utilidad < 0 (precio bajo costo). **error.**
+  - `margen_bajo`: utilidad entre 0 y 12%. **warn.**
+  - `capacidad_excedida`: trailer arriba de 19,200 kg netos. **error.**
+  - `pn_cero`: línea con precio pero sin spec real. **error.**
+  - `sin_precio`: línea con spec pero precio en cero. **warn.**
+- **`scripts/verify-pdf-parity.ts`** + **`npm run verify`**: red de seguridad ejecutable. 6 casos de prueba (10mo camión real Level Packaging + regression del bug v1.07 + casos sintéticos de margen/capacidad/spec inválido) + test de paridad estructural (`computeQuote` es determinístico). Falla con exit 1 si cualquier invariante se viola. Patrón consistente con `verify-cono-compensation.ts` y `verify-truck-*.ts`.
+- **Confirmación previa al descargar PDF**: en `page.tsx`, antes de generar la cotización al cliente o la PO a Extruidos, se muestra un `confirm()` con la lista completa de violaciones e inconsistencias detectadas. El vendedor decide si proceder o regresar a ajustar. Esto cierra la red de seguridad — los warnings ya no viven solo en tests offline, también el vendedor los ve antes de mandar el documento.
+
+### Por qué importa
+
+Tres bugs previos (v1.07 PB inflado, v1.08 cono acumulando, v1.06 utilidad falsa) tenían en común que las invariantes de negocio vivían como **comentarios y supuestos**, no como assertions. Cada regresión se detectaba en producción, no en desarrollo. Esta versión convierte esas reglas en código ejecutable:
+
+- Si un futuro cambio rompe `PB_real ≤ PB_cliente`, `npm run verify` falla.
+- Si la cotización va a salir con margen perdida, el vendedor ve la alerta antes de descargar el PDF.
+- Si los dos PDFs llegaran a divergir por un cálculo desincronizado, el test de paridad estructural lo detecta.
+
+### Tipos modificados
+
+- `QuoteResult` y `QuoteWarning` en `lib/computeQuote.ts`.
+- `package.json`: nuevo script `verify` y devDependency `tsx`.
+
+### Notas para el roadmap
+
+Este es el **Push #1 del plan de 3 semanas** post-auditoría. Próximos:
+
+- **Push #2**: snapshot inmutable de cotizaciones emitidas (tabla nueva en Supabase + endpoint), para poder reconstruir cualquier cotización pasada aunque los precios EDSA cambien después.
+- **Push #3**: bugs del Adversario (autosave race multi-tab, `costoTotalKg ≤ 1` silencioso, flete fantasma en trailer vacío) + vendedor dinámico en PDFs + defaults vacíos.
+- **Push #4**: catálogo nombrado de aumentos (en vez de "Aumento 1/2") + ambigüedad Cases-vs-rollo en cálculo de margen + chips PB esperado visibles.
+
+---
+
 ## v1.09 — Mayo 2026 — Bug fixes de sugerencia + tabla maestra EDSA
 
 **Foco**: blindar el algoritmo de sugerencia contra entradas incompletas/edge cases que producían números absurdos (lReal de 182M pies, PB de 1kg cuando se esperaba 0.48kg), y agregar la tabla maestra de productos EDSA como fuente adicional para sugerir cono.
