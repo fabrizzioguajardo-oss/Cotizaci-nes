@@ -23,6 +23,10 @@ export interface AuthState {
   loading: boolean;
   isAdmin: boolean;
   signOut: () => Promise<void>;
+  // Re-lee el perfil desde Supabase sin recargar la página. Lo usa el modal
+  // de nombre tras guardar, en vez de window.location.reload() (que perdía
+  // cualquier trabajo dentro de la ventana de debounce del autosave).
+  refreshProfile: () => Promise<void>;
 }
 
 export function useAuth(): AuthState {
@@ -75,6 +79,24 @@ export function useAuth(): AuthState {
     };
   }, []);
 
+  // Re-lee user + profile bajo demanda (sin reload de página).
+  const refreshProfile = useCallback(async () => {
+    const sb = getSupabaseBrowser();
+    if (!sb) return;
+    const { data } = await sb.auth.getUser();
+    setUser(data.user);
+    if (!data.user) {
+      setProfile(null);
+      return;
+    }
+    const { data: profileData } = await sb
+      .from('user_profiles')
+      .select('user_id, email, name, role')
+      .eq('user_id', data.user.id)
+      .maybeSingle();
+    setProfile(profileData as UserProfile | null);
+  }, []);
+
   const signOut = useCallback(async () => {
     const sb = getSupabaseBrowser();
     if (!sb) return;
@@ -97,5 +119,6 @@ export function useAuth(): AuthState {
     loading,
     isAdmin,
     signOut,
+    refreshProfile,
   };
 }

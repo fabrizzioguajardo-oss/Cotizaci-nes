@@ -4,13 +4,11 @@ import { useMemo, useState, useCallback, useEffect } from 'react';
 import type { LineItem, Trailer } from '@/types';
 import {
   newLineItem,
-  calcLineItem,
-  calcAllTrailerTotals,
   TRAILER_MAX_KG,
 } from '@/lib/pricingEngine';
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
-import { computeQuote, partitionWarnings } from '@/lib/computeQuote';
+import { computeQuote, partitionWarnings, type QuoteResult } from '@/lib/computeQuote';
 import { buildSnapshot, type SnapshotMeta } from '@/lib/snapshotEmitida';
 import { useAuth } from '@/lib/useAuth';
 
@@ -30,7 +28,7 @@ function newTrailer(id: number, destino = ''): Trailer {
 
 export default function CotizadorPage() {
   // Sesión del usuario actual — usado para firmar PDFs con el vendedor real.
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
 
   // Estado global del camión - arranca vacío para que cada vendedor cotice desde cero
   const [cliente, setCliente] = useState('');
@@ -54,24 +52,24 @@ export default function CotizadorPage() {
   const [autosaveEnabled, setAutosaveEnabled] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
 
-  // Cálculos derivados (multi-trailer aware)
-  const trailerTotals = useMemo(
-    () => calcAllTrailerTotals(items, trailers, tc),
+  // ÚNICO punto de cálculo: computeQuote es el entry point que también
+  // alimenta los PDFs, el snapshot y los warnings. Antes la UI calculaba
+  // `results` y `trailerTotals` por su cuenta (duplicando la fórmula que vive
+  // en computeQuote), y luego confirmarAntesPDF/persistirSnapshot llamaban
+  // computeQuote OTRAS dos veces por click. Ahora todo sale de este `quote`.
+  const quote: QuoteResult = useMemo(
+    () => computeQuote(items, trailers, tc),
     [items, trailers, tc],
   );
-
-  // Para legacy: el flete distribuido depende del trailer al que pertenece la línea
-  const results = useMemo(
-    () =>
-      items.map((item) => {
-        const trailerSummary = trailerTotals.perTrailer.find((t) => t.trailerId === item.trailerId);
-        const trailer = trailers.find((t) => t.id === item.trailerId);
-        const kgTrailer = trailerSummary?.kgNetoTotal ?? 0;
-        const transportTrailer = trailer?.transport_usd ?? 0;
-        return calcLineItem(item, tc, transportTrailer, kgTrailer);
-      }),
-    [items, trailers, tc, trailerTotals.perTrailer],
-  );
+  const results = quote.perItem;
+  // Shape de compatibilidad para los consumidores que esperaban `trailerTotals`.
+  const trailerTotals = {
+    perTrailer: quote.perTrailer,
+    totalRevenueUSD: quote.totals.revenueUSD,
+    totalCostUSD: quote.totals.costUSD,
+    utilidadGlobal: quote.totals.utilidadGlobal,
+    kgNetoTotal: quote.totals.kgNetoTotal,
+  };
 
   // Suma de fletes — SOLO de trailers que efectivamente llevan líneas. Sin
   // este filtro, un trailer creado por error o vaciado al arrastrar todas
@@ -111,7 +109,9 @@ export default function CotizadorPage() {
         setCliente(draft.cliente || '');
         setContacto(draft.contacto || '');
         setDireccion(draft.direccion || '');
-        setTc(draft.tc || 18.5);
+        // tc del draft solo si es un valor usable (>0). Un tc de 0 no es un
+        // tipo de cambio válido (rompe las conversiones), así que defaulteamos.
+        setTc(typeof draft.tc === 'number' && draft.tc > 0 ? draft.tc : 18.5);
         // Migración doble de items:
         //  - trailerId: items viejos sin trailer → trailer 1.
         //  - conoCliente: items previos a v1.16 no lo tienen → inicializar
@@ -267,7 +267,7 @@ export default function CotizadorPage() {
     meta: SnapshotMeta,
   ): Promise<void> => {
     try {
-      const quote = computeQuote(items, trailers, tc);
+      // Reusa el `quote` memorizado (el servidor lo recalcula igual al guardar).
       const snapshot = buildSnapshot({
         items,
         trailers,
@@ -296,7 +296,7 @@ export default function CotizadorPage() {
   // violaciones, pide confirmación al vendedor con el detalle.
   // Retorna true si se puede proceder, false si el vendedor canceló.
   const confirmarAntesPDF = (tipo: 'cotización al cliente' | 'PO a Extruidos'): boolean => {
-    const quote = computeQuote(items, trailers, tc);
+    // Reusa el `quote` memorizado en vez de recalcular.
     const { errors, warns } = partitionWarnings(quote.warnings);
     if (errors.length === 0 && warns.length === 0) return true;
 
@@ -504,9 +504,9 @@ export default function CotizadorPage() {
           mode="onboarding"
           initialEmail={profile.email}
           onSaved={() => {
-            // Reload para que useAuth vuelva a leer el profile actualizado
-            // de Supabase. Único momento de la vida del usuario en que pasa.
-            if (typeof window !== 'undefined') window.location.reload();
+            // Re-lee el profile sin recargar la página (antes hacía reload, que
+            // descartaba cualquier trabajo en la ventana de debounce del autosave).
+            void refreshProfile();
           }}
         />
       )}

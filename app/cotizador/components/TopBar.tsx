@@ -27,7 +27,7 @@ interface Props {
 }
 
 export default function TopBar(p: Props) {
-  const { profile, isAdmin, signOut } = useAuth();
+  const { profile, isAdmin, signOut, refreshProfile } = useAuth();
   // Modal local para editar el nombre del vendedor. El onboarding inicial
   // (bloqueante cuando profile.name está vacío) vive en page.tsx; aquí solo
   // manejamos el caso "ya tengo nombre pero lo quiero corregir".
@@ -122,7 +122,9 @@ export default function TopBar(p: Props) {
               initialEmail={profile.email}
               initialName={profile.name ?? ''}
               onSaved={() => {
-                if (typeof window !== 'undefined') window.location.reload();
+                // Re-lee el profile sin recargar (preserva trabajo en curso).
+                void refreshProfile();
+                setEditingName(false);
               }}
               onCancel={() => setEditingName(false)}
             />

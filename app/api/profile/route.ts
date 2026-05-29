@@ -8,29 +8,11 @@
 //   - Botón "editar nombre" del TopBar (para cambios posteriores)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+// Cliente Supabase autenticado (con cookies del request). Único helper
+// compartido — antes esta función estaba copy-pasteada idéntica en 5 routes.
+import { getSupabaseServer as getAuthedSupabase } from '@/lib/supabaseServer';
 
 export const runtime = 'nodejs';
-
-async function getAuthedSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-  const cookieStore = await cookies();
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(toSet) {
-        try {
-          toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {}
-      },
-    },
-  });
-}
 
 export async function PATCH(req: NextRequest) {
   let body: unknown;

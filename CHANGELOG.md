@@ -4,6 +4,30 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.20 — Mayo 2026 — Cola de menores + deuda de altitud
+
+**Foco**: cerrar la cola de hallazgos menores de la revisión, incluidos los dos puntos de "altitud" (deuda de diseño). Sin migraciones.
+
+### Altitud (deuda de diseño)
+
+- **`computeQuote` es ahora el ÚNICO punto de cálculo de la UI.** Antes la página calculaba `results` y `trailerTotals` por su cuenta (duplicando la fórmula que vive en `computeQuote`), y además `confirmarAntesPDF` y `persistirSnapshot` llamaban `computeQuote` otras dos veces por click — tres recálculos del mismo árbol. Ahora todo (render, PDFs, snapshot, warnings) sale de un solo `useMemo(computeQuote(...))`. Elimina la duplicación de fórmula (riesgo de divergencia UI↔PDF) y el triple-cómputo.
+- **`getAuthedSupabase` dejó de estar copy-pasteado.** Los 5 route handlers (profile, draft, emitidas, data/current, data/upload) tenían la misma función idéntica, que además duplicaba el `getSupabaseServer` ya existente en `lib/supabaseServer.ts`. Ahora los 5 importan ese único helper. Un cambio de SSR/cookies se hace en un solo lugar.
+
+### Menores
+
+- **Editar el nombre ya no recarga la página.** `useAuth` expone `refreshProfile()` que re-lee el perfil sin `window.location.reload()` — antes el reload descartaba cualquier trabajo dentro de la ventana de autoguardado.
+- **`tc` del draft solo se carga si es > 0** (un tipo de cambio de 0 no es usable; defaultea explícitamente).
+
+### Ya estaban cerrados en pushes anteriores (de la misma cola)
+
+`canonicalize` robusto ante NaN (v1.19) · preview con `calcPNFacturable` (v1.17) · `findClosestEDSAPriceOnly` eliminado (v1.17) · fallback `caja_mxn` sin 1kg ficticio (v1.19) · color `custom` filtrado (v1.19) · deps de `conoOverride` sincronizadas (v1.16).
+
+### Pendiente (deuda de diseño mayor, no en esta cola)
+
+Refactor del tipo `LineItem` plano → sub-objetos (`sale`/`clientSpec`/`realSpec`/`logistics`/`costBuildup`). Es el refactor grande que la Mesa Redonda recomendó posponer hasta resolver con los expertos si `calReal` debe poder diferir de `calCliente`.
+
+---
+
 ## v1.19 — Mayo 2026 — Cierre de medios: integridad y datos
 
 **Foco**: cerrar por completo los hallazgos de integridad/datos/robustez de la revisión que habían quedado a medias.

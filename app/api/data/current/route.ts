@@ -7,8 +7,7 @@
 // Con cliente anon, las queries devuelven 0 rows aunque la data esté.
 
 import { NextResponse } from 'next/server';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { getSupabaseServer as getAuthedSupabase } from '@/lib/supabaseServer';
 import type { ParsedPriceRow, ParsedTarimaRow, ParsedTarimaRange } from '@/lib/parsers/types';
 
 export const runtime = 'nodejs';
@@ -21,24 +20,6 @@ interface RowFromDB {
   data: { rows?: ParsedPriceRow[]; catalogo?: ParsedTarimaRow[]; rangos?: ParsedTarimaRange[] };
 }
 
-async function getAuthedSupabase() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-  const cookieStore = await cookies();
-  return createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(toSet) {
-        try {
-          toSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
-        } catch {}
-      },
-    },
-  });
-}
 
 export async function GET() {
   const sb = await getAuthedSupabase();
