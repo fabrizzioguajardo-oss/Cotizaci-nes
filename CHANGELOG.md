@@ -4,6 +4,32 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.11 — Mayo 2026 — Vendedor real en PDFs + datos del cliente editables
+
+**Foco**: Push #2 del plan post-auditoría. Cambios visibles al vendedor que cierran tres fallas de identidad/defaults que el equipo reportaba o sospechaba.
+
+### Cambios
+
+- **El nombre del vendedor en cada PDF ahora es el del usuario logueado.** Hasta v1.10 todas las cotizaciones y POs salían firmadas `Evers Lopez` (un default hardcoded del primer test). Ahora se lee `profile.name` de `useAuth()` y, si no está, cae a la parte local del email del usuario. Cada vendedor firma sus propios documentos.
+- **Cliente / contacto / dirección sin defaults de prueba.** Hasta v1.10 si un vendedor no editaba estos campos, el PDF salía con `Chad Bartling` y `EVANS FREIGHT — 2060 Williams Rd, Columbus OH` (el cliente de prueba inicial). Ahora el formulario inicia limpio.
+  - Cliente: input ya existente, ahora sin placeholder específico.
+  - **Contacto cliente**: input nuevo al lado de Cliente en el TopBar.
+  - **Dirección de entrega**: textarea de 2 renglones debajo del KPI strip, multilínea (calle / ciudad / país).
+  - Los tres campos se editan en pantalla y se mandan al PDF de cotización.
+- **Eliminado el input "Transporte (USD)" fantasma del TopBar.** En v1.08 multi-trailer el flete pasó a editarse por bloque de trailer en el sidebar izquierdo. El input del TopBar quedó como readonly informativo en v1.09, pero seguía ocupando espacio y confundiendo. Hoy se elimina del header. Para ver el flete total sigue disponible la barra de capacidad por trailer.
+
+### Limitación conocida
+
+- Los campos `contacto` y `direccion` persisten **solo en sesión**. Si el vendedor refresca la página, se pierden. El draft autosave actual (`/api/cotizaciones/draft`) todavía no los guarda — se arregla en el push siguiente con extensión del schema y endpoint.
+
+### Push siguiente del plan post-auditoría
+
+- Snapshot inmutable de cotizaciones emitidas (guardar inputs/precios/PDFs congelados al momento del envío).
+- Persistir `contacto/direccion` en el draft autosave.
+- Bugs del Adversario (autosave race multi-tab, `costoTotalKg ≤ 1` silencioso, flete fantasma trailer vacío).
+
+---
+
 ## v1.10 — Mayo 2026 — Red de seguridad: paridad PDFs + invariantes ejecutables
 
 **Foco**: invisibles al vendedor pero crítico. Convertir las invariantes que viven en comentarios del código (PB_real ≤ PB_cliente, margen ≥ 12%, capacidad trailer 19,200 kg) en **assertions ejecutables**, y garantizar que los DOS PDFs (cotización al cliente vs PO a Extruidos) salgan del mismo árbol de cálculo. Es el primer entregable del plan de 3 semanas que salió de la auditoría con la Mesa Redonda.

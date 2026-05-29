@@ -11,6 +11,7 @@ import {
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
 import { computeQuote, partitionWarnings } from '@/lib/computeQuote';
+import { useAuth } from '@/lib/useAuth';
 
 import TopBar from './components/TopBar';
 import TrailerStack from './components/TrailerStack';
@@ -26,8 +27,18 @@ function newTrailer(id: number, destino = ''): Trailer {
 }
 
 export default function CotizadorPage() {
+  // Sesión del usuario actual — usado para firmar PDFs con el vendedor real.
+  const { profile } = useAuth();
+
   // Estado global del camión - arranca vacío para que cada vendedor cotice desde cero
   const [cliente, setCliente] = useState('');
+  // Contacto + direccion: editables en TopBar. Reemplazan los defaults
+  // hardcoded ('Chad Bartling' / 'EVANS FREIGHT ...') que salían en cada
+  // cotización aunque fuera para otro cliente.
+  // NOTA: por ahora solo persisten en sesión — el draft autosave todavía
+  // no los guarda (task #18 lo arregla en push siguiente).
+  const [contacto, setContacto] = useState('');
+  const [direccion, setDireccion] = useState('');
   const [tc, setTc] = useState(18.5);
 
   // Multi-trailer: el pedido se compone de uno o más camiones, cada uno con
@@ -231,21 +242,29 @@ export default function CotizadorPage() {
     return window.confirm(lineas.join('\n'));
   };
 
+  // Identidad del vendedor para firmar PDFs. Si por alguna razón el profile
+  // no cargó (sesión nueva, fallback de admin), usamos el email o un
+  // genérico — pero nunca volvemos al 'Evers Lopez' hardcoded del pasado.
+  const vendedorFirma =
+    profile?.name?.trim() ||
+    profile?.email?.split('@')[0] ||
+    'BioNovaPack LLC';
+
   // Generadores de PDF
   const handleGenerateQuote = () => {
     if (!confirmarAntesPDF('cotización al cliente')) return;
     const meta = {
       cliente,
-      contacto: 'Chad Bartling',
-      direccion: 'EVANS FREIGHT\n2060 Williams Rd\nColumbus OH 43207',
+      contacto,
+      direccion,
       fecha: new Date().toLocaleDateString('en-US'),
       numero: `Q-${Date.now().toString().slice(-6)}`,
-      vendedor: 'Evers Lopez',
+      vendedor: vendedorFirma,
       tc,
       transportUSD: transportUSDTotal,
     };
     const doc = generateQuotePDF(items, results, meta);
-    savePDF(doc, `Quotation_${cliente.replace(/\s+/g, '_')}_${meta.numero}.pdf`);
+    savePDF(doc, `Quotation_${(cliente || 'cliente').replace(/\s+/g, '_')}_${meta.numero}.pdf`);
   };
 
   const handleGeneratePO = () => {
@@ -254,7 +273,7 @@ export default function CotizadorPage() {
       cliente: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',
       fecha: new Date().toLocaleDateString('en-US'),
       numero: `PO-${Date.now().toString().slice(-6)}`,
-      vendedor: 'Evers Lopez',
+      vendedor: vendedorFirma,
       tc,
       transportUSD: transportUSDTotal,
     };
@@ -267,11 +286,13 @@ export default function CotizadorPage() {
       <TopBar
         cliente={cliente}
         onClienteChange={setCliente}
+        contacto={contacto}
+        onContactoChange={setContacto}
+        direccion={direccion}
+        onDireccionChange={setDireccion}
         fecha={new Date().toLocaleDateString('es-MX')}
         tc={tc}
         onTcChange={setTc}
-        transportUSD={transportUSDTotal}
-        onTransportChange={() => {}} /* read-only: ahora se edita por trailer */
         totalRevenue={trailerTotals.totalRevenueUSD}
         totalCost={trailerTotals.totalCostUSD}
         utilidadGlobal={trailerTotals.utilidadGlobal}

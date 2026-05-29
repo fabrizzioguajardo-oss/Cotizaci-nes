@@ -11,11 +11,13 @@ import { APP_VERSION_LABEL, APP_ORG } from '@/lib/version';
 interface Props {
   cliente: string;
   onClienteChange: (v: string) => void;
+  contacto: string;
+  onContactoChange: (v: string) => void;
+  direccion: string;
+  onDireccionChange: (v: string) => void;
   fecha: string;
   tc: number;
   onTcChange: (v: number) => void;
-  transportUSD: number;
-  onTransportChange: (v: number) => void;
   totalRevenue: number;
   totalCost: number;
   utilidadGlobal: number | null;
@@ -99,7 +101,9 @@ export default function TopBar(p: Props) {
         </nav>
       </div>
 
-      {/* Barra de variables globales */}
+      {/* Barra de variables globales — fila 1: cliente + contacto + fecha + TC + KPIs.
+          El input "Transporte (USD)" se eliminó en v1.11 — el flete se edita por
+          trailer en el sidebar izquierdo, no global. */}
       <div className="px-6 py-3 border-t border-border-subtle grid grid-cols-12 gap-4 items-end">
         <div className="col-span-3">
           <label className="label">Cliente</label>
@@ -107,7 +111,17 @@ export default function TopBar(p: Props) {
             type="text"
             value={p.cliente}
             onChange={(e) => p.onClienteChange(e.target.value)}
-            placeholder="Level Packaging LLC"
+            placeholder="Razón social del cliente"
+            className="input input-text"
+          />
+        </div>
+        <div className="col-span-3">
+          <label className="label">Contacto cliente</label>
+          <input
+            type="text"
+            value={p.contacto}
+            onChange={(e) => p.onContactoChange(e.target.value)}
+            placeholder="Nombre del comprador"
             className="input input-text"
           />
         </div>
@@ -124,22 +138,8 @@ export default function TopBar(p: Props) {
             className="input"
           />
         </div>
-        <div className="col-span-2">
-          <label className="label">Transporte (USD)</label>
-          <input
-            type="number"
-            value={p.transportUSD || 0}
-            readOnly
-            tabIndex={-1}
-            className="input opacity-70 cursor-not-allowed"
-            title="Suma de los fletes por trailer. Editar en cada bloque de trailer del sidebar izquierdo."
-          />
-          <p className="text-2xs text-text-muted mt-0.5">
-            Suma por trailer · editar en el sidebar
-          </p>
-        </div>
 
-        <div className="col-span-5 grid grid-cols-4 gap-3">
+        <div className="col-span-4 grid grid-cols-4 gap-3">
           <div className="bg-bg-surface rounded-md p-2.5 text-center">
             <p className="text-2xs text-text-muted uppercase tracking-wider">Revenue</p>
             <p className="mono text-sm font-semibold mt-0.5 text-bnp-green">
@@ -162,6 +162,21 @@ export default function TopBar(p: Props) {
               {fmtNum(p.kgNetoTotal, 0)} / {fmtNum(TRAILER_MAX_KG, 0)}
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Fila 2: dirección de entrega del cliente. Multilínea porque típicamente
+          son 3-4 renglones (calle, ciudad, estado, país). Va al PDF de cotización. */}
+      <div className="px-6 pb-3 grid grid-cols-12 gap-4 items-start">
+        <div className="col-span-12">
+          <label className="label">Dirección de entrega del cliente</label>
+          <textarea
+            value={p.direccion}
+            onChange={(e) => p.onDireccionChange(e.target.value)}
+            placeholder={'Calle y número\nCiudad, Estado\nCP · País'}
+            rows={2}
+            className="input input-text resize-none font-mono text-xs"
+          />
         </div>
       </div>
     </header>
