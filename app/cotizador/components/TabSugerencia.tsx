@@ -1,17 +1,21 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { LineItem, CalcResult } from '@/types';
+import type { LineItem, CalcResult, TipoCotizacion } from '@/types';
 import { suggestRealSpec, sumAdders, MARGIN_MIN, diagnoseSuggestion } from '@/lib/pricingEngine';
 import MarginSlider from './MarginSlider';
 import SuggestionCard from './SuggestionCard';
+import ComparisonCard from './ComparisonCard';
 import RealSpecEditor from './RealSpecEditor';
 import ToleranceWarning from './ToleranceWarning';
 import { fmtUSD, fmtNum, fmtPct } from '@/lib/format';
+import { Info } from 'lucide-react';
 
 interface Props {
   item: LineItem;
   result: CalcResult;
+  directResult: CalcResult | null;   // resultado "fabricar tal cual el cliente"
+  tipoCotizacion: TipoCotizacion;
   tc: number;             // tipo de cambio real (global, editable en TopBar)
   onChange: (patch: Partial<LineItem>) => void;
   onGenerateQuote: () => void;
@@ -24,6 +28,8 @@ interface Props {
 export default function TabSugerencia({
   item,
   result,
+  directResult,
+  tipoCotizacion,
   tc,
   onChange,
   onGenerateQuote,
@@ -123,8 +129,39 @@ export default function TabSugerencia({
       ? '#F59E0B'
       : '#5BAA47';
 
+  // En modo directa no se optimiza: avisamos y no mostramos la sugerencia.
+  if (tipoCotizacion === 'directa') {
+    return (
+      <div className="card p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-full bg-bnp-cyan/15 flex items-center justify-center text-bnp-cyan flex-shrink-0">
+            <Info className="w-4 h-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold mb-1">Cotización directa</h3>
+            <p className="text-2xs text-text-secondary">
+              En este modo se cotiza y fabrica <strong>exactamente</strong> lo que pide el cliente,
+              sin optimización. Para ver alternativas que mejoren el margen, cambia el tipo de
+              cotización a <strong>Optimizada</strong> arriba.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
+      {/* Comparación económica: solicitado vs propuesta interna (Fase 1) */}
+      {directResult && (
+        <ComparisonCard
+          item={item}
+          directResult={directResult}
+          optimizedResult={result}
+          reduction={suggestion?.reduction ?? 0}
+        />
+      )}
+
       {/* Slider grande de margen objetivo */}
       <div className="card p-5">
         <MarginSlider value={marginTarget} onChange={setMarginTarget} />

@@ -4,6 +4,43 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.21 — Mayo 2026 — Dos modos de cotización + comparación económica (Fase 1a)
+
+**Foco**: formalizar dos modos de cotización claramente separados (directa vs optimización de margen) con una pantalla comparativa económica. Primera parte de la feature de modos.
+
+### Nuevo
+
+- **Selector de tipo de cotización** (arriba del panel central), con 3 opciones:
+  - **Directa**: se cotiza y fabrica EXACTAMENTE lo que pide el cliente, sin optimización. Al elegirlo, el spec real se sincroniza al del cliente en todas las líneas (fabricar tal cual) y la pestaña de sugerencia muestra un aviso en vez de proponer cambios.
+  - **Optimizada**: el sistema propone la alternativa más rentable (hoy: reducir largo + compensar cono) y el vendedor la aplica.
+  - **Optimizada + revisión**: igual que optimizada, pero los cambios de spec crítica requerirán aprobación (la captura de aprobación llega en v1.22).
+- **Pantalla comparativa económica** (`ComparisonCard`) en la pestaña de optimización. Muestra lado a lado:
+  - Solicitado por el cliente (spec, costo/rollo, margen, PN) vs Propuesta interna optimizada (lo mismo).
+  - **Ahorro por rollo**, **diferencia económica total** (× número de rollos) y **Δ margen** en puntos.
+  - **Riesgo + recomendación** del sistema: recomienda optimizar, advierte si no mejora el costo o el margen sigue bajo el mínimo, y marca "requiere aprobación" cuando la reducción supera 35%.
+- El modo se **persiste en el draft** (migración 010) — sobrevive refresh y reaperturas.
+
+### Cómo se calcula la comparación
+
+El "costo directo" se calcula fabricando el spec exacto del cliente (`real = cliente`, `cono = conoCliente`) y se compara contra el costo optimizado actual. El flete usa el contexto del trailer (aproximación de Fase 1: el dominante — largo/material — sí se captura).
+
+### Migración requerida en Supabase
+
+```sql
+-- 010_cotizaciones_tipo.sql
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS tipo_cotizacion TEXT NOT NULL DEFAULT 'directa';
+```
+
+### Siguiente (Fase 1b — v1.22)
+
+Flag "requiere aprobación" con captura ligera (nombre + casilla + fecha) que gatea la emisión del PDF en modo "optimizada + revisión", y guardar en el historial (snapshot) qué modo se usó y quién aprobó.
+
+### Pendiente (Fase 2)
+
+Ampliar la optimización más allá de largo+cono (calibre, empaque, rollos/pallet) con los rangos permitidos por la empresa — bloqueado hasta tener esos rangos de Diego/Evers.
+
+---
+
 ## v1.20 — Mayo 2026 — Cola de menores + deuda de altitud
 
 **Foco**: cerrar la cola de hallazgos menores de la revisión, incluidos los dos puntos de "altitud" (deuda de diseño). Sin migraciones.

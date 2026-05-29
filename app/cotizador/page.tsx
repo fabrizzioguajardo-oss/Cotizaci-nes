@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import type { LineItem, Trailer } from '@/types';
+import type { LineItem, Trailer, TipoCotizacion } from '@/types';
 import {
   newLineItem,
+  calcLineItem,
   TRAILER_MAX_KG,
 } from '@/lib/pricingEngine';
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
@@ -40,6 +41,9 @@ export default function CotizadorPage() {
   const [contacto, setContacto] = useState('');
   const [direccion, setDireccion] = useState('');
   const [tc, setTc] = useState(18.5);
+  // Modo de cotización (v1.21). Default 'directa' = se fabrica tal cual el
+  // cliente pidió, sin optimización.
+  const [tipoCotizacion, setTipoCotizacion] = useState<TipoCotizacion>('directa');
 
   // Multi-trailer: el pedido se compone de uno o más camiones, cada uno con
   // su propio costo logístico y capacidad. Default: 1 trailer.
@@ -85,11 +89,33 @@ export default function CotizadorPage() {
   const activeItem = items[activeIndex] ?? items[0];
   const activeResult = results[activeIndex] ?? results[0];
 
+  // Resultado "directo" del item activo: fabricar EXACTAMENTE lo que pide el
+  // cliente (spec real = spec cliente, cono = conoCliente). Es la base de la
+  // comparación económica vs la propuesta optimizada. Usa el mismo contexto de
+  // flete del trailer (aproximación de Fase 1: el flete/kg cambiaría un poco
+  // con el PN directo, pero la diferencia dominante — largo/material — sí se
+  // captura).
+  const activeDirectResult = useMemo(() => {
+    if (!activeItem) return null;
+    const summary = trailerTotals.perTrailer.find((t) => t.trailerId === activeItem.trailerId);
+    const trailer = trailers.find((t) => t.id === activeItem.trailerId);
+    const directItem: LineItem = {
+      ...activeItem,
+      aReal: activeItem.aCliente,
+      calReal: activeItem.calCliente,
+      lReal: activeItem.lCliente,
+      cono: activeItem.conoCliente,
+    };
+    return calcLineItem(directItem, tc, trailer?.transport_usd ?? 0, summary?.kgNetoTotal ?? 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeItem, trailers, tc, trailerTotals.perTrailer]);
+
   // === AUTO-SAVE de borradores ===
   const autosave = useCotizacionAutosave({
     cliente,
     contacto,
     direccion,
+    tipo_cotizacion: tipoCotizacion,
     tc,
     transport_usd: transportUSDTotal,
     total_revenue_usd: trailerTotals.totalRevenueUSD,
@@ -109,6 +135,9 @@ export default function CotizadorPage() {
         setCliente(draft.cliente || '');
         setContacto(draft.contacto || '');
         setDireccion(draft.direccion || '');
+        if (draft.tipo_cotizacion === 'directa' || draft.tipo_cotizacion === 'optimizada' || draft.tipo_cotizacion === 'optimizada_revision') {
+          setTipoCotizacion(draft.tipo_cotizacion);
+        }
         // tc del draft solo si es un valor usable (>0). Un tc de 0 no es un
         // tipo de cambio válido (rompe las conversiones), así que defaulteamos.
         setTc(typeof draft.tc === 'number' && draft.tc > 0 ? draft.tc : 18.5);
@@ -152,6 +181,27 @@ export default function CotizadorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cambio de modo de cotización. En 'directa' sincroniza el spec real al
+  // del cliente en TODAS las líneas (fabricar tal cual) y manda a Tab Pedido;
+  // en los modos optimizados manda a Tab Sugerencia para ver la comparación.
+  const handleModeChange = useCallback((modo: TipoCotizacion) => {
+    setTipoCotizacion(modo);
+    if (modo === 'directa') {
+      setItems((prev) =>
+        prev.map((it) => ({
+          ...it,
+          aReal: it.aCliente,
+          calReal: it.calCliente,
+          lReal: it.lCliente,
+          cono: it.conoCliente,
+        })),
+      );
+      setActiveTab('pedido');
+    } else {
+      setActiveTab('sugerencia');
+    }
+  }, []);
+
   // Botón "Nueva cotización" — borra draft en BD y resetea el estado local
   const handleNuevaCotizacion = useCallback(async () => {
     if (!confirm('¿Iniciar una cotización nueva? El borrador actual se borrará.')) return;
@@ -160,6 +210,7 @@ export default function CotizadorPage() {
     setCliente('');
     setContacto('');
     setDireccion('');
+    setTipoCotizacion('directa');
     setTc(18.5);
     setTrailers([newTrailer(1)]);
     const fresh = newLineItem(1, 1);
@@ -437,6 +488,39 @@ export default function CotizadorPage() {
 
         {/* Panel central: tabs */}
         <main className="col-span-9 overflow-y-auto max-h-[calc(100vh-180px)]">
+          {/* Selector de MODO de cotización (v1.21) */}
+          <div className="card p-3 mb-4 flex flex-wrap items-center gap-3">
+            <span className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">
+              Tipo de cotización
+            </span>
+            <div className="inline-flex rounded-md border border-border-subtle overflow-hidden">
+              {([
+                ['directa', 'Directa'],
+                ['optimizada', 'Optimizada'],
+                ['optimizada_revision', 'Optimizada + revisión'],
+              ] as [TipoCotizacion, string][]).map(([modo, label]) => (
+                <button
+                  key={modo}
+                  onClick={() => handleModeChange(modo)}
+                  className={`px-3 py-1.5 text-2xs font-semibold transition-colors ${
+                    tipoCotizacion === modo
+                      ? 'bg-bnp-green/20 text-bnp-green'
+                      : 'bg-bg-surface text-text-secondary hover:text-text-primary'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-2xs text-text-muted flex-1 min-w-[200px]">
+              {tipoCotizacion === 'directa'
+                ? 'Se fabrica EXACTAMENTE lo que pide el cliente. Sin optimización.'
+                : tipoCotizacion === 'optimizada'
+                ? 'El sistema propone una alternativa más rentable (reducir largo + compensar cono).'
+                : 'Optimizada, pero un cambio de spec crítica (reducción > 35%) requiere aprobación.'}
+            </span>
+          </div>
+
           <div className="border-b border-border mb-4 flex items-center justify-between">
             <div className="flex">
               <button
@@ -481,6 +565,8 @@ export default function CotizadorPage() {
             <TabSugerencia
               item={activeItem}
               result={activeResult}
+              directResult={activeDirectResult}
+              tipoCotizacion={tipoCotizacion}
               tc={tc}
               onChange={updateActive}
               onGenerateQuote={handleGenerateQuote}

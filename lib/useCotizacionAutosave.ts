@@ -37,6 +37,7 @@ export interface DraftPayload {
   cliente: string;
   contacto?: string | null;
   direccion?: string | null;
+  tipo_cotizacion?: string | null;
   tc: number;
   transport_usd: number;
   items: LineItem[];
@@ -47,6 +48,7 @@ interface UseCotizacionAutosaveParams {
   cliente: string;
   contacto?: string;
   direccion?: string;
+  tipo_cotizacion?: string;
   tc: number;
   transport_usd: number;
   total_revenue_usd: number;
@@ -106,6 +108,7 @@ export function useCotizacionAutosave(
           cliente: p.cliente,
           contacto: p.contacto ?? '',
           direccion: p.direccion ?? '',
+          tipo_cotizacion: p.tipo_cotizacion ?? 'directa',
           tc: p.tc,
           transport_usd: p.transport_usd,
           total_revenue_usd: p.total_revenue_usd,
@@ -202,6 +205,7 @@ export function useCotizacionAutosave(
     params.cliente,
     params.contacto,
     params.direccion,
+    params.tipo_cotizacion,
     params.tc,
     params.transport_usd,
     params.total_revenue_usd,
@@ -256,6 +260,7 @@ export function useCotizacionAutosave(
         cliente: data.draft.cliente ?? '',
         contacto: data.draft.contacto ?? '',
         direccion: data.draft.direccion ?? '',
+        tipo_cotizacion: data.draft.tipo_cotizacion ?? 'directa',
         tc: data.draft.tc ?? 0,
         transport_usd: data.draft.transport_usd ?? 0,
         items: data.draft.items ?? [],

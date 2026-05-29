@@ -1,6 +1,16 @@
 // Tipos compartidos del cotizador SICE - BioNovaPack
 
 export type Unit = 'Cases' | 'Rolls' | 'Pallets';
+
+// Modo de cotización (v1.21):
+//  - 'directa': se cotiza y fabrica EXACTAMENTE lo que pide el cliente
+//    (spec real = spec declarado, sin optimización).
+//  - 'optimizada': el sistema propone una alternativa más rentable (hoy:
+//    reducir largo + compensar cono) y el vendedor la aplica.
+//  - 'optimizada_revision': igual que optimizada, pero si el cambio toca una
+//    spec crítica (hoy: reducción de largo > 35%) requiere aprobación antes
+//    de emitir el PDF.
+export type TipoCotizacion = 'directa' | 'optimizada' | 'optimizada_revision';
 export type ResinType = 'virgen' | 'reciclado' | 'color';
 export type ColorType = 'clear' | 'orange' | 'black' | 'blue' | 'red' | 'green' | 'yellow' | 'custom';
 export type CotizacionStatus = 'draft' | 'sent' | 'accepted' | 'rejected';
