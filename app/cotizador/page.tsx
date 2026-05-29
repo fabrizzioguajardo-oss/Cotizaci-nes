@@ -905,6 +905,7 @@ export default function CotizadorPage() {
               result={activeResult}
               directResult={activeDirectResult}
               tipoCotizacion={tipoCotizacion}
+              esMexico={empresa === 'extruidos'}
               tc={tc}
               onChange={updateActive}
               onGenerateQuote={handleGenerateQuote}

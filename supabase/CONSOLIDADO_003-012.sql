@@ -84,7 +84,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS uniq_draft_por_usuario
 -- ───── 010: modo de cotización (directa / optimizada / optimizada_revision) ───
 ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS tipo_cotizacion TEXT NOT NULL DEFAULT 'directa';
 
+-- ───── 011: multi-empresa — empresa + transporte México ───────────────────────
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS empresa TEXT NOT NULL DEFAULT 'bionovapack';
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS transporte_mx TEXT NOT NULL DEFAULT 'pickup';
+
+-- ───── 012: datos de cotización México (Extruidos) ────────────────────────────
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS correo_cliente TEXT;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS telefono_cliente TEXT;
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS forma_pago TEXT NOT NULL DEFAULT 'contado';
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS anticipo NUMERIC DEFAULT 0;
+
 -- =============================================================================
--- FIN. Las migraciones individuales (003–010) siguen en supabase/migrations/
+-- FIN. Las migraciones individuales (003–012) siguen en supabase/migrations/
 -- como registro histórico; este consolidado es solo para re-aplicar de un jalón.
 -- =============================================================================

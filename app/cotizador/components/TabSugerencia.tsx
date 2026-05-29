@@ -16,6 +16,7 @@ interface Props {
   result: CalcResult;
   directResult: CalcResult | null;   // resultado "fabricar tal cual el cliente"
   tipoCotizacion: TipoCotizacion;
+  esMexico?: boolean;     // Extruidos: sin PO, cotización en MXN
   tc: number;             // tipo de cambio real (global, editable en TopBar)
   onChange: (patch: Partial<LineItem>) => void;
   onGenerateQuote: () => void;
@@ -30,6 +31,7 @@ export default function TabSugerencia({
   result,
   directResult,
   tipoCotizacion,
+  esMexico,
   tc,
   onChange,
   onGenerateQuote,
@@ -221,22 +223,32 @@ export default function TabSugerencia({
       {/* Editor manual del spec real */}
       <RealSpecEditor item={item} onChange={onChange} />
 
-      {/* Acciones finales: generar PDFs */}
+      {/* Acciones finales: generar PDFs. En México (Extruidos) NO hay PO a
+          planta — Extruidos es el fabricante/vendedor, no compra a sí mismo —
+          así que solo se muestra la cotización al cliente. */}
       <div className="card p-4">
         <h4 className="text-xs font-semibold uppercase tracking-wider text-text-secondary mb-3">
           Generar documentos
         </h4>
-        <div className="grid grid-cols-2 gap-3">
+        <div className={`grid gap-3 ${esMexico ? 'grid-cols-1' : 'grid-cols-2'}`}>
           <button onClick={onGenerateQuote} className="btn-primary">
             Cotización al cliente (PDF)
           </button>
-          <button onClick={onGeneratePO} className="btn-purple">
-            PO para Extruidos (PDF)
-          </button>
+          {!esMexico && (
+            <button onClick={onGeneratePO} className="btn-purple">
+              PO para Extruidos (PDF)
+            </button>
+          )}
         </div>
         <p className="text-2xs text-text-muted mt-3">
-          La cotización usa el <span className="text-bnp-cyan">spec declarado</span> ({item.aCliente}″ × {item.calCliente}GA × {item.lCliente}′).
-          El PO usa el <span className="text-bnp-green">spec real</span> ({item.aReal}″ × {item.calReal}GA × {item.lReal}′).
+          {esMexico ? (
+            <>La cotización sale en pesos (MXN) con el formato y la marca de Extruidos.</>
+          ) : (
+            <>
+              La cotización usa el <span className="text-bnp-cyan">spec declarado</span> ({item.aCliente}″ × {item.calCliente}GA × {item.lCliente}′).
+              El PO usa el <span className="text-bnp-green">spec real</span> ({item.aReal}″ × {item.calReal}GA × {item.lReal}′).
+            </>
+          )}
         </p>
       </div>
     </div>
