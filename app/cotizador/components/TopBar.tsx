@@ -2,9 +2,11 @@
 
 import { fmtUSD, fmtNum } from '@/lib/format';
 import { TRAILER_MAX_KG } from '@/lib/pricingEngine';
-import { Database, Package, Settings, LogOut } from 'lucide-react';
+import { Database, Package, Settings, LogOut, Pencil } from 'lucide-react';
 import Link from 'next/link';
+import { useState } from 'react';
 import GlobalFreshnessBadge from './GlobalFreshnessBadge';
+import OnboardingNameModal from './OnboardingNameModal';
 import { useAuth } from '@/lib/useAuth';
 import { APP_VERSION_LABEL, APP_ORG } from '@/lib/version';
 
@@ -26,6 +28,10 @@ interface Props {
 
 export default function TopBar(p: Props) {
   const { profile, isAdmin, signOut } = useAuth();
+  // Modal local para editar el nombre del vendedor. El onboarding inicial
+  // (bloqueante cuando profile.name está vacío) vive en page.tsx; aquí solo
+  // manejamos el caso "ya tengo nombre pero lo quiero corregir".
+  const [editingName, setEditingName] = useState(false);
   const utilidadColor =
     p.utilidadGlobal === null
       ? '#64748B'
@@ -78,7 +84,7 @@ export default function TopBar(p: Props) {
             </>
           )}
 
-          {/* Identidad del usuario actual + logout */}
+          {/* Identidad del usuario actual + editar nombre + logout */}
           {profile && (
             <div className="flex items-center gap-2 pl-2 ml-1 border-l border-border-subtle">
               <div className="text-right hidden sm:block">
@@ -90,6 +96,13 @@ export default function TopBar(p: Props) {
                 </p>
               </div>
               <button
+                onClick={() => setEditingName(true)}
+                className="p-1.5 rounded border border-border-subtle hover:border-bnp-green/40 hover:text-bnp-green transition-colors"
+                title="Editar mi nombre (aparece como firma en los PDFs)"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+              <button
                 onClick={signOut}
                 className="p-1.5 rounded border border-border-subtle hover:border-bnp-red/40 hover:text-bnp-red transition-colors"
                 title="Cerrar sesión"
@@ -97,6 +110,22 @@ export default function TopBar(p: Props) {
                 <LogOut className="w-3.5 h-3.5" />
               </button>
             </div>
+          )}
+
+          {/* Modal de edición del nombre (no bloqueante — el onboarding inicial
+              vive en page.tsx). Reload al guardar para que useAuth recargue
+              el profile fresco desde Supabase. */}
+          {profile && (
+            <OnboardingNameModal
+              open={editingName}
+              mode="edit"
+              initialEmail={profile.email}
+              initialName={profile.name ?? ''}
+              onSaved={() => {
+                if (typeof window !== 'undefined') window.location.reload();
+              }}
+              onCancel={() => setEditingName(false)}
+            />
           )}
         </nav>
       </div>

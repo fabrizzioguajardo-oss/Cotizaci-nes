@@ -19,6 +19,7 @@ import TabPedido from './components/TabPedido';
 import TabSugerencia from './components/TabSugerencia';
 import FeedbackButton from './components/FeedbackButton';
 import AutosaveIndicator from './components/AutosaveIndicator';
+import OnboardingNameModal from './components/OnboardingNameModal';
 import { Layers, Sparkles, FilePlus } from 'lucide-react';
 
 // Factory para crear un trailer nuevo con defaults
@@ -374,6 +375,25 @@ export default function CotizadorPage() {
       </div>
 
       <FeedbackButton />
+
+      {/* Modal bloqueante: si el profile cargó y NO tiene name, forzamos
+          al vendedor a escribirlo antes de cotizar. Garantiza que los PDFs
+          jamás salgan firmados con el email del usuario.
+          (Bug que arregla: hasta v1.11 los nombres se derivaban del email
+          porque el magic link no captura nombre y nadie había llenado
+          user_profiles.name manualmente.) */}
+      {profile && !profile.name?.trim() && (
+        <OnboardingNameModal
+          open={true}
+          mode="onboarding"
+          initialEmail={profile.email}
+          onSaved={() => {
+            // Reload para que useAuth vuelva a leer el profile actualizado
+            // de Supabase. Único momento de la vida del usuario en que pasa.
+            if (typeof window !== 'undefined') window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,34 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.12 — Mayo 2026 — Captura intrusiva del nombre del vendedor
+
+**Foco**: cerrar el gap que dejó v1.11 — el vendedor "real" en los PDFs venía de `profile.name` de Supabase, pero ese campo se queda `null` por default porque el magic link solo captura email. En v1.11 los PDFs salían firmados con `email.split('@')[0]` (ej. `evers.lopez` en vez de `Evers López`). Esta versión obliga a capturar el nombre completo.
+
+### Cambios
+
+- **Modal bloqueante al primer login**. Si `profile.name` está vacío cuando un vendedor entra al cotizador, aparece un modal que NO se puede cerrar sin escribir el nombre completo. Incluye texto claro: "este nombre aparece como firma en cada cotización y orden de compra que generes". Una sola vez por usuario en toda la vida de la cuenta.
+- **Botón "editar nombre" en el TopBar**. Junto al avatar/email del usuario hay un ícono de lápiz que abre el mismo modal en modo edición (cancelable). Para que cualquiera corrija un error tipográfico después.
+- **Nuevo endpoint `PATCH /api/profile`**. Recibe `{ name }`, valida (no vacío, ≤200 chars), y hace `UPDATE user_profiles SET name = ?` del usuario autenticado. NO acepta cambios a `role` ni `email` — un vendedor no puede auto-promoverse a admin aunque la RLS lo permita a nivel de fila.
+- **Migración `003_user_profile_self_update.sql`**: nueva policy `users_update_own_profile` en `user_profiles` que permite UPDATE de la propia fila (`auth.uid() = user_id`). Necesaria porque hasta v1.11 solo había policies de SELECT.
+
+### Cómo se aplica la migración
+
+```sql
+-- En Supabase dashboard → SQL editor → pegar y correr:
+-- supabase/migrations/003_user_profile_self_update.sql
+```
+
+Sin esta migración el endpoint falla con RLS rejection en producción. El admin (Fabrizzio) tiene que aplicarla manualmente en Supabase.
+
+### Push siguiente
+
+- Snapshot inmutable de cotizaciones emitidas (Push #3 del plan).
+- Persistir contacto/dirección en draft autosave (task #18).
+- Bugs del Adversario (autosave race multi-tab, `costoTotalKg ≤ 1` silencioso, flete fantasma trailer vacío).
+
+---
+
 ## v1.11 — Mayo 2026 — Vendedor real en PDFs + datos del cliente editables
 
 **Foco**: Push #2 del plan post-auditoría. Cambios visibles al vendedor que cierran tres fallas de identidad/defaults que el equipo reportaba o sospechaba.
