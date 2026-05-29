@@ -468,6 +468,7 @@ export default function CotizadorPage() {
             <TabSugerencia
               item={activeItem}
               result={activeResult}
+              tc={tc}
               onChange={updateActive}
               onGenerateQuote={handleGenerateQuote}
               onGeneratePO={handleGeneratePO}

@@ -3,18 +3,10 @@
 import { useMemo } from 'react';
 import type { ConoOption } from '@/lib/lookupEngine';
 import type { ResinType, ColorType } from '@/types';
-import { lookupConoOptions } from '@/lib/lookupEngine';
+import { lookupConoOptions, deriveResinClass } from '@/lib/lookupEngine';
 import { usePriceData } from '@/lib/dataStore';
 import { fmtNum, fmtUSD } from '@/lib/format';
 import { Star, Database, Sparkles, AlertCircle } from 'lucide-react';
-
-// Mapea el ResinType del UI al ResinClass del parser. Color se mantiene como
-// 'color' (con o sin master). Virgen y reciclado pasan directo.
-function mapResinType(t: ResinType): 'virgen' | 'reciclado' | 'color' {
-  if (t === 'reciclado') return 'reciclado';
-  if (t === 'color') return 'color';
-  return 'virgen';
-}
 
 interface Props {
   ancho: number;
@@ -51,7 +43,7 @@ export default function ConeSelectorPanel({
       preciosEDSA: data.precios_edsa,
       preciosColor: data.precios_color,
       productosEDSA: data.productos_edsa,
-      resin_class: mapResinType(resinType),
+      resin_class: deriveResinClass(resinType, tipoColor),
       color: tipoColor,
     });
   }, [data, ancho, calibre, largo, resinType, tipoColor]);

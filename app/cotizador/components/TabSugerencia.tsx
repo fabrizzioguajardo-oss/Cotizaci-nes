@@ -12,6 +12,7 @@ import { fmtUSD, fmtNum, fmtPct } from '@/lib/format';
 interface Props {
   item: LineItem;
   result: CalcResult;
+  tc: number;             // tipo de cambio real (global, editable en TopBar)
   onChange: (patch: Partial<LineItem>) => void;
   onGenerateQuote: () => void;
   onGeneratePO: () => void;
@@ -23,6 +24,7 @@ interface Props {
 export default function TabSugerencia({
   item,
   result,
+  tc,
   onChange,
   onGenerateQuote,
   onGeneratePO,
@@ -58,7 +60,7 @@ export default function TabSugerencia({
     const costoBaseTotal = item.costoBase + sumAdders(item) + result.cajaBlancoKg;
     const diag = diagnoseSuggestion({
       precio: item.precioCliente,
-      tc: 18,
+      tc,
       transpKgMXN: result.transpKgMXN,
       costoBaseTotal,
       aReal: item.aReal,
@@ -67,7 +69,12 @@ export default function TabSugerencia({
     });
     const s = suggestRealSpec({
       precio: item.precioCliente,
-      tc: 18, // viene del global, pero ya está embebido en transpKgMXN
+      // TC real del global (editable en TopBar). Antes estaba hardcodeado en
+      // 18 con un comentario incorrecto ("ya está embebido en transpKgMXN");
+      // el tc convierte el precio USD a MXN para comparar contra costos MXN —
+      // es un término distinto al flete. Un tc errado desviaba lReal ~2.7% y
+      // la sugerencia divergía del PDF/computeQuote (que usan el tc real).
+      tc,
       transpKgMXN: result.transpKgMXN,
       costoBaseTotal,
       aCliente: item.aCliente,
@@ -83,7 +90,7 @@ export default function TabSugerencia({
       marginTarget,
     });
     return { suggestion: s, diagnosis: diag };
-  }, [item, result, marginTarget]);
+  }, [item, result, marginTarget, tc]);
 
   // El cono efectivo que se va a aplicar/mostrar es el override del vendedor
   // si existe, si no la sugerencia del algoritmo.

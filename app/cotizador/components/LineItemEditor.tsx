@@ -7,7 +7,7 @@ import ConeSelectorPanel from './ConeSelectorPanel';
 import MatchQualityBadge from './MatchQualityBadge';
 import SpecCards from './SpecCards';
 import { usePriceData } from '@/lib/dataStore';
-import { buildAutoFill, type ConoOption } from '@/lib/lookupEngine';
+import { buildAutoFill, deriveResinClass, type ConoOption } from '@/lib/lookupEngine';
 import { useState } from 'react';
 
 interface Props {
@@ -52,13 +52,15 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
   const handleConePick = (option: ConoOption) => {
     if (!data) return;
 
-    // Mapear ColorType del item a resin_class del lookup
-    const resinClass: 'virgen' | 'reciclado' | 'color' =
-      item.tipoResina === 'reciclado'
-        ? 'reciclado'
-        : item.tipoResina === 'color' || item.tipoColor !== 'clear'
-          ? 'color'
-          : 'virgen';
+    // resin_class unificado con el preview (deriveResinClass). Antes esta
+    // derivación estaba duplicada e inconsistente con ConeSelectorPanel.
+    const resinClass = deriveResinClass(item.tipoResina, item.tipoColor);
+
+    // Preservar el largo real si el vendedor YA lo redujo en Tab 2. Antes
+    // re-elegir un cono forzaba lReal = lCliente, revirtiendo en silencio la
+    // reducción de material (y el margen ganado) y mandando a planta el largo
+    // completo. Solo defaulteamos a lCliente cuando lReal aún no se ha fijado.
+    const lRealPreservado = item.lReal > 0 ? item.lReal : item.lCliente;
 
     const fill = buildAutoFill({
       ancho: item.aCliente,
@@ -81,7 +83,7 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
         cono: option.cono,
         aReal: item.aCliente,
         calReal: item.calCliente,
-        lReal: item.lCliente,
+        lReal: lRealPreservado,
         rollosPallet: option.rollos_por_tarima || item.rollosPallet,
       });
       setMatchQuality(null);
@@ -93,7 +95,7 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
       cono: fill.cono,
       aReal: item.aCliente,
       calReal: item.calCliente,
-      lReal: item.lCliente,
+      lReal: lRealPreservado,
       rollosPallet: fill.rollos_por_tarima || item.rollosPallet,
       costoBase: fill.costo_base_mxn_kg,
       master: fill.master_mxn_kg || item.master,

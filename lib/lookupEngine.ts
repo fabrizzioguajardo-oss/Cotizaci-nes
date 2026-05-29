@@ -9,7 +9,7 @@
 //   4. lookupPrice({ancho, cono, PB, resin_class}) -> MXN/kg
 //   5. LineItemEditor se auto-llena
 
-import { calcPN } from './pricingEngine';
+import { calcPNFacturable } from './pricingEngine';
 import type {
   ParsedPriceRow,
   ParsedTarimaRow,
@@ -22,6 +22,23 @@ import {
   findTarimaRule,
   uniqueConosFor,
 } from './parsers/tarimaParser';
+
+// Deriva el resin_class del lookup a partir del tipo de resina + color del
+// LineItem. UN SOLO lugar para esta regla — antes vivía duplicada y divergente
+// en ConeSelectorPanel (preview, ignoraba tipoColor) y en LineItemEditor
+// (apply, sí consideraba tipoColor), causando que el precio previsualizado
+// no coincidiera con el aplicado para producto virgen con color.
+export function deriveResinClass(
+  tipoResina: ResinClass | 'virgen' | 'reciclado' | 'color',
+  tipoColor?: string,
+): ResinClass {
+  if (tipoResina === 'reciclado') return 'reciclado';
+  if (tipoResina === 'color') return 'color';
+  // virgen + cualquier color que no sea clear (incluye custom) = se cotiza
+  // como color (lleva master). Misma regla que usaba el apply en LineItemEditor.
+  if (tipoColor && tipoColor !== 'clear') return 'color';
+  return 'virgen';
+}
 
 // Una opción de cono que se le presenta a Evers en el modal de selección
 export interface ConoOption {
@@ -87,7 +104,10 @@ export function lookupConoOptions(params: {
     ancho, calibre, largo_ft, catalogo, rangos, preciosEDSA,
     preciosColor = [], productosEDSA = [], resin_class = 'virgen', color,
   } = params;
-  const pn = calcPN(ancho, largo_ft, calibre);
+  // PN facturable (truncado), igual que en costo/factura. Antes el preview
+  // usaba calcPN crudo, así que cerca de un borde de intervalo de precio el
+  // PB del preview caía en un row distinto al que cobra el costo real.
+  const pn = calcPNFacturable(ancho, largo_ft, calibre);
 
   // 1) Catalogo tarima (subconjunto curado, con reglas de tarima)
   let conos = uniqueConosFor(catalogo, ancho, calibre);
@@ -130,11 +150,14 @@ export function lookupConoOptions(params: {
       pnTolerance: 0.1,
     }).find((c) => Math.abs(c.peso_cono - cono) < 0.01);
     if (!exactMatch && productosEDSA.length > 0) {
+      // Match por ancho/calibre/CONO solamente — SIN filtrar por PN. El
+      // peso_neto de la tabla maestra corresponde al largo de fábrica del SKU
+      // EDSA (otro largo que el cotizado), así que comparar contra el PN del
+      // cliente casi nunca caía dentro de la tolerancia y se perdía el
+      // codigo_alterno, anulando el motivo de consultar la maestra.
       exactMatch = findCatalogMatches(productosEDSA, {
         ancho,
         calibre,
-        pn,
-        pnTolerance: 0.1,
       }).find((c) => Math.abs(c.peso_cono - cono) < 0.01);
     }
 
@@ -167,33 +190,6 @@ export function lookupConoOptions(params: {
     });
   }
   return options;
-}
-
-// Helper interno: busca precio EDSA específicamente. Solo para casos donde
-// el resin_class no es relevante o se quiere comparar contra el base.
-function findClosestEDSAPriceOnly(
-  preciosEDSA: ParsedPriceRow[],
-  ancho: number,
-  cono: number,
-  pb: number,
-): ParsedPriceRow | null {
-  const anchoTol = 0.5;
-  const candidates = preciosEDSA.filter(
-    (r) => Math.abs(r.ancho - ancho) <= anchoTol && Math.abs(r.cono - cono) < 0.01,
-  );
-  if (candidates.length === 0) return null;
-  const exactAncho = candidates.filter((c) => c.ancho === ancho);
-  const pool = exactAncho.length > 0 ? exactAncho : candidates;
-  let best: ParsedPriceRow | null = null;
-  let bestDist = Infinity;
-  for (const c of pool) {
-    const d = Math.abs(c.peso_total - pb);
-    if (d < bestDist) {
-      best = c;
-      bestDist = d;
-    }
-  }
-  return best;
 }
 
 // === Lookup de precio dado (ancho, cono, PB, resin_class) ===
@@ -353,7 +349,9 @@ export function buildAutoFill(params: {
   rangos: ParsedTarimaRange[];
 }): AutoFillResult | null {
   const { ancho, calibre, largo_ft, cono, resin_class, color, product_type, preciosEDSA, preciosColor, rangos } = params;
-  const pn = calcPN(ancho, largo_ft, calibre);
+  // PN facturable (truncado) para que el PB que busca el precio coincida con
+  // el que se cobra en costo. Consistente con lookupConoOptions.
+  const pn = calcPNFacturable(ancho, largo_ft, calibre);
   const pb = pn + cono;
 
   const price = lookupPrice({

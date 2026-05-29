@@ -4,6 +4,26 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.17 — Mayo 2026 — Cluster de sugerencia/cono/lookup (altos de la revisión)
+
+**Foco**: hallazgos altos/medios de la revisión de código que viven en el camino de cotización (Tab Sugerencia + selector de cono + lookup de precio). No tocan backend.
+
+### Cambios
+
+- **TC real en Tab Sugerencia (#6).** `suggestRealSpec` y `diagnoseSuggestion` se llamaban con `tc: 18` hardcodeado mientras el resto de la app usa el TC editable (18.5 default). El TC convierte el precio USD a MXN para despejar el largo — un TC errado desviaba el largo sugerido ~2.7% y la sugerencia divergía del PDF. Ahora se pasa el TC real del global.
+- **Re-elegir un cono ya no revierte la reducción de largo (#7).** En `handleConePick`, volver a elegir un cono forzaba `lReal = lCliente`, borrando en silencio la reducción de material que el vendedor aplicó en Tab 2 (y el margen ganado), mandando a planta el largo completo. Ahora se preserva el `lReal` reducido.
+- **Aviso visible cuando el cono escogido excede el PB esperado (#9).** Al elegir un cono alternativo por arriba del sugerido, la tarjeta seguía "verde" aunque el paquete fuera a pesar de más. Ahora muestra un aviso rojo inmediato con cuánto excede, antes de aplicar.
+- **Preview de precio = precio aplicado para virgen con color (#15).** La derivación del `resin_class` estaba duplicada y divergente: el preview ignoraba el color (mostraba precio virgen ~$47) y el apply sí lo consideraba (color ~$36). Ahora ambos usan un único helper `deriveResinClass`.
+- **El fallback de tabla maestra EDSA ya no pierde el código del SKU (#13).** El match contra `productosEDSA` filtraba por peso neto del cliente contra el peso de fábrica del SKU (otro largo) → casi nunca matcheaba → se perdía el `codigo_alterno`. Ahora matchea por ancho/calibre/cono.
+- **Preview de PN usa el peso facturable (truncado).** El selector de cono calculaba el PB con PN crudo, así que cerca de un borde de intervalo de precio podía caer en un row distinto al que cobra el costo real. Ahora usa `calcPNFacturable`, consistente con el costo.
+- **Limpieza**: eliminado `findClosestEDSAPriceOnly` (código muerto sin llamadas).
+
+### Pendiente para v1.18 (backend hardening, también de la revisión)
+
+Candado multi-tab opt-in (#8), snapshot que confía en `vendedor` del cliente (#10), `await` que bloquea la descarga del PDF (#11), `isEmpty` que ignora contacto/dirección (#12), draft duplicado posible / `numero` sin UNIQUE (#14).
+
+---
+
 ## v1.16 — Mayo 2026 — Hotfix de 5 bugs críticos (revisión de código)
 
 **Foco**: una revisión de código extra-alta (9 ángulos de búsqueda + verificación adversaria) sobre el arco v1.09–v1.15 destapó 5 bugs críticos — varios en código de esta misma tanda, incluido uno en la propia red de seguridad de v1.10. Esta versión los arregla todos.

@@ -246,6 +246,27 @@ export default function SuggestionCard({ item, suggestion, diagnosis, conoEfecti
         </div>
       </div>
 
+      {/* Aviso de sobrecompensación: el cono escogido (override o sugerido)
+          empuja el PB real por encima de lo que el cliente espera. La tarjeta
+          se mostraba "verde" aunque el cono alternativo excediera, porque
+          suggestion.isValid se calculó con el conoSugerido base. Esto lo hace
+          visible ANTES de aplicar (computeQuote también lo atrapa al generar
+          el PDF, pero aquí el vendedor lo ve de inmediato). */}
+      {pbDiffFinal > 0.005 * suggestion.pbCliente && (
+        <div className="card p-4 border-bnp-red/40 bg-bnp-red/5">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-bnp-red flex-shrink-0 mt-0.5" />
+            <p className="text-2xs text-text-secondary">
+              El cono escogido ({fmtNum(conoFinal, 2)} kg) deja el paquete en{' '}
+              <span className="mono font-semibold">{fmtNum(pbFinal, 2)} kg</span>,{' '}
+              <span className="text-bnp-red font-semibold">{fmtNum(pbDiffFinal, 2)} kg arriba</span>{' '}
+              del PB que el cliente espera ({fmtNum(suggestion.pbCliente, 2)} kg). El cliente
+              va a pesar de más al recibir. Baja el cono para mantenerte en o por debajo de lo esperado.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Warnings */}
       {suggestion.warnings.length > 0 && (
         <div className="card p-4 border-bnp-amber/40">
