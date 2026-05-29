@@ -1,12 +1,17 @@
 'use client';
 
 import type { LineItem, SuggestionResult } from '@/types';
+import type { SuggestionDiagnosis } from '@/lib/pricingEngine';
 import { fmtNum, fmtPct, fmtUSD } from '@/lib/format';
 import { AlertTriangle, CheckCircle, ArrowRight, Package } from 'lucide-react';
 
 interface Props {
   item: LineItem;
   suggestion: SuggestionResult | null;
+  // Diagnóstico cuando suggestion es null — explica al vendedor qué falta
+  // en vez del genérico "ingresa precio". Cubre el caso del Adversario:
+  // costoTotalKg ≤ 1 MXN/kg retorna null silencioso = sales blocker invisible.
+  diagnosis?: SuggestionDiagnosis;
   // Cono efectivo a mostrar: el override que el vendedor escogio entre las
   // alternativas, o la sugerencia del algoritmo si no hay override. Permite
   // previsualizar el PB resultante con el cono seleccionado sin escribirlo
@@ -17,13 +22,40 @@ interface Props {
 }
 
 // Tarjeta principal de Tab 2: muestra el spec sugerido para la planta
-export default function SuggestionCard({ item, suggestion, conoEfectivo, onApply, onPickAlternative }: Props) {
+export default function SuggestionCard({ item, suggestion, diagnosis, conoEfectivo, onApply, onPickAlternative }: Props) {
   if (!suggestion) {
     return (
-      <div className="card p-6 text-center">
-        <p className="text-sm text-text-muted">
-          Ingresa precio del cliente y costo base para ver la sugerencia.
-        </p>
+      <div className="card p-6">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-full bg-bnp-amber/15 flex items-center justify-center text-bnp-amber flex-shrink-0">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold mb-1">No puedo sugerir todavía</h3>
+            {diagnosis && diagnosis.missing.length > 0 ? (
+              <>
+                <p className="text-2xs text-text-secondary mb-2">
+                  Para calcular la sugerencia me falta:
+                </p>
+                <ul className="text-2xs text-text-secondary space-y-1 mb-2">
+                  {diagnosis.missing.map((m, i) => (
+                    <li key={i} className="flex items-start gap-1.5">
+                      <span className="text-bnp-amber mt-0.5">•</span>
+                      <span>{m}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-2xs text-text-muted">
+                  Llena estos campos en Tab Pedido o en el sidebar y la sugerencia aparece sola.
+                </p>
+              </>
+            ) : (
+              <p className="text-2xs text-text-secondary">
+                Ingresa precio del cliente y costo base para ver la sugerencia.
+              </p>
+            )}
+          </div>
+        </div>
       </div>
     );
   }

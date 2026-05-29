@@ -72,9 +72,15 @@ export default function CotizadorPage() {
     [items, trailers, tc, trailerTotals.perTrailer],
   );
 
-  // Para compatibilidad con TopBar (que muestra "transport USD" global, no por trailer)
-  // Mostramos la suma de todos los trailers
-  const transportUSDTotal = trailers.reduce((a, t) => a + t.transport_usd, 0);
+  // Suma de fletes — SOLO de trailers que efectivamente llevan líneas. Sin
+  // este filtro, un trailer creado por error o vaciado al arrastrar todas
+  // sus líneas a otro seguiría sumando su `transport_usd` al total — el
+  // PDF al cliente le cobraría "Shipment: $X" por un camión que no lleva
+  // nada. (Bug detectado por el Adversario en la auditoría.)
+  const trailerIdsConItems = new Set(items.map((it) => it.trailerId));
+  const transportUSDTotal = trailers
+    .filter((t) => trailerIdsConItems.has(t.id))
+    .reduce((a, t) => a + t.transport_usd, 0);
 
   const activeIndex = items.findIndex((i) => i.id === activeId);
   const activeItem = items[activeIndex] ?? items[0];
@@ -83,6 +89,8 @@ export default function CotizadorPage() {
   // === AUTO-SAVE de borradores ===
   const autosave = useCotizacionAutosave({
     cliente,
+    contacto,
+    direccion,
     tc,
     transport_usd: transportUSDTotal,
     total_revenue_usd: trailerTotals.totalRevenueUSD,
@@ -99,6 +107,8 @@ export default function CotizadorPage() {
     autosave.loadDraft().then((draft) => {
       if (draft && draft.items && draft.items.length > 0) {
         setCliente(draft.cliente || '');
+        setContacto(draft.contacto || '');
+        setDireccion(draft.direccion || '');
         setTc(draft.tc || 18.5);
         // Migración: items sin trailerId → asignar a trailer 1
         const migrated = draft.items.map((it) =>
@@ -125,6 +135,8 @@ export default function CotizadorPage() {
     setAutosaveEnabled(false);
     await autosave.clearDraft();
     setCliente('');
+    setContacto('');
+    setDireccion('');
     setTc(18.5);
     setTrailers([newTrailer(1)]);
     const fresh = newLineItem(1, 1);

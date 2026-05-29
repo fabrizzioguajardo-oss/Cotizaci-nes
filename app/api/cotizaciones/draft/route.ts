@@ -44,7 +44,7 @@ export async function GET() {
 
   const { data, error } = await sb
     .from('cotizaciones')
-    .select('id, cliente, tc, transport_usd, total_revenue_usd, total_cost_usd, utilidad_global, items, status, created_at')
+    .select('id, cliente, contacto, direccion, tc, transport_usd, total_revenue_usd, total_cost_usd, utilidad_global, items, status, created_at')
     .eq('user_id', user.id)
     .eq('status', 'draft')
     .order('created_at', { ascending: false })
@@ -59,6 +59,8 @@ export async function GET() {
 interface UpsertBody {
   id?: string | null;
   cliente: string;
+  contacto?: string;
+  direccion?: string;
   tc: number;
   transport_usd: number;
   total_revenue_usd?: number;
@@ -88,6 +90,8 @@ export async function POST(req: NextRequest) {
 
   const row = {
     cliente: body.cliente || '(sin nombre)',
+    contacto: body.contacto ?? null,
+    direccion: body.direccion ?? null,
     tc: body.tc || 0,
     transport_usd: body.transport_usd || 0,
     total_revenue_usd: body.total_revenue_usd ?? 0,

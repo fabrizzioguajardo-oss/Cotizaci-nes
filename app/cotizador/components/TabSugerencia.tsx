@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { LineItem, CalcResult } from '@/types';
-import { suggestRealSpec, sumAdders, MARGIN_MIN } from '@/lib/pricingEngine';
+import { suggestRealSpec, sumAdders, MARGIN_MIN, diagnoseSuggestion } from '@/lib/pricingEngine';
 import MarginSlider from './MarginSlider';
 import SuggestionCard from './SuggestionCard';
 import RealSpecEditor from './RealSpecEditor';
@@ -44,10 +44,21 @@ export default function TabSugerencia({
     setConoOverride(null);
   }, [item.id, item.cono, item.aCliente, item.calCliente, item.lCliente]);
 
-  // Recalcular sugerencia en tiempo real al mover el slider
-  const suggestion = useMemo(() => {
+  // Recalcular sugerencia en tiempo real al mover el slider.
+  // Si retorna null, `diagnosis` explica AL VENDEDOR qué falta (vs hasta
+  // v1.12 que solo mostraba "ingresa precio del cliente y costo base").
+  const { suggestion, diagnosis } = useMemo(() => {
     const costoBaseTotal = item.costoBase + sumAdders(item) + result.cajaBlancoKg;
-    return suggestRealSpec({
+    const diag = diagnoseSuggestion({
+      precio: item.precioCliente,
+      tc: 18,
+      transpKgMXN: result.transpKgMXN,
+      costoBaseTotal,
+      aReal: item.aReal,
+      calReal: item.calReal,
+      lCliente: item.lCliente,
+    });
+    const s = suggestRealSpec({
       precio: item.precioCliente,
       tc: 18, // viene del global, pero ya está embebido en transpKgMXN
       transpKgMXN: result.transpKgMXN,
@@ -60,6 +71,7 @@ export default function TabSugerencia({
       cono: item.cono,
       marginTarget,
     });
+    return { suggestion: s, diagnosis: diag };
   }, [item, result, marginTarget]);
 
   // El cono efectivo que se va a aplicar/mostrar es el override del vendedor
@@ -137,6 +149,7 @@ export default function TabSugerencia({
       <SuggestionCard
         item={item}
         suggestion={suggestion}
+        diagnosis={diagnosis}
         conoEfectivo={conoEfectivo}
         onApply={handleApply}
         onPickAlternative={handlePickAlternativeCono}

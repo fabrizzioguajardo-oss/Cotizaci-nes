@@ -33,6 +33,8 @@ export interface AutosaveControls {
 export interface DraftPayload {
   id: string;
   cliente: string;
+  contacto?: string | null;
+  direccion?: string | null;
   tc: number;
   transport_usd: number;
   items: LineItem[];
@@ -40,6 +42,8 @@ export interface DraftPayload {
 
 interface UseCotizacionAutosaveParams {
   cliente: string;
+  contacto?: string;
+  direccion?: string;
   tc: number;
   transport_usd: number;
   total_revenue_usd: number;
@@ -85,6 +89,8 @@ export function useCotizacionAutosave(
         body: JSON.stringify({
           id: draftIdRef.current,
           cliente: p.cliente,
+          contacto: p.contacto ?? '',
+          direccion: p.direccion ?? '',
           tc: p.tc,
           transport_usd: p.transport_usd,
           total_revenue_usd: p.total_revenue_usd,
@@ -155,6 +161,8 @@ export function useCotizacionAutosave(
     enabled,
     debounceMs,
     params.cliente,
+    params.contacto,
+    params.direccion,
     params.tc,
     params.transport_usd,
     params.total_revenue_usd,

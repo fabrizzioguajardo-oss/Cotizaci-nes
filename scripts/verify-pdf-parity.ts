@@ -25,8 +25,8 @@ interface Caso {
   trailers: Trailer[];
   tc: number;
   // Expectativas: códigos de warning que DEBEN aparecer y los que NO deben.
-  esperaErrores?: Array<'pb_excedido' | 'margen_bajo' | 'margen_perdida' | 'capacidad_excedida' | 'pn_cero' | 'sin_precio'>;
-  prohibeErrores?: Array<'pb_excedido' | 'margen_bajo' | 'margen_perdida' | 'capacidad_excedida' | 'pn_cero' | 'sin_precio'>;
+  esperaErrores?: Array<'pb_excedido' | 'margen_bajo' | 'margen_perdida' | 'capacidad_excedida' | 'flete_fantasma' | 'pn_cero' | 'sin_precio'>;
+  prohibeErrores?: Array<'pb_excedido' | 'margen_bajo' | 'margen_perdida' | 'capacidad_excedida' | 'flete_fantasma' | 'pn_cero' | 'sin_precio'>;
 }
 
 function baseItem(partial: Partial<LineItem>): LineItem {
@@ -179,6 +179,29 @@ const casos: Caso[] = [
       }),
     ],
     esperaErrores: ['capacidad_excedida'],
+  },
+
+  // === F'. Trailer fantasma con flete > 0 pero sin items (bug del Adversario) ===
+  {
+    nombre: 'Trailer fantasma: tiene flete asignado pero ninguna línea',
+    tc: TC,
+    trailers: [
+      defaultTrailer(7000),
+      { id: 2, destino: 'Trailer fantasma', transport_usd: 3500, kg_max: TRAILER_MAX_KG },
+    ],
+    items: [
+      // Todas las líneas en trailer 1; trailer 2 queda vacío
+      baseItem({
+        id: 1, trailerId: 1,
+        aCliente: 3, calCliente: 70, lCliente: 1000,
+        aReal: 3, calReal: 70, lReal: 1000,
+        cono: 0.1,
+        rollosPallet: 1764, palletTrailer: 9,
+        precioCliente: 2.50, costoBase: 50, // calibrado para margen sano
+      }),
+    ],
+    esperaErrores: ['flete_fantasma'],
+    prohibeErrores: ['margen_perdida'],
   },
 
   // === F. Spec inválido (PN cero pero hay precio) ===

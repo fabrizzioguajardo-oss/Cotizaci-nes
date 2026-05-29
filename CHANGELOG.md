@@ -4,6 +4,39 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.13 — Mayo 2026 — Persistencia + dos bugs del Adversario
+
+**Foco**: Push #3 (primera mitad) del plan post-auditoría. Cierra la limitación que dejó v1.11 (contacto/dirección se perdían al refrescar) y mata dos bugs identificados por el Adversario en la Mesa Redonda.
+
+### Cambios
+
+- **Contacto y dirección del cliente persisten entre sesiones.** Hasta v1.12 estos campos solo vivían en state local — el vendedor refrescaba la pestaña y se borraban. Ahora se guardan en `cotizaciones` como parte del draft autosave (junto con cliente, tc, items). Sobreviven refresh, cierre del browser y reaperturas del draft.
+- **Bug del Adversario — sugerencia null sin explicación.** Hasta v1.12, cuando `suggestRealSpec` retornaba `null` (porque faltaba precio, costo base, ancho/calibre, o el `costoTotalKg` salía absurdamente bajo por lookup fallido), la tarjeta de Tab Sugerencia solo decía *"Ingresa precio del cliente y costo base para ver la sugerencia"* — confuso cuando el vendedor ya había llenado todo. Ahora un nuevo helper `diagnoseSuggestion` (en `lib/pricingEngine`) detecta cuál(es) campo(s) específicos están faltando y la tarjeta muestra una lista clara: *"Falta: costo base MXN/kg (¿seleccionaste un cono del catálogo?)"*. Era un sales blocker silencioso.
+- **Bug del Adversario — flete fantasma de trailer vacío.** Si el vendedor arrastra todas las líneas de un trailer a otro, el trailer original queda **sin items pero conserva su `transport_usd > 0`**. Ese flete fantasma se sumaba al total del PDF al cliente — el cliente pagaba flete por un camión vacío. Dos correcciones:
+  - En `page.tsx`, el cálculo de `transportUSDTotal` ahora solo suma trailers que efectivamente llevan líneas.
+  - En `computeQuote`, nueva invariante `flete_fantasma` (warn) que detecta el caso y lo levanta como warning para que el vendedor lo vea antes de descargar el PDF.
+
+### Migración requerida en Supabase
+
+```sql
+-- supabase/migrations/004_cotizaciones_contacto_direccion.sql
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS contacto VARCHAR(255);
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS direccion TEXT;
+```
+
+Sin esto, el endpoint `/api/cotizaciones/draft` va a rechazar el save porque las columnas no existen en producción. Aplicar en Supabase Dashboard → SQL Editor.
+
+### Casos de prueba agregados a `npm run verify`
+
+- Trailer fantasma con flete asignado pero sin líneas (debe dispararse `flete_fantasma`).
+
+### Push siguiente del plan
+
+- Snapshot inmutable de cotizaciones emitidas (Push #3 segunda mitad).
+- Autosave race condition multi-tab (ETag/updated_at).
+
+---
+
 ## v1.12 — Mayo 2026 — Captura intrusiva del nombre del vendedor
 
 **Foco**: cerrar el gap que dejó v1.11 — el vendedor "real" en los PDFs venía de `profile.name` de Supabase, pero ese campo se queda `null` por default porque el magic link solo captura email. En v1.11 los PDFs salían firmados con `email.split('@')[0]` (ej. `evers.lopez` en vez de `Evers López`). Esta versión obliga a capturar el nombre completo.

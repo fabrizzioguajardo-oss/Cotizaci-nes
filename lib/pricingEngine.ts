@@ -339,6 +339,52 @@ export function suggestRealSpec(params: {
   };
 }
 
+// Diagnóstico: cuando `suggestRealSpec` retorna `null`, esta función explica
+// AL VENDEDOR por qué la sugerencia está vacía. Antes la UI solo decía
+// "ingresa precio del cliente y costo base" — confuso cuando ya había
+// llenado todo pero el costoTotalKg salía ≤ 1 (lookup falló por RLS, SKU
+// nuevo, o adders en cero). El Adversario lo flagueó como sales blocker
+// silencioso. Esta función desvela esa razón.
+export interface SuggestionDiagnosis {
+  ready: boolean;            // true si suggestRealSpec va a producir resultado
+  missing: string[];         // lista de campos/condiciones faltantes (humano)
+  hint: string;              // pista accionable para mostrar bajo el card
+}
+
+export function diagnoseSuggestion(params: {
+  precio: number;
+  tc: number;
+  transpKgMXN: number;
+  costoBaseTotal: number;
+  aReal: number;
+  calReal: number;
+  lCliente: number;
+}): SuggestionDiagnosis {
+  const missing: string[] = [];
+  if (params.precio <= 0) missing.push('precio negociado con el cliente');
+  if (params.tc <= 0) missing.push('tipo de cambio MXN/USD');
+  if (params.aReal <= 0) missing.push('ancho del producto');
+  if (params.calReal <= 0) missing.push('calibre (GA) del producto');
+  if (params.lCliente <= 0) missing.push('largo declarado al cliente');
+  if (params.costoBaseTotal + params.transpKgMXN <= 1) {
+    // Costo total por kg < 1 MXN/kg es síntoma de datos incompletos
+    // (no se encontró precio EDSA, no hay flete asignado al trailer, etc.).
+    if (params.costoBaseTotal <= 0) missing.push('costo base MXN/kg (¿seleccionaste un cono del catálogo?)');
+    if (params.transpKgMXN <= 0) missing.push('costo de transporte del trailer (sidebar izquierdo)');
+  }
+
+  if (missing.length === 0) {
+    return { ready: true, missing: [], hint: '' };
+  }
+
+  const hint =
+    missing.length === 1
+      ? `Falta: ${missing[0]}.`
+      : `Faltan: ${missing.slice(0, -1).join(', ')} y ${missing[missing.length - 1]}.`;
+
+  return { ready: false, missing, hint };
+}
+
 // Estado visual del margen para semáforo
 export function marginStatus(u: number | null): MarginStatus {
   if (u === null) return { label: 'Sin precio', color: '#64748B', level: 'none' };

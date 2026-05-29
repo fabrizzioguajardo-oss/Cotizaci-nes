@@ -23,12 +23,24 @@ import {
   type TrailerSummary,
 } from './pricingEngine';
 
+// Trailers que no llevan ninguna línea pero tienen flete > 0. Inyectan
+// "flete fantasma" al PDF al cliente porque el global de `transport_usd`
+// suma todos los trailers. Bug detectado por el Adversario.
+function detectarFletesFantasma(
+  trailers: Trailer[],
+  items: LineItem[],
+): Trailer[] {
+  const conItems = new Set(items.map((it) => it.trailerId));
+  return trailers.filter((t) => !conItems.has(t.id) && t.transport_usd > 0);
+}
+
 // Categorías de advertencias de invariantes
 export type WarningCode =
   | 'pb_excedido'           // PB_real > PB_cliente (compensación de cono falló)
   | 'margen_bajo'           // utilidad < MARGIN_MIN
   | 'margen_perdida'        // utilidad < 0 (pierde dinero)
   | 'capacidad_excedida'    // trailer.kgNetoTotal > TRAILER_MAX_KG
+  | 'flete_fantasma'        // trailer vacío con transport_usd > 0 — caso del Adversario
   | 'sin_precio'            // precioCliente = 0 (cotización incompleta)
   | 'pn_cero';              // pnReal = 0 (spec inválido)
 
@@ -87,6 +99,20 @@ export function computeQuote(
 
   // 3) Detectar violaciones de invariantes
   const warnings = detectWarnings(items, perItem, trailerTotals.perTrailer);
+
+  // 4) Trailers fantasma (sin items pero con flete > 0)
+  for (const t of detectarFletesFantasma(trailers, items)) {
+    warnings.push({
+      level: 'warn',
+      code: 'flete_fantasma',
+      trailerId: t.id,
+      message:
+        `Trailer ${t.id} ${t.destino ? `(${t.destino}) ` : ''}` +
+        `no lleva ninguna línea pero tiene flete $${t.transport_usd.toFixed(0)} USD asignado. ` +
+        `Bórralo o asignale una línea — de lo contrario el flete fantasma se le cobra al cliente.`,
+      values: { transport_usd: t.transport_usd },
+    });
+  }
 
   return {
     perItem,
