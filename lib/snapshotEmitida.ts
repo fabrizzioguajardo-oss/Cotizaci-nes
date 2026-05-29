@@ -11,14 +11,22 @@
 // `schemaVersion` permite evolucionar el formato del snapshot sin romper
 // la lectura de snapshots viejos.
 
-import type { LineItem, Trailer } from '@/types';
+import type { LineItem, Trailer, TipoCotizacion } from '@/types';
 import type { QuoteResult } from './computeQuote';
 
 // Versión actual del schema del snapshot.
 // Incrementar cuando se agregue/quite un campo de los inputs guardados.
 // Los snapshots viejos retienen su schemaVersion original — al leerlos
 // hay que poder interpretar versiones distintas.
-export const SNAPSHOT_SCHEMA_VERSION = 1;
+// v2 (v1.22): agrega tipoCotizacion + aprobacion al meta.
+export const SNAPSHOT_SCHEMA_VERSION = 2;
+
+// Registro de aprobación cuando la cotización tocó una spec crítica
+// (hoy: reducción de largo > 35%) en modo 'optimizada_revision'.
+export interface AprobacionInfo {
+  aprobadoPor: string;   // nombre que el vendedor capturó
+  aprobadoEn: string;    // ISO timestamp del momento de aprobación
+}
 
 export interface SnapshotMeta {
   cliente: string;
@@ -30,6 +38,10 @@ export interface SnapshotMeta {
   tc: number;
   // Suma del flete asignado a trailers con items (excluye fantasmas)
   transportUSDActivo: number;
+  // Modo con el que se emitió + aprobación (si aplicó). Historial: queda
+  // registrado qué opción se usó y quién aprobó.
+  tipoCotizacion: TipoCotizacion;
+  aprobacion?: AprobacionInfo | null;
 }
 
 export interface Snapshot {

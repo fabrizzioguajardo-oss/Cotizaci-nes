@@ -4,6 +4,28 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.22 — Mayo 2026 — Aprobación + historial (Fase 1b)
+
+**Foco**: cerrar la Fase 1 de los modos de cotización con el flujo de aprobación y el registro en historial.
+
+### Nuevo
+
+- **Flag "requiere aprobación comercial/técnica".** En modo **Optimizada + revisión**, si alguna línea reduce el material más de 35% (la spec crítica acordada), aparece un panel rojo que **bloquea la emisión** de la cotización y la PO hasta que se capture la aprobación.
+- **Captura ligera de aprobación**: el vendedor escribe el nombre de quien aprueba y marca una casilla; el sistema estampa la fecha/hora. Cambiar el nombre o cualquier dato de la cotización re-exige confirmar (una aprobación no puede quedar "pegada" a algo que luego cambió).
+- **Historial**: el snapshot inmutable ahora guarda **con qué modo se emitió** (`tipoCotizacion`) y **quién aprobó + cuándo** (`aprobacion`). Queda registrado en `cotizaciones_emitidas` qué opción se usó y quién la autorizó. Snapshot `schemaVersion` → 2.
+
+### Comportamiento del gate
+
+- **Directa** y **Optimizada**: nunca piden aprobación.
+- **Optimizada + revisión**: solo pide aprobación cuando hay reducción > 35%. Si la reducción es menor, emite sin fricción.
+- Sin migración (la aprobación y el modo viven en el snapshot JSON, que ya se persiste).
+
+### Fase 1 completa
+
+Con v1.21 (modos + comparación) y v1.22 (aprobación + historial), la feature de **dos modos de cotización** está completa en su Fase 1. Falta solo la **Fase 2**: ampliar la optimización a calibre/empaque/pallet con los rangos permitidos por la empresa (bloqueado hasta tener esos rangos de Diego/Evers).
+
+---
+
 ## v1.21 — Mayo 2026 — Dos modos de cotización + comparación económica (Fase 1a)
 
 **Foco**: formalizar dos modos de cotización claramente separados (directa vs optimización de margen) con una pantalla comparativa económica. Primera parte de la feature de modos.

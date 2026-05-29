@@ -6,6 +6,7 @@ import {
   newLineItem,
   calcLineItem,
   TRAILER_MAX_KG,
+  REDUCTION_WARN_HIGH,
 } from '@/lib/pricingEngine';
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
@@ -20,7 +21,7 @@ import TabSugerencia from './components/TabSugerencia';
 import FeedbackButton from './components/FeedbackButton';
 import AutosaveIndicator from './components/AutosaveIndicator';
 import OnboardingNameModal from './components/OnboardingNameModal';
-import { Layers, Sparkles, FilePlus } from 'lucide-react';
+import { Layers, Sparkles, FilePlus, ShieldAlert } from 'lucide-react';
 
 // Factory para crear un trailer nuevo con defaults
 function newTrailer(id: number, destino = ''): Trailer {
@@ -44,6 +45,11 @@ export default function CotizadorPage() {
   // Modo de cotización (v1.21). Default 'directa' = se fabrica tal cual el
   // cliente pidió, sin optimización.
   const [tipoCotizacion, setTipoCotizacion] = useState<TipoCotizacion>('directa');
+  // Aprobación (v1.22): nombre de quien aprueba + timestamp. Solo aplica en
+  // modo 'optimizada_revision' cuando algún spec crítico (reducción > 35%) se
+  // dispara. aprobadoEn se setea al confirmar la casilla.
+  const [aprobadoPor, setAprobadoPor] = useState('');
+  const [aprobadoEn, setAprobadoEn] = useState<string | null>(null);
 
   // Multi-trailer: el pedido se compone de uno o más camiones, cada uno con
   // su propio costo logístico y capacidad. Default: 1 trailer.
@@ -109,6 +115,19 @@ export default function CotizadorPage() {
     return calcLineItem(directItem, tc, trailer?.transport_usd ?? 0, summary?.kgNetoTotal ?? 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeItem, trailers, tc, trailerTotals.perTrailer]);
+
+  // ¿La cotización requiere aprobación? Solo en modo 'optimizada_revision' y
+  // cuando alguna línea tiene reducción de material > 35% (la spec crítica
+  // elegida). materialReduction lo trae cada CalcResult.
+  const requiereAprobacion =
+    tipoCotizacion === 'optimizada_revision' &&
+    results.some((r) => r.materialReduction > REDUCTION_WARN_HIGH);
+
+  // Cualquier cambio en items o en el modo invalida una aprobación previa
+  // (no se puede aprobar algo y luego cambiar lo que se va a emitir).
+  useEffect(() => {
+    setAprobadoEn(null);
+  }, [items, tipoCotizacion]);
 
   // === AUTO-SAVE de borradores ===
   const autosave = useCotizacionAutosave({
@@ -211,6 +230,8 @@ export default function CotizadorPage() {
     setContacto('');
     setDireccion('');
     setTipoCotizacion('directa');
+    setAprobadoPor('');
+    setAprobadoEn(null);
     setTc(18.5);
     setTrailers([newTrailer(1)]);
     const fresh = newLineItem(1, 1);
@@ -382,6 +403,23 @@ export default function CotizadorPage() {
     return false;
   };
 
+  // Gate de aprobación: en modo 'optimizada + revisión' con una reducción
+  // crítica (>35%), no se puede emitir hasta capturar la aprobación.
+  const tieneAprobacion = (): boolean => {
+    if (!requiereAprobacion || aprobadoEn) return true;
+    window.alert(
+      'Esta cotización tiene una reducción de material mayor al 35% y está en modo "Optimizada + revisión". ' +
+        'Captura la aprobación (escribe el nombre y marca la casilla, arriba) antes de generar el documento.',
+    );
+    return false;
+  };
+
+  // Info de aprobación para el snapshot (historial).
+  const aprobacionSnapshot = () =>
+    requiereAprobacion && aprobadoEn
+      ? { aprobadoPor: aprobadoPor.trim(), aprobadoEn }
+      : null;
+
   // Genera un número de documento con suficiente entropía para no colisionar.
   // Antes era `Date.now().toString().slice(-6)` (6 dígitos) — dos emisiones
   // cercanas, o de distintos vendedores en el mismo instante, podían chocar y
@@ -400,6 +438,7 @@ export default function CotizadorPage() {
   // prioritario". Si el snapshot falla, se loguea y no afecta la descarga.
   const handleGenerateQuote = () => {
     if (!tieneNombreVendedor()) return;
+    if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('cotización al cliente')) return;
     const meta = {
       cliente,
@@ -422,11 +461,14 @@ export default function CotizadorPage() {
       numero: meta.numero,
       tc: meta.tc,
       transportUSDActivo: transportUSDTotal,
+      tipoCotizacion,
+      aprobacion: aprobacionSnapshot(),
     });
   };
 
   const handleGeneratePO = () => {
     if (!tieneNombreVendedor()) return;
+    if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('PO a Extruidos')) return;
     const meta = {
       cliente: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',
@@ -445,6 +487,8 @@ export default function CotizadorPage() {
       numero: meta.numero,
       tc: meta.tc,
       transportUSDActivo: transportUSDTotal,
+      tipoCotizacion,
+      aprobacion: aprobacionSnapshot(),
     });
   };
 
@@ -520,6 +564,53 @@ export default function CotizadorPage() {
                 : 'Optimizada, pero un cambio de spec crítica (reducción > 35%) requiere aprobación.'}
             </span>
           </div>
+
+          {/* Panel de aprobación (v1.22): aparece solo cuando el modo es
+              'optimizada + revisión' Y hay una reducción > 35% en alguna
+              línea. Captura ligera: nombre + casilla + timestamp. Bloquea la
+              emisión de PDFs hasta que se confirme. */}
+          {requiereAprobacion && (
+            <div className="card p-3 mb-4 border-bnp-red/40 bg-bnp-red/5">
+              <div className="flex items-start gap-2 mb-2">
+                <ShieldAlert className="w-4 h-4 text-bnp-red flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-2xs font-semibold text-bnp-red uppercase tracking-wider">
+                    Requiere aprobación comercial/técnica
+                  </p>
+                  <p className="text-2xs text-text-secondary mt-0.5">
+                    Esta cotización reduce el material más de 35%. Captura quién lo aprueba
+                    antes de generar la cotización o la PO.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 pl-6">
+                <input
+                  type="text"
+                  value={aprobadoPor}
+                  onChange={(e) => {
+                    setAprobadoPor(e.target.value);
+                    setAprobadoEn(null); // cambiar el nombre re-exige confirmar
+                  }}
+                  placeholder="Nombre de quien aprueba"
+                  className="input input-text max-w-xs"
+                />
+                <label className="inline-flex items-center gap-2 text-2xs text-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!aprobadoEn}
+                    disabled={!aprobadoPor.trim()}
+                    onChange={(e) => setAprobadoEn(e.target.checked ? new Date().toISOString() : null)}
+                  />
+                  Apruebo esta cotización
+                </label>
+                {aprobadoEn && (
+                  <span className="text-2xs text-bnp-green">
+                    ✓ Aprobada por {aprobadoPor.trim()} · {new Date(aprobadoEn).toLocaleString('es-MX')}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="border-b border-border mb-4 flex items-center justify-between">
             <div className="flex">
