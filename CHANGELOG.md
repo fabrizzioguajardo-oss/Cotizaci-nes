@@ -40,6 +40,16 @@ Resumen por área (el detalle técnico está en las entradas 1.09–1.22 de abaj
 - `APP_VERSION` fijado en `1.10` (indicador visible). El historial granular
   1.09–1.22 se conserva abajo como referencia de desarrollo.
 
+### Pasada de pulido visual (UI)
+
+- **Tarjetas** con profundidad sutil (sombra tenue) para sensación de "elevado".
+- **Botones** con anillo de foco accesible para teclado (`focus-visible`) y un
+  ligero feedback al presionar; primary/purple con sombra sutil.
+- **Inputs** con estado hover en el borde (mejor affordance).
+- **Login** con logo en "mark" (contenedor redondeado) y más aire.
+- **Modales** (Reportar, Onboarding, Novedades) con `backdrop-blur` — look más
+  moderno. Cambios aditivos: no mueven el layout existente.
+
 ---
 
 ## v1.22 — Mayo 2026 — Aprobación + historial (Fase 1b)

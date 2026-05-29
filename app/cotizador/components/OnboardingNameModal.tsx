@@ -70,8 +70,8 @@ export default function OnboardingNameModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0, 0, 0, 0.85)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}
       // En modo onboarding NO se cierra al picar fuera. En modo edit sí.
       onClick={mode === 'edit' ? onCancel : undefined}
     >

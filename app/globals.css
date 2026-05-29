@@ -46,6 +46,7 @@ html, body {
 /* Inputs personalizados */
 .input {
   @apply w-full bg-bg-elevated border border-border rounded-md px-3 py-2 text-sm text-text-primary
+         hover:border-text-muted
          focus:outline-none focus:border-bnp-green focus:ring-1 focus:ring-bnp-green/30
          placeholder:text-text-muted transition-colors;
   font-family: 'JetBrains Mono', Menlo, Monaco, monospace;
@@ -77,11 +78,14 @@ html, body {
 
 .btn {
   @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium
-         transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+         transition-all disabled:opacity-50 disabled:cursor-not-allowed
+         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25
+         active:translate-y-px;
 }
 
 .btn-primary {
   @apply btn bg-bnp-green hover:bg-bnp-green-dark text-white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .btn-secondary {
@@ -90,10 +94,14 @@ html, body {
 
 .btn-purple {
   @apply btn bg-bnp-purple hover:bg-bnp-purple-dark text-white;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
+/* Profundidad sutil para las tarjetas (el tema oscuro pide sombras muy
+   tenues; demasiado se ve sucio). Da sensación de "elevado" sin ruido. */
 .card {
   @apply bg-bg-elevated border border-border rounded-lg;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
 }
 
 .card-header {

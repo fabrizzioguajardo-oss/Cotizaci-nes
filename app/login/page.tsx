@@ -52,10 +52,12 @@ function LoginInner() {
     <div className="min-h-screen flex items-center justify-center bg-bg p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <Package className="w-7 h-7 text-bnp-green" />
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="w-11 h-11 rounded-xl bg-bnp-green/10 border border-bnp-green/25 flex items-center justify-center">
+            <Package className="w-6 h-6 text-bnp-green" />
+          </div>
           <div>
-            <h1 className="text-xl font-semibold">
+            <h1 className="text-xl font-semibold tracking-tight">
               <span className="text-bnp-green">SICE</span>{' '}
               <span className="text-text-muted">·</span>{' '}
               <span className="text-text-primary">Cotizador</span>
@@ -64,7 +66,7 @@ function LoginInner() {
           </div>
         </div>
 
-        <div className="card p-6">
+        <div className="card p-7">
           <h2 className="text-base font-semibold mb-1">Inicia sesión</h2>
           <p className="text-sm text-text-secondary mb-5">
             Te mandamos un enlace mágico a tu correo. Sin contraseñas.
