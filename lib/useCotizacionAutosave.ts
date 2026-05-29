@@ -168,9 +168,15 @@ export function useCotizacionAutosave(
     if (!enabled) return;
     if (conflictRef.current) return; // en conflicto: no autoguardar
 
-    // No guardar si la cotización está completamente vacía (cliente vacío + items todos en 0)
+    // No guardar si la cotización está completamente vacía. Incluye
+    // contacto/direccion: antes se ignoraban, así que si el vendedor llenaba
+    // SOLO esos (flujo natural: primero datos del cliente) sin cliente ni
+    // specs, nada se guardaba y se perdían al recargar — justo los campos que
+    // las migraciones agregaron para persistir.
     const isEmpty =
       !params.cliente.trim() &&
+      !(params.contacto ?? '').trim() &&
+      !(params.direccion ?? '').trim() &&
       params.items.length === 1 &&
       params.items[0].aCliente === 0 &&
       params.items[0].calCliente === 0 &&

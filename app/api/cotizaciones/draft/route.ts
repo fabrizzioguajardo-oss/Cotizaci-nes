@@ -115,64 +115,103 @@ export async function POST(req: NextRequest) {
     updated_at: nowIso,
   };
 
+  // Respuesta de conflicto reutilizable (otra pestaña/dispositivo modificó
+  // el mismo draft). El cliente entra en modo "recargar".
+  const conflictResponse = (serverUpdatedAt: string | null) =>
+    NextResponse.json(
+      {
+        saved: false,
+        conflict: true,
+        error: 'El borrador cambió en otra pestaña o dispositivo.',
+        server_updated_at: serverUpdatedAt,
+      },
+      { status: 409 },
+    );
+
   if (body.id) {
-    // Update existing draft con CONCURRENCIA OPTIMISTA.
-    // Si el cliente trae base_updated_at, exigimos que coincida con el de
-    // la BD. Si otra pestaña ya guardó (updated_at más nuevo), el filtro
-    // .eq('updated_at', base) no matchea ninguna fila → devolvemos 409.
-    let q = sb
-      .from('cotizaciones')
-      .update(row)
-      .eq('id', body.id)
-      .eq('user_id', user.id); // RLS extra check
-    if (body.base_updated_at) {
-      q = q.eq('updated_at', body.base_updated_at);
-    }
-    const { data, error } = await q.select('id, updated_at').maybeSingle();
-
-    if (error) {
-      // eslint-disable-next-line no-console
-      console.error('[draft][update]', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        user_id: user.id,
-        draft_id: body.id,
-      });
-      return NextResponse.json({
-        error: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint,
-      }, { status: 500 });
-    }
-
-    // Sin fila actualizada: o el draft fue borrado, o (más común) otra
-    // pestaña ya lo modificó y el optimistic check falló. Distinguimos
-    // releyendo el draft actual.
-    if (!data) {
+    // === CLIENTE CONOCE UN DRAFT (tiene id) → concurrencia optimista estricta ===
+    if (!body.base_updated_at) {
+      // id SIN base = el cliente perdió su ancla de versión (post-conflicto,
+      // o estado inconsistente). NO hacemos blind overwrite: si el draft
+      // existe, forzamos recarga; si ya no existe, cae a insert nuevo. Esto
+      // cierra el hueco donde un save sin base pisaba el trabajo de otra
+      // pestaña aunque el candado "estuviera activo".
       const { data: current } = await sb
         .from('cotizaciones')
         .select('id, updated_at')
         .eq('id', body.id)
         .eq('user_id', user.id)
         .maybeSingle();
-      if (current) {
-        // El draft existe pero con updated_at distinto → conflicto multi-tab.
-        return NextResponse.json(
-          {
-            saved: false,
-            conflict: true,
-            error: 'El borrador cambió en otra pestaña o dispositivo.',
-            server_updated_at: current.updated_at,
-          },
-          { status: 409 },
-        );
-      }
-      // El draft ya no existe (borrado en otro lado) → caer a insert nuevo.
+      if (current) return conflictResponse(current.updated_at);
+      // no existe → cae a insert
     } else {
-      return NextResponse.json({ saved: true, id: data.id, updated_at: data.updated_at });
+      const { data, error } = await sb
+        .from('cotizaciones')
+        .update(row)
+        .eq('id', body.id)
+        .eq('user_id', user.id)            // RLS extra check
+        .eq('updated_at', body.base_updated_at) // optimistic lock
+        .select('id, updated_at')
+        .maybeSingle();
+
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('[draft][update]', {
+          code: error.code, message: error.message,
+          details: error.details, hint: error.hint,
+          user_id: user.id, draft_id: body.id,
+        });
+        return NextResponse.json({
+          error: error.message, code: error.code,
+          details: error.details, hint: error.hint,
+        }, { status: 500 });
+      }
+
+      if (data) {
+        return NextResponse.json({ saved: true, id: data.id, updated_at: data.updated_at });
+      }
+      // Sin fila: ¿borrado o conflicto? Releer para distinguir.
+      const { data: current } = await sb
+        .from('cotizaciones')
+        .select('id, updated_at')
+        .eq('id', body.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (current) return conflictResponse(current.updated_at);
+      // no existe → cae a insert nuevo
+    }
+  } else {
+    // === CLIENTE NO CONOCE NINGÚN DRAFT (sin id) → dedup ===
+    // Antes esto siempre INSERTABA, pudiendo crear un 2º draft para el mismo
+    // usuario (el GET solo devuelve el más reciente → el otro quedaba
+    // huérfano e invisible). Ahora buscamos el draft existente y lo
+    // actualizamos: un draft activo por usuario. Sin optimistic check porque
+    // el cliente no cargó ese draft — su contenido actual es el autoritativo.
+    const { data: existing } = await sb
+      .from('cotizaciones')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('status', 'draft')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      const { data, error } = await sb
+        .from('cotizaciones')
+        .update(row)
+        .eq('id', existing.id)
+        .eq('user_id', user.id)
+        .select('id, updated_at')
+        .maybeSingle();
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error('[draft][dedup-update]', { code: error.code, message: error.message, user_id: user.id });
+        return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
+      }
+      if (data) {
+        return NextResponse.json({ saved: true, id: data.id, updated_at: data.updated_at });
+      }
+      // si desapareció entre el select y el update, cae a insert
     }
   }
 

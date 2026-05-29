@@ -4,6 +4,30 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.18 — Mayo 2026 — Backend hardening (medios de la revisión)
+
+**Foco**: cierra los hallazgos de la revisión que viven en el backend (endpoints, persistencia, concurrencia). Con esto queda resuelta toda la lista de altos/medios de la revisión de código.
+
+### Cambios
+
+- **Candado multi-tab ya no tiene hueco (#8).** El optimistic lock se saltaba si el cliente no mandaba `base_updated_at` (hacía blind overwrite). Ahora: si el cliente conoce un draft (manda `id`) pero no trae base, no se pisa — se fuerza recarga. La protección dejó de ser opt-in.
+- **Un solo draft por usuario, sin duplicados (#14).** Si el cliente guarda sin `id` (cree que es nuevo) y ya existe un draft suyo, ahora se actualiza ese en vez de crear un segundo huérfano. Backstop a nivel BD: índice único parcial `(user_id) WHERE status='draft'` (migración 009, que primero limpia duplicados existentes conservando el más reciente).
+- **El registro inmutable se firma con identidad del servidor (#10).** `/api/cotizaciones/emitidas` ahora toma el nombre del vendedor del perfil del usuario autenticado (servidor), no del `vendedor` que mandó el cliente. Antes un vendedor podía firmar el registro con el nombre de otra persona.
+- **El PDF se descarga primero, el snapshot después (#11).** Antes se hacía `await` del guardado del snapshot ANTES de generar el PDF, así que una red lenta retrasaba la descarga que el cliente espera. Ahora el PDF sale de inmediato y el snapshot se guarda en segundo plano (fire-and-forget), como siempre fue la intención.
+- **Contacto/dirección solos ya se autoguardan (#12).** El chequeo de "cotización vacía" ignoraba contacto y dirección, así que si el vendedor llenaba solo esos (sin cliente ni specs) no se guardaba nada. Ahora cuentan.
+
+### Migración requerida en Supabase
+
+```sql
+-- 009_unique_draft_por_usuario.sql (incluye limpieza de duplicados + índice)
+```
+
+### Estado de la revisión de código
+
+Con v1.16 (5 críticos), v1.17 (altos del camino de cotización) y v1.18 (medios de backend), **toda la lista de hallazgos de la revisión está resuelta**, salvo la cola de menores (cosmética/robustez de parser) y los puntos de altitud (refactor `LineItem`, `computeQuote` como único camino de la UI, dedup de `getAuthedSupabase`) que son deuda de diseño, no bugs.
+
+---
+
 ## v1.17 — Mayo 2026 — Cluster de sugerencia/cono/lookup (altos de la revisión)
 
 **Foco**: hallazgos altos/medios de la revisión de código que viven en el camino de cotización (Tab Sugerencia + selector de cono + lookup de precio). No tocan backend.

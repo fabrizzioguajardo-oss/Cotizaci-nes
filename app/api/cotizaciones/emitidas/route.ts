@@ -71,12 +71,28 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
 
+  if (!body.snapshot.meta || typeof body.snapshot.meta !== 'object') {
+    return NextResponse.json({ error: 'snapshot.meta requerido' }, { status: 400 });
+  }
+
   // Hash determinístico del snapshot (sirve para auditar si alguien
   // modifica el JSON con acceso directo a la base — el hash dejaría
   // de coincidir).
   const snapshot_hash = await hashSnapshot(body.snapshot);
 
   const meta = body.snapshot.meta;
+
+  // vendedor AUTORITATIVO del servidor: nombre del perfil del usuario
+  // autenticado, NO el `vendedor` que mandó el cliente. Antes el cliente
+  // podía firmar el registro inmutable con el nombre de otra persona. Si no
+  // hay nombre en el perfil, caemos al email del usuario.
+  const { data: prof } = await sb
+    .from('user_profiles')
+    .select('name')
+    .eq('user_id', user.id)
+    .maybeSingle();
+  const vendedorServidor = (prof?.name?.trim() || user.email || 'unknown') as string;
+
   const row = {
     user_id: user.id,
     tipo: body.tipo,
@@ -84,7 +100,7 @@ export async function POST(req: NextRequest) {
     cliente: meta.cliente ?? null,
     contacto: meta.contacto ?? null,
     direccion: meta.direccion ?? null,
-    vendedor: meta.vendedor,
+    vendedor: vendedorServidor,
     tc: meta.tc,
     fecha_emision: new Date().toISOString().slice(0, 10), // YYYY-MM-DD
     snapshot: body.snapshot,

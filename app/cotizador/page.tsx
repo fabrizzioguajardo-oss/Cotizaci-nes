@@ -331,9 +331,12 @@ export default function CotizadorPage() {
     return false;
   };
 
-  // Generadores de PDF — persisten snapshot inmutable ANTES de descargar.
-  // Si el snapshot falla, NO se bloquea la descarga (errores van al console).
-  const handleGenerateQuote = async () => {
+  // Generadores de PDF. El PDF se descarga PRIMERO (lo que el cliente espera);
+  // el snapshot inmutable se persiste DESPUÉS y en fire-and-forget. Antes se
+  // hacía `await persistirSnapshot` ANTES del PDF, así que una red lenta
+  // retrasaba la descarga — contradecía el diseño "el papel del cliente es
+  // prioritario". Si el snapshot falla, se loguea y no afecta la descarga.
+  const handleGenerateQuote = () => {
     if (!tieneNombreVendedor()) return;
     if (!confirmarAntesPDF('cotización al cliente')) return;
     const meta = {
@@ -346,8 +349,9 @@ export default function CotizadorPage() {
       tc,
       transportUSD: transportUSDTotal,
     };
-    // Snapshot primero (no bloquea si falla), luego PDF.
-    await persistirSnapshot('quote', meta.numero, {
+    const doc = generateQuotePDF(items, results, meta);
+    savePDF(doc, `Quotation_${(cliente || 'cliente').replace(/\s+/g, '_')}_${meta.numero}.pdf`);
+    void persistirSnapshot('quote', meta.numero, {
       cliente: meta.cliente,
       contacto: meta.contacto,
       direccion: meta.direccion,
@@ -357,11 +361,9 @@ export default function CotizadorPage() {
       tc: meta.tc,
       transportUSDActivo: transportUSDTotal,
     });
-    const doc = generateQuotePDF(items, results, meta);
-    savePDF(doc, `Quotation_${(cliente || 'cliente').replace(/\s+/g, '_')}_${meta.numero}.pdf`);
   };
 
-  const handleGeneratePO = async () => {
+  const handleGeneratePO = () => {
     if (!tieneNombreVendedor()) return;
     if (!confirmarAntesPDF('PO a Extruidos')) return;
     const meta = {
@@ -372,7 +374,9 @@ export default function CotizadorPage() {
       tc,
       transportUSD: transportUSDTotal,
     };
-    await persistirSnapshot('po', meta.numero, {
+    const doc = generatePOPDF(items, results, meta);
+    savePDF(doc, `PurchaseOrder_${meta.numero}.pdf`);
+    void persistirSnapshot('po', meta.numero, {
       cliente: meta.cliente,
       vendedor: meta.vendedor,
       fecha: meta.fecha,
@@ -380,8 +384,6 @@ export default function CotizadorPage() {
       tc: meta.tc,
       transportUSDActivo: transportUSDTotal,
     });
-    const doc = generatePOPDF(items, results, meta);
-    savePDF(doc, `PurchaseOrder_${meta.numero}.pdf`);
   };
 
   return (
