@@ -4,6 +4,46 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.14 — Mayo 2026 — Snapshot inmutable de cotizaciones emitidas
+
+**Foco**: Push #3 (segunda mitad) del plan post-auditoría. Cierra uno de los 4 puntos ciegos sistémicos que cazó la Mesa Redonda: hasta v1.13 no había forma de reconstruir una cotización emitida si los precios EDSA cambiaban después o si el vendedor modificaba el draft. Esta versión guarda un snapshot inalterable cada vez que se genera un PDF.
+
+### Cambios
+
+- **Nueva tabla `cotizaciones_emitidas`** en Supabase con RLS configurada para inmutabilidad:
+  - Solo el dueño (o admin) puede SELECT.
+  - Solo el dueño puede INSERT (con `user_id = su uid`).
+  - **NO hay policies de UPDATE ni DELETE** — una vez guardado, el snapshot no se puede modificar ni borrar vía cliente. Si hay error tipográfico, se emite una nueva cotización con número nuevo; la original queda como registro histórico.
+- **`lib/snapshotEmitida.ts`** — helper que construye el snapshot serializable (`{ schemaVersion, snapshotAt, meta, items, trailers, quote }`) y calcula su SHA-256 canonicalizado. El hash sirve como huella de integridad: si alguien con acceso directo a la base modifica el JSON, el hash deja de matchear y queda evidencia auditable.
+- **Endpoint `POST /api/cotizaciones/emitidas`** — recibe `{ tipo, numero, snapshot }`, valida, hashea, e inserta. El endpoint NO acepta cambios en el snapshot post-creación; es solo INSERT.
+- **Endpoint `GET /api/cotizaciones/emitidas`** — lista las cotizaciones emitidas del usuario (admin ve todas). Por default solo metadata; `?id=UUID` para snapshot completo. Hoy lo consumirá el script de validación; la UI de historial es Push #4.
+- **Integración en `page.tsx`** — los handlers `handleGenerateQuote` y `handleGeneratePO` ahora persisten el snapshot **antes** de descargar el PDF. Si el guardado falla (red, RLS, schema desactualizado), se loguea pero NO se bloquea la descarga — la prioridad es entregar el documento al cliente, no obstaculizar la operación por un problema de histórico interno.
+
+### Por qué importa
+
+Tres escenarios reales que esta tabla habilita:
+
+1. **Reclamación del cliente meses después**: "esto no es lo que me cotizaste". Se busca por número de quote, se reabre el snapshot, se confirma exactamente qué se envió.
+2. **Cambio de precios EDSA**: Diego sube nuevos precios el mes siguiente. La cotización emitida hace dos semanas sigue siendo reproducible con los precios viejos congelados en su snapshot.
+3. **Auditoría / contabilidad**: cualquiera con acceso admin puede listar las cotizaciones emitidas del trimestre y verificar márgenes reales reportados.
+
+### Migración requerida en Supabase
+
+```sql
+-- supabase/migrations/005_cotizaciones_emitidas.sql
+-- Aplicar en Supabase Dashboard → SQL Editor
+```
+
+Sin esta migración el endpoint POST va a fallar — la tabla no existe en producción.
+
+### Push siguiente
+
+- Autosave race condition multi-tab (ETag / `updated_at` optimista).
+- UI de historial de cotizaciones emitidas (vista admin + vista vendedor).
+- Catálogo nombrado de aumentos + ambigüedad Cases vs rollo + chips PB esperado.
+
+---
+
 ## v1.13 — Mayo 2026 — Persistencia + dos bugs del Adversario
 
 **Foco**: Push #3 (primera mitad) del plan post-auditoría. Cierra la limitación que dejó v1.11 (contacto/dirección se perdían al refrescar) y mata dos bugs identificados por el Adversario en la Mesa Redonda.

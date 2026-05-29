@@ -11,6 +11,7 @@ import {
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
 import { computeQuote, partitionWarnings } from '@/lib/computeQuote';
+import { buildSnapshot, type SnapshotMeta } from '@/lib/snapshotEmitida';
 import { useAuth } from '@/lib/useAuth';
 
 import TopBar from './components/TopBar';
@@ -233,6 +234,41 @@ export default function CotizadorPage() {
     [],
   );
 
+  // Persiste el snapshot inmutable de la cotización emitida en
+  // cotizaciones_emitidas. Se llama justo antes de descargar el PDF.
+  // Si falla (red caída, RLS, schema desactualizado), NO bloquea la
+  // descarga — solo loguea y avisa al vendedor — porque el papel
+  // del cliente es prioritario sobre el histórico interno.
+  const persistirSnapshot = async (
+    tipo: 'quote' | 'po',
+    numero: string,
+    meta: SnapshotMeta,
+  ): Promise<void> => {
+    try {
+      const quote = computeQuote(items, trailers, tc);
+      const snapshot = buildSnapshot({
+        items,
+        trailers,
+        quote,
+        meta,
+        snapshotAt: new Date().toISOString(),
+      });
+      const res = await fetch('/api/cotizaciones/emitidas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, numero, snapshot }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // eslint-disable-next-line no-console
+        console.warn('[snapshot]', res.status, data);
+      }
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[snapshot] persist failed', err);
+    }
+  };
+
   // Verifica las invariantes de negocio (PB≤PB_cliente, margen≥12%,
   // capacidad trailer, spec completo) antes de generar PDFs. Si hay
   // violaciones, pide confirmación al vendedor con el detalle.
@@ -263,8 +299,9 @@ export default function CotizadorPage() {
     profile?.email?.split('@')[0] ||
     'BioNovaPack LLC';
 
-  // Generadores de PDF
-  const handleGenerateQuote = () => {
+  // Generadores de PDF — persisten snapshot inmutable ANTES de descargar.
+  // Si el snapshot falla, NO se bloquea la descarga (errores van al console).
+  const handleGenerateQuote = async () => {
     if (!confirmarAntesPDF('cotización al cliente')) return;
     const meta = {
       cliente,
@@ -276,11 +313,22 @@ export default function CotizadorPage() {
       tc,
       transportUSD: transportUSDTotal,
     };
+    // Snapshot primero (no bloquea si falla), luego PDF.
+    await persistirSnapshot('quote', meta.numero, {
+      cliente: meta.cliente,
+      contacto: meta.contacto,
+      direccion: meta.direccion,
+      vendedor: meta.vendedor,
+      fecha: meta.fecha,
+      numero: meta.numero,
+      tc: meta.tc,
+      transportUSDActivo: transportUSDTotal,
+    });
     const doc = generateQuotePDF(items, results, meta);
     savePDF(doc, `Quotation_${(cliente || 'cliente').replace(/\s+/g, '_')}_${meta.numero}.pdf`);
   };
 
-  const handleGeneratePO = () => {
+  const handleGeneratePO = async () => {
     if (!confirmarAntesPDF('PO a Extruidos')) return;
     const meta = {
       cliente: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',
@@ -290,6 +338,14 @@ export default function CotizadorPage() {
       tc,
       transportUSD: transportUSDTotal,
     };
+    await persistirSnapshot('po', meta.numero, {
+      cliente: meta.cliente,
+      vendedor: meta.vendedor,
+      fecha: meta.fecha,
+      numero: meta.numero,
+      tc: meta.tc,
+      transportUSDActivo: transportUSDTotal,
+    });
     const doc = generatePOPDF(items, results, meta);
     savePDF(doc, `PurchaseOrder_${meta.numero}.pdf`);
   };
