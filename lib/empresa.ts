@@ -14,6 +14,8 @@ export interface EmpresaInfo {
   // flete (pickup / Castores), modelado internamente como un trailer único.
   multiTrailer: boolean;
   accent: string;     // color de marca principal (hex), para acentos de UI
+  accent2?: string;   // color secundario de marca
+  domicilio?: string; // dirección fiscal (para PDF)
 }
 
 export const EMPRESAS: Record<Empresa, EmpresaInfo> = {
@@ -29,13 +31,16 @@ export const EMPRESAS: Record<Empresa, EmpresaInfo> = {
   },
   extruidos: {
     id: 'extruidos',
-    nombre: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',
+    nombre: 'EXTRUIDOS BOLSA POLIETILENO, S.A. DE C.V.',
     corto: 'Extruidos',
     mercado: 'México',
     moneda: 'MXN',
     usaTC: false,
     multiTrailer: false,
-    accent: '#1F2A4D', // navy Extruidos
+    accent: '#1F2A4D',  // navy Extruidos
+    accent2: '#3E8EDE', // azul Extruidos
+    domicilio:
+      'Autopista Méx - Querétaro KM. 37.5 #5010 Bodega 46, Complejo Industrial, Cuautitlán Izcalli, Edo. de México C.P. 54730',
   },
 };
 

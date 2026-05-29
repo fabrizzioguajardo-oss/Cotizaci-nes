@@ -341,6 +341,215 @@ export function generatePOPDF(
   return doc;
 }
 
+// ============================================================================
+// === COTIZACIÓN EXTRUIDOS (México, MXN) =====================================
+// ============================================================================
+// Formato distinto al de BioNovaPack: español, pesos, IVA 16%, columnas de
+// tarima (cantidad x tarima / no. tarimas / precio anterior / precio nuevo /
+// total por tarima), observaciones fijas y pie con el analista. Basado en el
+// formato real "COTIZACIÓN EXTRUIDOS.xlsx".
+
+const EXT_NAVY: [number, number, number] = [31, 42, 77];   // #1F2A4D
+const EXT_BLUE: [number, number, number] = [62, 142, 222]; // #3E8EDE
+const IVA_RATE = 0.16;
+
+export interface ExtruidosMeta {
+  cliente: string;
+  correo?: string;
+  contacto?: string;
+  telefono?: string;
+  fecha: string;
+  numero: string;
+  formaPago: string;          // etiqueta legible (CONTADO / CRÉDITO 30 DÍAS…)
+  anticipo: number;           // MXN
+  // Pie / analista
+  vendedor: string;
+  vendedorEmail?: string;
+  vendedorTel?: string;
+}
+
+const EXT_RAZON = 'EXTRUIDOS BOLSA POLIETILENO, S.A. DE C.V.';
+const EXT_DOMICILIO =
+  'Autopista Méx - Querétaro KM. 37.5 #5010 Bodega 46, Complejo Industrial, Cuautitlán Izcalli, Edo. de México C.P. 54730';
+
+function mxn(n: number): string {
+  return `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+// Genera la cotización al cliente con el formato y marca de Extruidos (MXN).
+// Cada línea: cantidad por tarima (rollosPallet) × no. de tarimas (palletTrailer),
+// unidad, descripción, precio anterior (opcional), precio nuevo (precioCliente
+// en MXN) y total por tarima (precioCliente × rollosPallet).
+export function generateExtruidosQuotePDF(
+  items: LineItem[],
+  meta: ExtruidosMeta,
+): jsPDF {
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+  // Banda superior navy
+  doc.setFillColor(...EXT_NAVY);
+  doc.rect(0, 0, 210, 8, 'F');
+
+  // Encabezado: razón social + domicilio + "COTIZACIÓN"
+  doc.setTextColor(...EXT_NAVY);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text('EXTRUIDOS', 105, 20, { align: 'center' });
+  doc.setTextColor(...EXT_BLUE);
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text(EXT_RAZON, 105, 26, { align: 'center' });
+  doc.setTextColor(...TEXT_GRAY);
+  doc.setFontSize(7);
+  const domLines = doc.splitTextToSize(EXT_DOMICILIO, 180);
+  doc.text(domLines, 105, 31, { align: 'center' });
+
+  doc.setDrawColor(...EXT_NAVY);
+  doc.setLineWidth(0.5);
+  doc.line(14, 40, 196, 40);
+
+  doc.setTextColor(...EXT_NAVY);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('COTIZACIÓN', 105, 48, { align: 'center' });
+
+  // Datos del cliente
+  let y = 58;
+  doc.setFontSize(9);
+  doc.setTextColor(...TEXT_DARK);
+  const field = (label: string, value: string, x: number, yy: number) => {
+    doc.setFont('helvetica', 'bold');
+    doc.text(label, x, yy);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value || '—', x + doc.getTextWidth(label) + 2, yy);
+  };
+  field('Cliente:', meta.cliente, 14, y);
+  field('Fecha:', meta.fecha, 150, y);
+  y += 5;
+  field('Correo:', meta.correo ?? '', 14, y);
+  field('No.:', meta.numero, 150, y);
+  y += 5;
+  field('Contacto:', meta.contacto ?? '', 14, y);
+  field('Tel:', meta.telefono ?? '', 90, y);
+  field('Forma de pago:', meta.formaPago, 150, y);
+
+  // Vigencia
+  y += 7;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...TEXT_GRAY);
+  doc.text(
+    'LA VIGENCIA DE ESTA COTIZACIÓN ES DE 7 DÍAS HÁBILES A PARTIR DE LA FECHA DE ELABORACIÓN',
+    14,
+    y,
+  );
+
+  // Tabla de partidas
+  let subtotal = 0;
+  const body = items.map((item) => {
+    const cantTarima = item.rollosPallet || 0;
+    const noTarimas = item.palletTrailer || 0;
+    const totalPorTarima = item.precioCliente * cantTarima; // por tarima
+    subtotal += totalPorTarima * noTarimas;
+    const desc =
+      `${item.aCliente} ${item.calCliente} ${item.lCliente} ${item.tipoColor !== 'clear' ? item.tipoColor.toUpperCase() + ' ' : ''}${item.tipoResina.toUpperCase()}`.trim();
+    return [
+      String(cantTarima),
+      item.unit.toUpperCase(),
+      String(noTarimas),
+      item.desc ? `${item.desc} — ${desc}` : desc,
+      item.precioAnterior ? mxn(item.precioAnterior) : '',
+      mxn(item.precioCliente),
+      mxn(totalPorTarima),
+    ];
+  });
+
+  autoTable(doc, {
+    startY: y + 4,
+    head: [[
+      'CANT. X TARIMA', 'UNIDAD', 'No. TARIMAS', 'DESCRIPCIÓN',
+      'PRECIO ANT./ROLLO', 'PRECIO NUEVO/ROLLO', 'TOTAL/TARIMA',
+    ]],
+    body,
+    theme: 'grid',
+    headStyles: { fillColor: EXT_NAVY, textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
+    bodyStyles: { fontSize: 8, textColor: TEXT_DARK },
+    columnStyles: {
+      0: { halign: 'center', cellWidth: 22 },
+      1: { halign: 'center', cellWidth: 18 },
+      2: { halign: 'center', cellWidth: 20 },
+      3: { cellWidth: 54 },
+      4: { halign: 'right', cellWidth: 22 },
+      5: { halign: 'right', cellWidth: 22 },
+      6: { halign: 'right', cellWidth: 24 },
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  const iva = subtotal * IVA_RATE;
+  const total = subtotal + iva;
+
+  let ty = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
+  const totalRow = (label: string, value: string, bold = false) => {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(bold ? 10 : 9);
+    doc.text(label, 150, ty, { align: 'right' });
+    doc.text(value, 196, ty, { align: 'right' });
+    ty += bold ? 6 : 5;
+  };
+  doc.setTextColor(...TEXT_DARK);
+  totalRow('SUBTOTAL:', mxn(subtotal));
+  totalRow('I.V.A. (16%):', mxn(iva));
+  doc.setFillColor(...EXT_NAVY);
+  doc.rect(125, ty - 4, 71, 8, 'F');
+  doc.setTextColor(255, 255, 255);
+  totalRow('TOTAL:', mxn(total), true);
+  doc.setTextColor(...TEXT_DARK);
+  totalRow('ANTICIPO:', mxn(meta.anticipo || 0));
+
+  // Observaciones (texto fijo del formato Extruidos)
+  ty += 4;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...EXT_NAVY);
+  doc.text('Observaciones:', 14, ty);
+  ty += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...TEXT_GRAY);
+  const obs = [
+    '- Precios en pesos mexicanos. Este documento es sólo una cotización de precios; no obliga a la compra. Precios aplicables solo a esta cotización.',
+    '- Tiempo de entrega en el área metropolitana: 3 días hábiles; pedidos especiales: 5 días hábiles.',
+    '- Disponibilidad de material para la primera entrega: 5 días.',
+    '- Condiciones de entrega: 500 kg como mínimo para entrega gratuita en CDMX y área metropolitana.',
+    '- Precio más IVA.',
+  ];
+  obs.forEach((o) => {
+    const lines = doc.splitTextToSize(o, 182);
+    doc.text(lines, 14, ty);
+    ty += lines.length * 3.5;
+  });
+
+  // Pie: analista / vendedor
+  ty += 6;
+  doc.setDrawColor(...EXT_BLUE);
+  doc.line(14, ty, 75, ty);
+  ty += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...TEXT_GRAY);
+  doc.text('Analista de Gestión de Negocios', 14, ty);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...TEXT_DARK);
+  doc.text(meta.vendedor, 14, ty + 4);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(...TEXT_GRAY);
+  if (meta.vendedorEmail) doc.text(meta.vendedorEmail, 14, ty + 8);
+  if (meta.vendedorTel) doc.text(meta.vendedorTel, 14, ty + 12);
+
+  return doc;
+}
+
 // Helper para descargar el PDF
 export function savePDF(doc: jsPDF, filename: string): void {
   doc.save(filename);

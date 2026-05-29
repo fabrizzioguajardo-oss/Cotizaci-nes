@@ -31,12 +31,27 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 - `lib/empresa.ts`: metadata por empresa (nombre, mercado, moneda, usaTC,
   multiTrailer, accent) — fuente única.
 
-### Fase B (pendiente)
+### Fase B1 (lista) — PDF de Extruidos (MXN)
 
-- Paleta de color completa por empresa (verde BNP / navy+azul Extruidos) vía tokens.
-- **PDF con marca de Extruidos** (hoy el PDF usa formato BioNovaPack y etiqueta
-  "USD" — NO usar el PDF para cotizaciones México hasta la Fase B).
-- Logos de ambas empresas.
+- **`generateExtruidosQuotePDF`**: cotización con el formato y marca reales de
+  Extruidos (basado en `COTIZACIÓN EXTRUIDOS.xlsx`): encabezado navy con razón
+  social + domicilio, datos del cliente (correo, contacto, tel, forma de pago),
+  nota de vigencia 7 días, tabla por tarima (cant. x tarima · unidad · no.
+  tarimas · descripción · precio anterior · precio nuevo · total por tarima),
+  **SUBTOTAL → I.V.A. 16% → TOTAL → ANTICIPO**, observaciones fijas y pie con el
+  analista (nombre del vendedor + correo). Verificado con render de prueba.
+- **Campos México** capturados en el sidebar: correo, teléfono, forma de pago
+  (Contado / Crédito 30·60·90) y anticipo. `precioAnterior` opcional por línea
+  en el tipo `LineItem` (la columna sale en blanco si no se captura).
+- Al generar la cotización con empresa = Extruidos, se usa este PDF (MXN) en vez
+  del de BioNovaPack.
+
+### Fase B1.1 + B2 (pendiente)
+
+- **B1.1**: persistir en el draft los campos México (correo/tel/forma de
+  pago/anticipo) + input de "precio anterior" por línea. (Hoy son de sesión.)
+- **B2**: paleta de color completa por empresa (verde BNP / navy+azul Extruidos)
+  en TODA la app, no solo el PDF + logos embebidos.
 
 ### Migración requerida
 

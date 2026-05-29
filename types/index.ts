@@ -12,6 +12,19 @@ export type Moneda = 'USD' | 'MXN';
 // (sin costo) o se envía por Castores (precio logístico en MXN).
 export type TransporteMX = 'pickup' | 'castores';
 
+// Forma de pago (cotización México/Extruidos).
+export type FormaPago = 'contado' | 'credito30' | 'credito60' | 'credito90';
+
+export const FORMA_PAGO_LABEL: Record<FormaPago, string> = {
+  contado: 'CONTADO',
+  credito30: 'CRÉDITO 30 DÍAS',
+  credito60: 'CRÉDITO 60 DÍAS',
+  credito90: 'CRÉDITO 90 DÍAS',
+};
+
+// IVA mexicano (16%).
+export const IVA_MX = 0.16;
+
 // Modo de cotización (v1.21):
 //  - 'directa': se cotiza y fabrica EXACTAMENTE lo que pide el cliente
 //    (spec real = spec declarado, sin optimización).
@@ -42,6 +55,10 @@ export interface LineItem {
   desc: string;
   unit: Unit;
   qty: number;
+  // Precio anterior por rollo (MXN) — opcional, solo para cotización México
+  // (Extruidos). Se muestra como columna "PRECIO ANTERIOR POR ROLLO". Si es
+  // 0/undefined, la columna sale en blanco para esa línea.
+  precioAnterior?: number;
 
   // Spec del cliente (lo que el cliente cree que recibe)
   aCliente: number;

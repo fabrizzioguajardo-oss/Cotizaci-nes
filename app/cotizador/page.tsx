@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import type { LineItem, Trailer, TipoCotizacion, Empresa, TransporteMX } from '@/types';
+import type { LineItem, Trailer, TipoCotizacion, Empresa, TransporteMX, FormaPago } from '@/types';
+import { FORMA_PAGO_LABEL } from '@/types';
 import {
   newLineItem,
   calcLineItem,
@@ -9,7 +10,7 @@ import {
   REDUCTION_WARN_HIGH,
 } from '@/lib/pricingEngine';
 import { empresaInfo, tcEfectivo, monedaDe } from '@/lib/empresa';
-import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
+import { generatePOPDF, generateQuotePDF, generateExtruidosQuotePDF, savePDF, type ExtruidosMeta } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
 import { computeQuote, partitionWarnings, type QuoteResult } from '@/lib/computeQuote';
 import { buildSnapshot, type SnapshotMeta } from '@/lib/snapshotEmitida';
@@ -38,6 +39,11 @@ export default function CotizadorPage() {
   const [empresa, setEmpresa] = useState<Empresa>('bionovapack');
   // Transporte para México (Extruidos): recoge en almacén o envío por Castores.
   const [transporteMX, setTransporteMX] = useState<TransporteMX>('pickup');
+  // Datos de cotización México (formato Extruidos).
+  const [correoCliente, setCorreoCliente] = useState('');
+  const [telefonoCliente, setTelefonoCliente] = useState('');
+  const [formaPago, setFormaPago] = useState<FormaPago>('contado');
+  const [anticipo, setAnticipo] = useState(0);
 
   // Estado global del camión - arranca vacío para que cada vendedor cotice desde cero
   const [cliente, setCliente] = useState('');
@@ -480,7 +486,7 @@ export default function CotizadorPage() {
   // cercanas, o de distintos vendedores en el mismo instante, podían chocar y
   // el registro histórico perdía trazabilidad. Ahora: ms en base36 (único por
   // milisegundo) + 3 chars aleatorios (rompe colisiones en el mismo ms).
-  const genNumero = (prefijo: 'Q' | 'PO'): string => {
+  const genNumero = (prefijo: 'Q' | 'PO' | 'COT'): string => {
     const ms = Date.now().toString(36).toUpperCase();
     const rand = Math.random().toString(36).slice(2, 5).toUpperCase();
     return `${prefijo}-${ms}${rand}`;
@@ -495,6 +501,35 @@ export default function CotizadorPage() {
     if (!tieneNombreVendedor()) return;
     if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('cotización al cliente')) return;
+
+    // México (Extruidos): PDF con formato y marca de Extruidos, en MXN.
+    if (empresa === 'extruidos') {
+      const numero = genNumero('COT');
+      const metaMX: ExtruidosMeta = {
+        cliente,
+        correo: correoCliente,
+        contacto,
+        telefono: telefonoCliente,
+        fecha: new Date().toLocaleDateString('es-MX'),
+        numero,
+        formaPago: FORMA_PAGO_LABEL[formaPago],
+        anticipo,
+        vendedor: vendedorFirma,
+        vendedorEmail: profile?.email,
+      };
+      const doc = generateExtruidosQuotePDF(items, metaMX);
+      savePDF(doc, `Cotizacion_Extruidos_${(cliente || 'cliente').replace(/\s+/g, '_')}_${numero}.pdf`);
+      void persistirSnapshot('quote', numero, {
+        cliente, contacto, direccion,
+        vendedor: vendedorFirma,
+        fecha: metaMX.fecha, numero, tc: tcCalc,
+        transportUSDActivo: transportUSDTotal,
+        tipoCotizacion,
+        aprobacion: aprobacionSnapshot(),
+      });
+      return;
+    }
+
     const meta = {
       cliente,
       contacto,
@@ -611,6 +646,58 @@ export default function CotizadorPage() {
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Datos de la cotización México (van al PDF de Extruidos) */}
+          {!info.multiTrailer && (
+            <div className="card p-3 space-y-2">
+              <p className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">
+                Datos de la cotización
+              </p>
+              <div>
+                <label className="label">Correo del cliente</label>
+                <input
+                  type="email"
+                  value={correoCliente}
+                  onChange={(e) => setCorreoCliente(e.target.value)}
+                  placeholder="correo@cliente.com"
+                  className="input input-text"
+                />
+              </div>
+              <div>
+                <label className="label">Teléfono del cliente</label>
+                <input
+                  type="text"
+                  value={telefonoCliente}
+                  onChange={(e) => setTelefonoCliente(e.target.value)}
+                  placeholder="444 491 6667"
+                  className="input input-text"
+                />
+              </div>
+              <div>
+                <label className="label">Forma de pago</label>
+                <select
+                  value={formaPago}
+                  onChange={(e) => setFormaPago(e.target.value as FormaPago)}
+                  className="input input-text"
+                >
+                  <option value="contado">Contado</option>
+                  <option value="credito30">Crédito 30 días</option>
+                  <option value="credito60">Crédito 60 días</option>
+                  <option value="credito90">Crédito 90 días</option>
+                </select>
+              </div>
+              <div>
+                <label className="label">Anticipo (MXN)</label>
+                <input
+                  type="number" step="100" min="0"
+                  value={anticipo || ''}
+                  onChange={(e) => setAnticipo(parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  className="input"
+                />
+              </div>
             </div>
           )}
 
