@@ -25,8 +25,8 @@ interface Caso {
   trailers: Trailer[];
   tc: number;
   // Expectativas: códigos de warning que DEBEN aparecer y los que NO deben.
-  esperaErrores?: Array<'pb_excedido' | 'margen_bajo' | 'margen_perdida' | 'capacidad_excedida' | 'flete_fantasma' | 'pn_cero' | 'sin_precio'>;
-  prohibeErrores?: Array<'pb_excedido' | 'margen_bajo' | 'margen_perdida' | 'capacidad_excedida' | 'flete_fantasma' | 'pn_cero' | 'sin_precio'>;
+  esperaErrores?: Array<'pb_excedido' | 'margen_bajo' | 'margen_perdida' | 'capacidad_excedida' | 'flete_fantasma' | 'logistica_cero' | 'pn_cero' | 'sin_precio'>;
+  prohibeErrores?: Array<'pb_excedido' | 'margen_bajo' | 'margen_perdida' | 'capacidad_excedida' | 'flete_fantasma' | 'logistica_cero' | 'pn_cero' | 'sin_precio'>;
 }
 
 function baseItem(partial: Partial<LineItem>): LineItem {
@@ -232,6 +232,25 @@ const casos: Caso[] = [
     ],
     esperaErrores: ['flete_fantasma'],
     prohibeErrores: ['margen_perdida'],
+  },
+
+  // === F''. Logística en cero (spec y precio OK, pero rollos/tarima = 0) ===
+  {
+    nombre: 'Logística cero: spec y precio pero rollosPallet × palletTrailer = 0',
+    tc: TC,
+    trailers: [defaultTrailer(7000)],
+    items: [
+      baseItem({
+        id: 1,
+        aCliente: 3, calCliente: 70, lCliente: 1000,
+        conoCliente: 0.1,
+        aReal: 3, calReal: 70, lReal: 1000,
+        cono: 0.1,
+        rollosPallet: 0, palletTrailer: 0, // ← logística sin llenar
+        precioCliente: 1.50, costoBase: 50,
+      }),
+    ],
+    esperaErrores: ['logistica_cero'],
   },
 
   // === F. Spec inválido (PN cero pero hay precio) ===

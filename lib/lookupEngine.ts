@@ -236,16 +236,21 @@ export function lookupPrice(params: {
 
   // Filtrar por color si fue especificado. El parser de Color guarda
   // r.color = 'orange'/'black'/etc o 'generic' (cuando la hoja no especifica
-  // un color particular). Si el vendedor pidió 'clear', no aplica filter
-  // (clear no es realmente un color con master adder).
-  // Estrategia: si hay match exacto por color usar eso; si no, usar generic;
-  // si tampoco, usar todos.
-  if (color && color !== 'clear' && color !== 'custom') {
-    const byColor = candidates.filter((r) => r.color === color);
+  // un color particular). 'clear' no es color con master → no filtra.
+  if (color && color !== 'clear') {
     const byGeneric = candidates.filter((r) => r.color === 'generic' || r.color === null);
-    if (byColor.length > 0) candidates = byColor;
-    else if (byGeneric.length > 0) candidates = byGeneric;
-    // else: mantener candidates como están
+    if (color === 'custom') {
+      // 'custom' no tiene un row de color propio en el catálogo. Antes NO se
+      // filtraba nada, así que el mejor match podía caer en un master de un
+      // color arbitrario (orange/black/...) y dar un precio engañoso. Ahora
+      // preferimos los rows genéricos (sin color específico).
+      if (byGeneric.length > 0) candidates = byGeneric;
+    } else {
+      const byColor = candidates.filter((r) => r.color === color);
+      if (byColor.length > 0) candidates = byColor;
+      else if (byGeneric.length > 0) candidates = byGeneric;
+      // else: mantener candidates como están
+    }
   }
 
   // Priorizar match exacto de ancho

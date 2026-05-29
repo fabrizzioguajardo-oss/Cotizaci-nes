@@ -438,9 +438,19 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
                 pnRealKg={result.pnReal}
                 rollosCaja={item.rollosCaja}
                 onPick={(e) => {
-                  const cajaMxn = Number(e.inputs?.caja_mxn ?? 0) || (e.precio_mxn_kg * (result.pnReal || 1) * (item.rollosCaja || 4));
                   const rollos = Number(e.inputs?.rollos_caja ?? item.rollosCaja);
-                  onChange({ cajaMXN: cajaMxn, rollosCaja: rollos });
+                  // Si el catálogo trae caja_mxn directo, úsalo. Si no, derívalo
+                  // de precio/kg × PN × rollos/caja — PERO solo si hay un PN real.
+                  // Antes el fallback usaba `result.pnReal || 1`, fabricando un
+                  // costo basado en 1 kg ficticio cuando aún no había spec real,
+                  // metiendo un cargo inventado. Ahora, sin PN, dejamos 0 (sin
+                  // caja) hasta que el spec exista.
+                  const directo = Number(e.inputs?.caja_mxn ?? 0);
+                  const derivado =
+                    result.pnReal > 0
+                      ? e.precio_mxn_kg * result.pnReal * (item.rollosCaja || 4)
+                      : 0;
+                  onChange({ cajaMXN: directo || derivado, rollosCaja: rollos });
                 }}
               />
             </div>

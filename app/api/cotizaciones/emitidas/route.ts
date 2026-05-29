@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { hashSnapshot, type Snapshot } from '@/lib/snapshotEmitida';
+import { computeQuote } from '@/lib/computeQuote';
 
 export const runtime = 'nodejs';
 
@@ -75,9 +76,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'snapshot.meta requerido' }, { status: 400 });
   }
 
-  // Hash determinístico del snapshot (sirve para auditar si alguien
-  // modifica el JSON con acceso directo a la base — el hash dejaría
-  // de coincidir).
+  // RECÁLCULO AUTORITATIVO DEL SERVIDOR.
+  // Antes el snapshot guardaba `quote` (totales, costos, márgenes, warnings)
+  // tal como lo mandó el cliente, y el hash solo certificaba "lo que el
+  // cliente envió". Un navegador modificado podía persistir cifras falsas con
+  // un hash válido — envenenando el registro que se vende como fuente de
+  // verdad ante reclamos. Ahora el servidor RECALCULA el árbol desde los
+  // inputs crudos (items, trailers, tc) con el mismo motor (computeQuote) y
+  // SOBREESCRIBE quote con el resultado autoritativo antes de hashear. Si los
+  // inputs vienen corruptos y el recálculo falla, conservamos lo que mandó el
+  // cliente (best-effort) en vez de rechazar la emisión.
+  if (Array.isArray(body.snapshot.items) && Array.isArray(body.snapshot.trailers)) {
+    try {
+      const tcSnap = Number(body.snapshot.meta.tc) || 0;
+      body.snapshot.quote = computeQuote(body.snapshot.items, body.snapshot.trailers, tcSnap);
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[emitidas] recompute falló, uso quote del cliente:', e);
+    }
+  }
+
+  // Hash determinístico DESPUÉS del recálculo: certifica el árbol autoritativo.
   const snapshot_hash = await hashSnapshot(body.snapshot);
 
   const meta = body.snapshot.meta;

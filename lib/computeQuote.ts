@@ -41,6 +41,7 @@ export type WarningCode =
   | 'margen_perdida'        // utilidad < 0 (pierde dinero)
   | 'capacidad_excedida'    // trailer.kgNetoTotal > TRAILER_MAX_KG
   | 'flete_fantasma'        // trailer vacío con transport_usd > 0 — caso del Adversario
+  | 'logistica_cero'        // rollosPallet × palletTrailer = 0 → kg/costo en cero
   | 'sin_precio'            // precioCliente = 0 (cotización incompleta)
   | 'pn_cero';              // pnReal = 0 (spec inválido)
 
@@ -220,6 +221,26 @@ function detectWarnings(
         itemId: item.id,
         trailerId: item.trailerId,
         message: `Línea ${item.id}: tiene spec pero le falta precio al cliente.`,
+      });
+    }
+
+    // === Invariante 5: logística en cero ===
+    // Si la línea tiene spec y precio pero rollosPallet × palletTrailer = 0,
+    // el kg neto y el costo del item salen en CERO sin aviso — y el resumen
+    // del trailer reporta utilidad infinita/100%. Pasa típico cuando el cono
+    // sugerido viene del fallback de tabla maestra EDSA (sin regla de tarima),
+    // así que rollos_por_tarima quedó en 0 y nadie llenó la logística.
+    const unidadesLinea = item.rollosPallet * item.palletTrailer;
+    if (item.precioCliente > 0 && result.pnReal > 0 && unidadesLinea === 0) {
+      warnings.push({
+        level: 'error',
+        code: 'logistica_cero',
+        itemId: item.id,
+        trailerId: item.trailerId,
+        message:
+          `Línea ${item.id}: falta logística (rollos/tarima × tarimas/trailer = 0). ` +
+          `El kg neto y el costo salen en cero — llena rollos/tarima y tarimas/trailer.`,
+        values: { rollosPallet: item.rollosPallet, palletTrailer: item.palletTrailer },
       });
     }
   }

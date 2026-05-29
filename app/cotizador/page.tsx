@@ -331,6 +331,17 @@ export default function CotizadorPage() {
     return false;
   };
 
+  // Genera un número de documento con suficiente entropía para no colisionar.
+  // Antes era `Date.now().toString().slice(-6)` (6 dígitos) — dos emisiones
+  // cercanas, o de distintos vendedores en el mismo instante, podían chocar y
+  // el registro histórico perdía trazabilidad. Ahora: ms en base36 (único por
+  // milisegundo) + 3 chars aleatorios (rompe colisiones en el mismo ms).
+  const genNumero = (prefijo: 'Q' | 'PO'): string => {
+    const ms = Date.now().toString(36).toUpperCase();
+    const rand = Math.random().toString(36).slice(2, 5).toUpperCase();
+    return `${prefijo}-${ms}${rand}`;
+  };
+
   // Generadores de PDF. El PDF se descarga PRIMERO (lo que el cliente espera);
   // el snapshot inmutable se persiste DESPUÉS y en fire-and-forget. Antes se
   // hacía `await persistirSnapshot` ANTES del PDF, así que una red lenta
@@ -344,7 +355,7 @@ export default function CotizadorPage() {
       contacto,
       direccion,
       fecha: new Date().toLocaleDateString('en-US'),
-      numero: `Q-${Date.now().toString().slice(-6)}`,
+      numero: genNumero('Q'),
       vendedor: vendedorFirma,
       tc,
       transportUSD: transportUSDTotal,
@@ -369,7 +380,7 @@ export default function CotizadorPage() {
     const meta = {
       cliente: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',
       fecha: new Date().toLocaleDateString('en-US'),
-      numero: `PO-${Date.now().toString().slice(-6)}`,
+      numero: genNumero('PO'),
       vendedor: vendedorFirma,
       tc,
       transportUSD: transportUSDTotal,

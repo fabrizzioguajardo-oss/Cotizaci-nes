@@ -71,6 +71,13 @@ export function canonicalize(value: unknown): string {
   const seen = new WeakSet<object>();
   function serialize(v: unknown): unknown {
     if (v === null) return null;
+    // Normalizar números no finitos (NaN, Infinity, -Infinity). JSON.stringify
+    // los convierte a 'null' silenciosamente, así que dos snapshots con un NaN
+    // donde el otro tiene null serializarían igual sin querer. Los mapeamos a
+    // un marcador explícito y estable para que el hash los distinga.
+    if (typeof v === 'number' && !Number.isFinite(v)) {
+      return `__nonfinite__${String(v)}`;
+    }
     if (typeof v !== 'object') return v;
     if (seen.has(v as object)) return '[circular]';
     seen.add(v as object);

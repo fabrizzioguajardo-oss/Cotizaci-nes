@@ -4,6 +4,25 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.19 — Mayo 2026 — Cierre de medios: integridad y datos
+
+**Foco**: cerrar por completo los hallazgos de integridad/datos/robustez de la revisión que habían quedado a medias.
+
+### Cambios
+
+- **El snapshot ahora se recalcula en el servidor (#10b).** Antes el registro inmutable guardaba los totales/costos/márgenes tal como los mandaba el navegador, y el hash solo certificaba "lo que el cliente envió" — un navegador modificado podía persistir cifras falsas con hash válido. Ahora `/api/cotizaciones/emitidas` recalcula el árbol completo desde los inputs crudos (items, trailers, TC) con el mismo motor (`computeQuote`) y sobreescribe los totales con el resultado autoritativo antes de hashear. El registro histórico ya es fuente de verdad real, no copia de lo declarado.
+- **Aviso cuando la logística está en cero (#13b).** Si una línea tiene spec y precio pero `rollos/tarima × tarimas/trailer = 0`, el kg neto y el costo salían en cero en silencio (y el resumen del trailer mostraba utilidad infinita). Pasa típico cuando el cono viene del fallback de tabla maestra EDSA sin regla de tarima. Ahora se levanta un error visible antes de generar el PDF.
+- **Número de cotización con más entropía (#14b).** Era `Q-` + 6 dígitos del timestamp → dos emisiones cercanas, o de distintos vendedores en el mismo instante, podían colisionar y romper la trazabilidad. Ahora es timestamp en base36 + 3 caracteres aleatorios — colisión despreciable.
+- **Caja blanca ya no inventa un costo fantasma.** El fallback que derivaba el costo de la caja usaba `pnReal || 1`, fabricando un cargo sobre 1 kg ficticio cuando aún no había spec real. Ahora, sin PN real, deja la caja en 0 hasta que el spec exista.
+- **Producto color "custom" ya no mezcla precios de otros colores.** En el lookup de precio, `custom` no filtraba nada y el mejor match podía caer en el master de un color arbitrario (orange/black). Ahora prefiere los rows genéricos (sin color específico).
+- **Hash del snapshot robusto ante NaN/Infinity.** `canonicalize` ahora normaliza números no finitos a un marcador explícito (antes `JSON.stringify` los volvía `null` en silencio, así que un NaN y un null serializaban igual).
+
+### Estado de la revisión
+
+Con v1.16–v1.19 quedan resueltos **todos** los hallazgos de la revisión de código: 5 críticos (🔴), altos (🟠) y medios (🟡). Lo único pendiente es la **deuda de altitud** (refactors de diseño, no bugs): `LineItem` plano → sub-objetos, UI consumiendo `computeQuote` como único camino, y dedup de `getAuthedSupabase`.
+
+---
+
 ## v1.18 — Mayo 2026 — Backend hardening (medios de la revisión)
 
 **Foco**: cierra los hallazgos de la revisión que viven en el backend (endpoints, persistencia, concurrencia). Con esto queda resuelta toda la lista de altos/medios de la revisión de código.
