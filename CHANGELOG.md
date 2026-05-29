@@ -10,6 +10,44 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## En desarrollo (post-v1.10) — Multi-empresa: BioNovaPack (USA) + Extruidos (México)
+
+> Trabajo en progreso, **no anunciado al equipo todavía**. El indicador visible
+> sigue en v1.10 hasta que la feature esté completa (Fase B pendiente).
+
+### Fase A (lista) — fundación multi-empresa
+
+- **Pregunta al inicio**: selector "Cotizar para BioNovaPack · USA / Extruidos · México"
+  arriba del panel. Persiste en el draft (migración 011).
+- **Modelo de moneda**: México (Extruidos) opera en **MXN sin tipo de cambio** —
+  el costo ya está en MXN y el precio se captura en MXN; el divisor efectivo es 1.
+  EUA sigue en USD con TC. Reusa el mismo motor (`tcEfectivo`), sin reescribirlo.
+- **Transporte México**: panel con 2 opciones — recoge en almacén ($0) o envío
+  por Castores (precio MXN). Modelado como un trailer único (sin multi-trailer
+  ni límite de capacidad).
+- **UI adaptada**: en México se oculta el campo de TC (muestra "MXN"), los KPIs
+  se etiquetan con la moneda, el sidebar muestra el panel de transporte simple
+  en vez de los bloques de trailer, y el acento de color sigue a la empresa.
+- `lib/empresa.ts`: metadata por empresa (nombre, mercado, moneda, usaTC,
+  multiTrailer, accent) — fuente única.
+
+### Fase B (pendiente)
+
+- Paleta de color completa por empresa (verde BNP / navy+azul Extruidos) vía tokens.
+- **PDF con marca de Extruidos** (hoy el PDF usa formato BioNovaPack y etiqueta
+  "USD" — NO usar el PDF para cotizaciones México hasta la Fase B).
+- Logos de ambas empresas.
+
+### Migración requerida
+
+```sql
+-- 011_cotizaciones_empresa.sql
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS empresa TEXT NOT NULL DEFAULT 'bionovapack';
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS transporte_mx TEXT NOT NULL DEFAULT 'pickup';
+```
+
+---
+
 ## v1.10 (versión visible) — Gran actualización del cotizador
 
 Reúne todo lo construido en los builds internos 1.09–1.22. De cara al equipo es

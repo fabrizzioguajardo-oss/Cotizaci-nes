@@ -18,6 +18,7 @@ interface Props {
   activeItemId: number | null;
   itemsWithResults: { item: LineItem; result: CalcResult | undefined }[];
   canRemove: boolean;
+  simpleMode?: boolean;   // México: oculta flete por bloque, capacidad y remove
   onUpdate: (patch: Partial<Trailer>) => void;
   onRemove: () => void;
   onAddItem: () => void;
@@ -48,17 +49,25 @@ export default function TrailerBlock(p: Props) {
     >
       {/* Header: numero + destino + remove */}
       <div className="flex items-center gap-2 px-3 py-2 bg-bg-surface border-b border-border-subtle">
-        <div className="inline-flex items-center justify-center w-6 h-6 rounded bg-bnp-purple/15 text-bnp-purple text-2xs font-bold">
-          {p.trailerIndex}
-        </div>
+        {!p.simpleMode && (
+          <div className="inline-flex items-center justify-center w-6 h-6 rounded bg-bnp-purple/15 text-bnp-purple text-2xs font-bold">
+            {p.trailerIndex}
+          </div>
+        )}
         <Truck className="w-3.5 h-3.5 text-text-secondary flex-shrink-0" />
-        <input
-          type="text"
-          value={trailer.destino}
-          onChange={(e) => p.onUpdate({ destino: e.target.value })}
-          placeholder={`Trailer ${p.trailerIndex} (destino)`}
-          className="flex-1 bg-transparent text-xs font-semibold text-text-primary outline-none min-w-0"
-        />
+        {p.simpleMode ? (
+          <span className="flex-1 text-xs font-semibold text-text-primary">
+            Líneas de la cotización
+          </span>
+        ) : (
+          <input
+            type="text"
+            value={trailer.destino}
+            onChange={(e) => p.onUpdate({ destino: e.target.value })}
+            placeholder={`Trailer ${p.trailerIndex} (destino)`}
+            className="flex-1 bg-transparent text-xs font-semibold text-text-primary outline-none min-w-0"
+          />
+        )}
         {p.canRemove && (
           <button
             onClick={p.onRemove}
@@ -70,7 +79,8 @@ export default function TrailerBlock(p: Props) {
         )}
       </div>
 
-      {/* Flete y capacidad */}
+      {/* Flete y capacidad — oculto en modo simple (México) */}
+      {!p.simpleMode && (
       <div className="px-3 py-2 border-b border-border-subtle text-2xs">
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <label className="text-text-muted uppercase tracking-wider font-semibold">
@@ -110,6 +120,7 @@ export default function TrailerBlock(p: Props) {
           )}
         </div>
       </div>
+      )}
 
       {/* Lista de líneas asignadas a este trailer */}
       <div className={`p-2 min-h-[60px] space-y-1.5 ${isOver ? 'bg-bnp-green/5' : ''}`}>

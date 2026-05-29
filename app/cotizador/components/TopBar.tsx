@@ -21,6 +21,10 @@ interface Props {
   fecha: string;
   tc: number;
   onTcChange: (v: number) => void;
+  usaTC: boolean;            // EUA usa TC; México no
+  moneda: 'USD' | 'MXN';
+  empresaNombre: string;
+  empresaAccent: string;
   totalRevenue: number;
   totalCost: number;
   utilidadGlobal: number | null;
@@ -190,25 +194,39 @@ export default function TopBar(p: Props) {
           <label className="label">Fecha</label>
           <input type="text" value={p.fecha} disabled className="input opacity-70" />
         </div>
-        <div className="col-span-1">
-          <label className="label">TC (MXN/USD)</label>
-          <input
-            type="number" step="0.01"
-            value={p.tc || ''}
-            onChange={(e) => p.onTcChange(parseFloat(e.target.value) || 0)}
-            className="input"
-          />
-        </div>
+        {/* TC solo para EUA (USD). México opera en MXN sin tipo de cambio. */}
+        {p.usaTC ? (
+          <div className="col-span-1">
+            <label className="label">TC (MXN/USD)</label>
+            <input
+              type="number" step="0.01"
+              value={p.tc || ''}
+              onChange={(e) => p.onTcChange(parseFloat(e.target.value) || 0)}
+              className="input"
+            />
+          </div>
+        ) : (
+          <div className="col-span-1">
+            <label className="label">Moneda</label>
+            <div
+              className="input flex items-center font-semibold cursor-default"
+              style={{ color: p.empresaAccent }}
+              title="México opera en pesos mexicanos, sin tipo de cambio"
+            >
+              MXN
+            </div>
+          </div>
+        )}
 
         <div className="col-span-4 grid grid-cols-4 gap-3">
           <div className="bg-bg-surface rounded-md p-2.5 text-center">
-            <p className="text-2xs text-text-muted uppercase tracking-wider">Revenue</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">Revenue {p.moneda}</p>
             <p className="mono text-sm font-semibold mt-0.5 text-bnp-green">
               {fmtUSD(p.totalRevenue)}
             </p>
           </div>
           <div className="bg-bg-surface rounded-md p-2.5 text-center">
-            <p className="text-2xs text-text-muted uppercase tracking-wider">Costo</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">Costo {p.moneda}</p>
             <p className="mono text-sm font-semibold mt-0.5">{fmtUSD(p.totalCost)}</p>
           </div>
           <div className="bg-bg-surface rounded-md p-2.5 text-center">
@@ -218,9 +236,11 @@ export default function TopBar(p: Props) {
             </p>
           </div>
           <div className="bg-bg-surface rounded-md p-2.5 text-center">
-            <p className="text-2xs text-text-muted uppercase tracking-wider">KG trailer</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">KG neto</p>
             <p className="mono text-sm font-semibold mt-0.5" style={{ color: kgColor }}>
-              {fmtNum(p.kgNetoTotal, 0)} / {fmtNum(TRAILER_MAX_KG, 0)}
+              {p.usaTC
+                ? `${fmtNum(p.kgNetoTotal, 0)} / ${fmtNum(TRAILER_MAX_KG, 0)}`
+                : fmtNum(p.kgNetoTotal, 0)}
             </p>
           </div>
         </div>

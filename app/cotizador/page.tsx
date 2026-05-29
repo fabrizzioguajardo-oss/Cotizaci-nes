@@ -1,13 +1,14 @@
 'use client';
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import type { LineItem, Trailer, TipoCotizacion } from '@/types';
+import type { LineItem, Trailer, TipoCotizacion, Empresa, TransporteMX } from '@/types';
 import {
   newLineItem,
   calcLineItem,
   TRAILER_MAX_KG,
   REDUCTION_WARN_HIGH,
 } from '@/lib/pricingEngine';
+import { empresaInfo, tcEfectivo, monedaDe } from '@/lib/empresa';
 import { generatePOPDF, generateQuotePDF, savePDF } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
 import { computeQuote, partitionWarnings, type QuoteResult } from '@/lib/computeQuote';
@@ -31,6 +32,12 @@ function newTrailer(id: number, destino = ''): Trailer {
 export default function CotizadorPage() {
   // Sesión del usuario actual — usado para firmar PDFs con el vendedor real.
   const { profile, refreshProfile } = useAuth();
+
+  // Empresa / mercado para el que se cotiza (v1.23). Default BioNovaPack (USA).
+  // Determina moneda (USD/MXN), si usa tipo de cambio, y el modelo de transporte.
+  const [empresa, setEmpresa] = useState<Empresa>('bionovapack');
+  // Transporte para México (Extruidos): recoge en almacén o envío por Castores.
+  const [transporteMX, setTransporteMX] = useState<TransporteMX>('pickup');
 
   // Estado global del camión - arranca vacío para que cada vendedor cotice desde cero
   const [cliente, setCliente] = useState('');
@@ -62,14 +69,21 @@ export default function CotizadorPage() {
   const [autosaveEnabled, setAutosaveEnabled] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
 
+  // Info de la empresa activa + tipo de cambio EFECTIVO para los cálculos.
+  // En México (Extruidos) el costo ya está en MXN y el precio se captura en
+  // MXN, así que el divisor es 1 (no se convierte). En EUA se usa el TC real.
+  const info = empresaInfo(empresa);
+  const moneda = monedaDe(empresa);
+  const tcCalc = tcEfectivo(empresa, tc);
+
   // ÚNICO punto de cálculo: computeQuote es el entry point que también
   // alimenta los PDFs, el snapshot y los warnings. Antes la UI calculaba
   // `results` y `trailerTotals` por su cuenta (duplicando la fórmula que vive
   // en computeQuote), y luego confirmarAntesPDF/persistirSnapshot llamaban
   // computeQuote OTRAS dos veces por click. Ahora todo sale de este `quote`.
   const quote: QuoteResult = useMemo(
-    () => computeQuote(items, trailers, tc),
-    [items, trailers, tc],
+    () => computeQuote(items, trailers, tcCalc),
+    [items, trailers, tcCalc],
   );
   const results = quote.perItem;
   // Shape de compatibilidad para los consumidores que esperaban `trailerTotals`.
@@ -112,9 +126,9 @@ export default function CotizadorPage() {
       lReal: activeItem.lCliente,
       cono: activeItem.conoCliente,
     };
-    return calcLineItem(directItem, tc, trailer?.transport_usd ?? 0, summary?.kgNetoTotal ?? 0);
+    return calcLineItem(directItem, tcCalc, trailer?.transport_usd ?? 0, summary?.kgNetoTotal ?? 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeItem, trailers, tc, trailerTotals.perTrailer]);
+  }, [activeItem, trailers, tcCalc, trailerTotals.perTrailer]);
 
   // ¿La cotización requiere aprobación? Solo en modo 'optimizada_revision' y
   // cuando alguna línea tiene reducción de material > 35% (la spec crítica
@@ -135,6 +149,8 @@ export default function CotizadorPage() {
     contacto,
     direccion,
     tipo_cotizacion: tipoCotizacion,
+    empresa,
+    transporte_mx: transporteMX,
     tc,
     transport_usd: transportUSDTotal,
     total_revenue_usd: trailerTotals.totalRevenueUSD,
@@ -156,6 +172,12 @@ export default function CotizadorPage() {
         setDireccion(draft.direccion || '');
         if (draft.tipo_cotizacion === 'directa' || draft.tipo_cotizacion === 'optimizada' || draft.tipo_cotizacion === 'optimizada_revision') {
           setTipoCotizacion(draft.tipo_cotizacion);
+        }
+        if (draft.empresa === 'bionovapack' || draft.empresa === 'extruidos') {
+          setEmpresa(draft.empresa);
+        }
+        if (draft.transporte_mx === 'pickup' || draft.transporte_mx === 'castores') {
+          setTransporteMX(draft.transporte_mx);
         }
         // tc del draft solo si es un valor usable (>0). Un tc de 0 no es un
         // tipo de cambio válido (rompe las conversiones), así que defaulteamos.
@@ -200,6 +222,37 @@ export default function CotizadorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Cambio de empresa/mercado. México (Extruidos) no usa multi-trailer:
+  // colapsa todo a UN trailer (sin límite de capacidad) y reasigna las líneas
+  // a él. Al volver a USA, restaura el kg_max normal del trailer.
+  const handleEmpresaChange = useCallback((e: Empresa) => {
+    setEmpresa(e);
+    const nueva = empresaInfo(e);
+    if (!nueva.multiTrailer) {
+      setItems((prev) => prev.map((it) => ({ ...it, trailerId: 1 })));
+      setTrailers((prev) => {
+        const t0 = prev[0] ?? newTrailer(1);
+        return [{ ...t0, id: 1, kg_max: Number.MAX_SAFE_INTEGER }];
+      });
+    } else {
+      setTrailers((prev) =>
+        prev.map((t) => ({
+          ...t,
+          kg_max: t.kg_max === Number.MAX_SAFE_INTEGER ? TRAILER_MAX_KG : t.kg_max,
+        })),
+      );
+    }
+  }, [transporteMX]);
+
+  // En México, el transporte se elige aquí (pickup / Castores) y escribe el
+  // flete (MXN) en el único trailer.
+  const handleTransporteMX = useCallback((modo: TransporteMX) => {
+    setTransporteMX(modo);
+    if (modo === 'pickup') {
+      setTrailers((prev) => prev.map((t) => ({ ...t, transport_usd: 0 })));
+    }
+  }, []);
+
   // Cambio de modo de cotización. En 'directa' sincroniza el spec real al
   // del cliente en TODAS las líneas (fabricar tal cual) y manda a Tab Pedido;
   // en los modos optimizados manda a Tab Sugerencia para ver la comparación.
@@ -230,6 +283,8 @@ export default function CotizadorPage() {
     setContacto('');
     setDireccion('');
     setTipoCotizacion('directa');
+    setEmpresa('bionovapack');
+    setTransporteMX('pickup');
     setAprobadoPor('');
     setAprobadoEn(null);
     setTc(18.5);
@@ -504,6 +559,10 @@ export default function CotizadorPage() {
         fecha={new Date().toLocaleDateString('es-MX')}
         tc={tc}
         onTcChange={setTc}
+        usaTC={info.usaTC}
+        moneda={moneda}
+        empresaNombre={info.corto}
+        empresaAccent={info.accent}
         totalRevenue={trailerTotals.totalRevenueUSD}
         totalCost={trailerTotals.totalCostUSD}
         utilidadGlobal={trailerTotals.utilidadGlobal}
@@ -511,14 +570,57 @@ export default function CotizadorPage() {
       />
 
       <div className="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
-        {/* Sidebar: bloques de trailer estilo Scratch */}
-        <aside className="col-span-3 max-h-[calc(100vh-180px)] overflow-y-auto pr-1">
+        {/* Sidebar: en USA bloques de trailer; en México panel de transporte simple */}
+        <aside className="col-span-3 max-h-[calc(100vh-180px)] overflow-y-auto pr-1 space-y-3">
+          {!info.multiTrailer && (
+            <div className="card p-3">
+              <p className="text-2xs font-semibold text-text-secondary uppercase tracking-wider mb-2">
+                Transporte
+              </p>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-2xs cursor-pointer">
+                  <input
+                    type="radio"
+                    name="transporteMX"
+                    checked={transporteMX === 'pickup'}
+                    onChange={() => handleTransporteMX('pickup')}
+                  />
+                  <span>Cliente recoge en almacén <span className="text-text-muted">(sin costo)</span></span>
+                </label>
+                <label className="flex items-center gap-2 text-2xs cursor-pointer">
+                  <input
+                    type="radio"
+                    name="transporteMX"
+                    checked={transporteMX === 'castores'}
+                    onChange={() => handleTransporteMX('castores')}
+                  />
+                  <span>Envío por Castores</span>
+                </label>
+              </div>
+              {transporteMX === 'castores' && (
+                <div className="mt-2">
+                  <label className="label">Flete Castores (MXN)</label>
+                  <input
+                    type="number" step="100" min="0"
+                    value={trailers[0]?.transport_usd || ''}
+                    onChange={(e) =>
+                      updateTrailer(trailers[0]?.id ?? 1, { transport_usd: parseFloat(e.target.value) || 0 })
+                    }
+                    placeholder="0"
+                    className="input"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           <TrailerStack
             trailers={trailers}
             items={items}
             results={results}
             perTrailer={trailerTotals.perTrailer}
             activeId={activeId}
+            simpleMode={!info.multiTrailer}
             onSelectItem={setActiveId}
             onAddItem={addItem}
             onDeleteItem={deleteItem}
@@ -532,6 +634,46 @@ export default function CotizadorPage() {
 
         {/* Panel central: tabs */}
         <main className="col-span-9 overflow-y-auto max-h-[calc(100vh-180px)]">
+          {/* Selector de EMPRESA / mercado (v1.23) — pregunta al inicio */}
+          <div
+            className="card p-3 mb-4 flex flex-wrap items-center gap-3"
+            style={{ borderColor: `${info.accent}66` }}
+          >
+            <span className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">
+              Cotizar para
+            </span>
+            <div className="inline-flex rounded-md border border-border-subtle overflow-hidden">
+              {([
+                ['bionovapack', 'BioNovaPack · USA'],
+                ['extruidos', 'Extruidos · México'],
+              ] as [Empresa, string][]).map(([e, label]) => (
+                <button
+                  key={e}
+                  onClick={() => handleEmpresaChange(e)}
+                  className="px-3 py-1.5 text-2xs font-semibold transition-colors"
+                  style={
+                    empresa === e
+                      ? { backgroundColor: `${info.accent}26`, color: info.accent }
+                      : { color: 'var(--color-text-secondary)' }
+                  }
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <span className="text-2xs text-text-muted flex-1 min-w-[200px]">
+              {moneda === 'MXN'
+                ? 'Mercado México · todo en pesos (MXN), sin tipo de cambio.'
+                : 'Mercado EUA · todo en dólares (USD), con tipo de cambio.'}
+            </span>
+            <span
+              className="text-2xs font-bold px-2 py-0.5 rounded"
+              style={{ backgroundColor: `${info.accent}22`, color: info.accent }}
+            >
+              {moneda}
+            </span>
+          </div>
+
           {/* Selector de MODO de cotización (v1.21) */}
           <div className="card p-3 mb-4 flex flex-wrap items-center gap-3">
             <span className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">

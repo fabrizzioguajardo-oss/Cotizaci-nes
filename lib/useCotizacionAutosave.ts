@@ -38,6 +38,8 @@ export interface DraftPayload {
   contacto?: string | null;
   direccion?: string | null;
   tipo_cotizacion?: string | null;
+  empresa?: string | null;
+  transporte_mx?: string | null;
   tc: number;
   transport_usd: number;
   items: LineItem[];
@@ -49,6 +51,8 @@ interface UseCotizacionAutosaveParams {
   contacto?: string;
   direccion?: string;
   tipo_cotizacion?: string;
+  empresa?: string;
+  transporte_mx?: string;
   tc: number;
   transport_usd: number;
   total_revenue_usd: number;
@@ -109,6 +113,8 @@ export function useCotizacionAutosave(
           contacto: p.contacto ?? '',
           direccion: p.direccion ?? '',
           tipo_cotizacion: p.tipo_cotizacion ?? 'directa',
+          empresa: p.empresa ?? 'bionovapack',
+          transporte_mx: p.transporte_mx ?? 'pickup',
           tc: p.tc,
           transport_usd: p.transport_usd,
           total_revenue_usd: p.total_revenue_usd,
@@ -206,6 +212,8 @@ export function useCotizacionAutosave(
     params.contacto,
     params.direccion,
     params.tipo_cotizacion,
+    params.empresa,
+    params.transporte_mx,
     params.tc,
     params.transport_usd,
     params.total_revenue_usd,
@@ -261,6 +269,8 @@ export function useCotizacionAutosave(
         contacto: data.draft.contacto ?? '',
         direccion: data.draft.direccion ?? '',
         tipo_cotizacion: data.draft.tipo_cotizacion ?? 'directa',
+        empresa: data.draft.empresa ?? 'bionovapack',
+        transporte_mx: data.draft.transporte_mx ?? 'pickup',
         tc: data.draft.tc ?? 0,
         transport_usd: data.draft.transport_usd ?? 0,
         items: data.draft.items ?? [],

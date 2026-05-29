@@ -36,6 +36,10 @@ interface Props {
   onRemoveTrailer: (id: number) => void;
   onUpdateTrailer: (id: number, patch: Partial<Trailer>) => void;
   onMoveItem: (itemId: number, trailerId: number) => void;
+  // Modo simple (México/Extruidos): un solo trailer sin flete por bloque,
+  // sin barra de capacidad ni botón "Agregar trailer". El transporte se
+  // maneja en un panel aparte (pickup / Castores).
+  simpleMode?: boolean;
 }
 
 export default function TrailerStack(props: Props) {
@@ -88,7 +92,8 @@ export default function TrailerStack(props: Props) {
               summary={summary}
               activeItemId={props.activeId}
               itemsWithResults={itemsWithResults}
-              canRemove={props.trailers.length > 1}
+              canRemove={props.trailers.length > 1 && !props.simpleMode}
+              simpleMode={props.simpleMode}
               onUpdate={(patch) => props.onUpdateTrailer(trailer.id, patch)}
               onRemove={() => props.onRemoveTrailer(trailer.id)}
               onAddItem={() => props.onAddItem(trailer.id)}
@@ -114,15 +119,17 @@ export default function TrailerStack(props: Props) {
         </DragOverlay>
       </DndContext>
 
-      {/* Botón agregar trailer */}
-      <button
-        onClick={props.onAddTrailer}
-        className="card p-3 flex items-center justify-center gap-2 text-text-secondary hover:text-bnp-green hover:border-bnp-green/40 border-dashed transition-colors"
-      >
-        <Truck className="w-4 h-4" />
-        <Plus className="w-3.5 h-3.5" />
-        <span className="text-xs font-semibold">Agregar trailer</span>
-      </button>
+      {/* Botón agregar trailer — oculto en modo simple (México = un solo flete) */}
+      {!props.simpleMode && (
+        <button
+          onClick={props.onAddTrailer}
+          className="card p-3 flex items-center justify-center gap-2 text-text-secondary hover:text-bnp-green hover:border-bnp-green/40 border-dashed transition-colors"
+        >
+          <Truck className="w-4 h-4" />
+          <Plus className="w-3.5 h-3.5" />
+          <span className="text-xs font-semibold">Agregar trailer</span>
+        </button>
+      )}
     </div>
   );
 }

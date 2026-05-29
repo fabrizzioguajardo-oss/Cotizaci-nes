@@ -2,6 +2,16 @@
 
 export type Unit = 'Cases' | 'Rolls' | 'Pallets';
 
+// Empresa / mercado para el que se cotiza. Se elige al inicio.
+//  - 'bionovapack': mercado EUA, vende en USD (usa tipo de cambio).
+//  - 'extruidos':   mercado México, vende en MXN (sin TC; el costo ya está en MXN).
+export type Empresa = 'bionovapack' | 'extruidos';
+export type Moneda = 'USD' | 'MXN';
+
+// Transporte para el mercado México (Extruidos): el cliente recoge en almacén
+// (sin costo) o se envía por Castores (precio logístico en MXN).
+export type TransporteMX = 'pickup' | 'castores';
+
 // Modo de cotización (v1.21):
 //  - 'directa': se cotiza y fabrica EXACTAMENTE lo que pide el cliente
 //    (spec real = spec declarado, sin optimización).
