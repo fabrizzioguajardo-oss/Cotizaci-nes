@@ -10,7 +10,7 @@ import {
   REDUCTION_WARN_HIGH,
 } from '@/lib/pricingEngine';
 import { empresaInfo, tcEfectivo, monedaDe } from '@/lib/empresa';
-import { generatePOPDF, generateQuotePDF, generateExtruidosQuotePDF, savePDF, type ExtruidosMeta } from '@/lib/pdfGenerator';
+import { generatePOPDF, generateQuotePDF, generateExtruidosQuotePDF, savePDF, loadLogo, type ExtruidosMeta } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
 import { computeQuote, partitionWarnings, type QuoteResult } from '@/lib/computeQuote';
 import { buildSnapshot, type SnapshotMeta } from '@/lib/snapshotEmitida';
@@ -497,7 +497,7 @@ export default function CotizadorPage() {
   // hacía `await persistirSnapshot` ANTES del PDF, así que una red lenta
   // retrasaba la descarga — contradecía el diseño "el papel del cliente es
   // prioritario". Si el snapshot falla, se loguea y no afecta la descarga.
-  const handleGenerateQuote = () => {
+  const handleGenerateQuote = async () => {
     if (!tieneNombreVendedor()) return;
     if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('cotización al cliente')) return;
@@ -517,7 +517,8 @@ export default function CotizadorPage() {
         vendedor: vendedorFirma,
         vendedorEmail: profile?.email,
       };
-      const doc = generateExtruidosQuotePDF(items, metaMX);
+      const logoExt = await loadLogo('/logos/extruidos.jpg', 'JPEG');
+      const doc = generateExtruidosQuotePDF(items, metaMX, logoExt);
       savePDF(doc, `Cotizacion_Extruidos_${(cliente || 'cliente').replace(/\s+/g, '_')}_${numero}.pdf`);
       void persistirSnapshot('quote', numero, {
         cliente, contacto, direccion,
@@ -540,7 +541,8 @@ export default function CotizadorPage() {
       tc,
       transportUSD: transportUSDTotal,
     };
-    const doc = generateQuotePDF(items, results, meta);
+    const logoBnp = await loadLogo('/logos/bionovapack.png', 'PNG');
+    const doc = generateQuotePDF(items, results, meta, logoBnp);
     savePDF(doc, `Quotation_${(cliente || 'cliente').replace(/\s+/g, '_')}_${meta.numero}.pdf`);
     void persistirSnapshot('quote', meta.numero, {
       cliente: meta.cliente,
@@ -556,7 +558,7 @@ export default function CotizadorPage() {
     });
   };
 
-  const handleGeneratePO = () => {
+  const handleGeneratePO = async () => {
     if (!tieneNombreVendedor()) return;
     if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('PO a Extruidos')) return;
@@ -568,7 +570,8 @@ export default function CotizadorPage() {
       tc,
       transportUSD: transportUSDTotal,
     };
-    const doc = generatePOPDF(items, results, meta);
+    const logoBnp = await loadLogo('/logos/bionovapack.png', 'PNG');
+    const doc = generatePOPDF(items, results, meta, logoBnp);
     savePDF(doc, `PurchaseOrder_${meta.numero}.pdf`);
     void persistirSnapshot('po', meta.numero, {
       cliente: meta.cliente,

@@ -46,12 +46,21 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 - Al generar la cotización con empresa = Extruidos, se usa este PDF (MXN) en vez
   del de BioNovaPack.
 
-### Fase B1.1 + B2 (pendiente)
+### Fase B2a (lista) — logos reales en los PDFs
+
+- **Logos embebidos**: el PDF de Extruidos lleva su logo (centrado arriba) y los
+  PDFs de BioNovaPack (cotización + PO) llevan el logo BNP (arriba a la
+  izquierda). Cargados desde `public/logos/` en el navegador (`loadLogo`),
+  con fallback a encabezado de texto si la imagen no carga.
+- Verificado con render de prueba del PDF Extruidos con logo.
+
+### Fase B1.1 + B2b (pendiente)
 
 - **B1.1**: persistir en el draft los campos México (correo/tel/forma de
   pago/anticipo) + input de "precio anterior" por línea. (Hoy son de sesión.)
-- **B2**: paleta de color completa por empresa (verde BNP / navy+azul Extruidos)
-  en TODA la app, no solo el PDF + logos embebidos.
+- **B2b**: paleta de color completa por empresa (verde BNP / navy+azul
+  Extruidos) en TODA la app (la UI sigue verde; solo los PDFs y el acento del
+  selector cambian por empresa).
 
 ### Migración requerida
 

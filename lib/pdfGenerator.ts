@@ -6,6 +6,50 @@ import autoTable from 'jspdf-autotable';
 import type { LineItem, CalcResult } from '@/types';
 import { calcLineItem, calcTrailerTotals, calcPN } from './pricingEngine';
 
+// Logo embebido en PDF (cargado en el navegador antes de generar).
+export interface LogoImage {
+  dataUrl: string;
+  w: number;        // ancho px original
+  h: number;        // alto px original
+  format: 'PNG' | 'JPEG';
+}
+
+// Carga una imagen de /public como dataURL + dimensiones. Solo navegador.
+// Devuelve null si falla (el PDF cae a su encabezado de texto).
+export async function loadLogo(
+  url: string,
+  format: 'PNG' | 'JPEG',
+): Promise<LogoImage | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const dataUrl: string = await new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result as string);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+    const dims = await new Promise<{ w: number; h: number }>((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve({ w: im.naturalWidth, h: im.naturalHeight });
+      im.onerror = reject;
+      im.src = dataUrl;
+    });
+    return { dataUrl, w: dims.w, h: dims.h, format };
+  } catch {
+    return null;
+  }
+}
+
+// Dibuja el logo manteniendo proporción dentro de un ancho objetivo (mm).
+// Devuelve el alto dibujado (mm), para que el caller ajuste el layout.
+function drawLogo(doc: jsPDF, logo: LogoImage, x: number, y: number, targetW: number): number {
+  const h = targetW * (logo.h / logo.w);
+  doc.addImage(logo.dataUrl, logo.format, x, y, targetW, h);
+  return h;
+}
+
 // Colores BioNovaPack
 const BNP_GREEN: [number, number, number] = [91, 170, 71];
 const BNP_PURPLE: [number, number, number] = [107, 44, 145];
@@ -25,18 +69,22 @@ interface PdfMeta {
 }
 
 // Header común a ambos PDFs
-function drawHeader(doc: jsPDF, title: string, isPO: boolean) {
+function drawHeader(doc: jsPDF, title: string, isPO: boolean, logo?: LogoImage | null) {
   // Banda verde superior
   doc.setFillColor(...BNP_GREEN);
   doc.rect(0, 0, 210, 8, 'F');
 
-  // Logo simulado (texto estilizado)
-  doc.setTextColor(...BNP_GREEN);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text('BIONOVA', 14, 22);
-  doc.setTextColor(...BNP_PURPLE);
-  doc.text('PACK', 50, 22);
+  // Logo: imagen real si se proporcionó, si no el texto estilizado.
+  if (logo) {
+    drawLogo(doc, logo, 14, 10, 40);
+  } else {
+    doc.setTextColor(...BNP_GREEN);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
+    doc.text('BIONOVA', 14, 22);
+    doc.setTextColor(...BNP_PURPLE);
+    doc.text('PACK', 50, 22);
+  }
 
   // Datos de la empresa
   doc.setTextColor(...TEXT_DARK);
@@ -122,9 +170,10 @@ export function generateQuotePDF(
   items: LineItem[],
   results: CalcResult[],
   meta: PdfMeta,
+  logo?: LogoImage | null,
 ): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  drawHeader(doc, 'QUOTATION', false);
+  drawHeader(doc, 'QUOTATION', false, logo);
   drawMetaBox(doc, meta, false);
 
   const totals = calcTrailerTotals(items, meta.tc, meta.transportUSD);
@@ -252,9 +301,10 @@ export function generatePOPDF(
   items: LineItem[],
   results: CalcResult[],
   meta: PdfMeta,
+  logo?: LogoImage | null,
 ): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  drawHeader(doc, 'PURCHASE ORDER', true);
+  drawHeader(doc, 'PURCHASE ORDER', true, logo);
   drawMetaBox(doc, meta, true);
 
   // Tabla de items con SPEC REAL.
@@ -383,6 +433,7 @@ function mxn(n: number): string {
 export function generateExtruidosQuotePDF(
   items: LineItem[],
   meta: ExtruidosMeta,
+  logo?: LogoImage | null,
 ): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
@@ -390,31 +441,41 @@ export function generateExtruidosQuotePDF(
   doc.setFillColor(...EXT_NAVY);
   doc.rect(0, 0, 210, 8, 'F');
 
-  // Encabezado: razón social + domicilio + "COTIZACIÓN"
-  doc.setTextColor(...EXT_NAVY);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text('EXTRUIDOS', 105, 20, { align: 'center' });
+  // Encabezado: logo (si hay) o texto "EXTRUIDOS". Luego razón social +
+  // domicilio. `hdrY` avanza para que el resto del layout no choque.
+  let hdrY: number;
+  if (logo) {
+    const targetW = 62;
+    const h = drawLogo(doc, logo, (210 - targetW) / 2, 12, targetW); // centrado
+    hdrY = 12 + h + 5;
+  } else {
+    doc.setTextColor(...EXT_NAVY);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(15);
+    doc.text('EXTRUIDOS', 105, 20, { align: 'center' });
+    hdrY = 25;
+  }
   doc.setTextColor(...EXT_BLUE);
   doc.setFontSize(8);
   doc.setFont('helvetica', 'normal');
-  doc.text(EXT_RAZON, 105, 26, { align: 'center' });
+  doc.text(EXT_RAZON, 105, hdrY, { align: 'center' });
   doc.setTextColor(...TEXT_GRAY);
   doc.setFontSize(7);
   const domLines = doc.splitTextToSize(EXT_DOMICILIO, 180);
-  doc.text(domLines, 105, 31, { align: 'center' });
+  doc.text(domLines, 105, hdrY + 4, { align: 'center' });
+  hdrY += 4 + domLines.length * 3 + 3;
 
   doc.setDrawColor(...EXT_NAVY);
   doc.setLineWidth(0.5);
-  doc.line(14, 40, 196, 40);
+  doc.line(14, hdrY, 196, hdrY);
 
   doc.setTextColor(...EXT_NAVY);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('COTIZACIÓN', 105, 48, { align: 'center' });
+  doc.text('COTIZACIÓN', 105, hdrY + 8, { align: 'center' });
 
   // Datos del cliente
-  let y = 58;
+  let y = hdrY + 18;
   doc.setFontSize(9);
   doc.setTextColor(...TEXT_DARK);
   const field = (label: string, value: string, x: number, yy: number) => {
