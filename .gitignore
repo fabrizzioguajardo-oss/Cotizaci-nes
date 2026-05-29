@@ -13,3 +13,6 @@ out
 /templates/*.xlsx
 !/public/templates/template_blank_*.xlsx
 !/templates/template_blank_*.xlsx
+
+# Documentos internos (cuestionarios a expertos, notas con datos sensibles)
+private/
