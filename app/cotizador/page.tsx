@@ -600,7 +600,7 @@ export default function CotizadorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
+    <div className="min-h-screen bg-bg flex flex-col" data-empresa={empresa}>
       <TopBar
         cliente={cliente}
         onClienteChange={setCliente}

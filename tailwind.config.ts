@@ -24,14 +24,18 @@ const config: Config = {
           muted: '#6E7681',
         },
         bnp: {
-          green: '#5BAA47',
-          'green-dark': '#4A9038',
-          'green-light': '#7BC568',
+          // Acentos de marca conmutables por empresa (verde BNP / navy Extruidos).
+          // Definidos como variables CSS (canales RGB) en globals.css; el
+          // override [data-empresa="extruidos"] los cambia a navy/azul. amber,
+          // red y purple NO cambian (semánticos / compartidos).
+          green: 'rgb(var(--bnp-green) / <alpha-value>)',
+          'green-dark': 'rgb(var(--bnp-green-dark) / <alpha-value>)',
+          'green-light': 'rgb(var(--bnp-green-light) / <alpha-value>)',
           purple: '#6B2C91',
           'purple-dark': '#552175',
           'purple-light': '#8945B2',
-          cyan: '#009FE3',
-          'cyan-dark': '#0080B5',
+          cyan: 'rgb(var(--bnp-cyan) / <alpha-value>)',
+          'cyan-dark': 'rgb(var(--bnp-cyan-dark) / <alpha-value>)',
           amber: '#F59E0B',
           red: '#EF4444',
         },

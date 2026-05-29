@@ -19,6 +19,25 @@
   --color-bnp-cyan: #009FE3;
   --color-bnp-amber: #F59E0B;
   --color-bnp-red: #EF4444;
+
+  /* Canales RGB de los acentos de marca CONMUTABLES por empresa (los usa
+     Tailwind vía rgb(var(--bnp-green) / <alpha>)). Default = BioNovaPack. */
+  --bnp-green: 91 170 71;        /* #5BAA47 */
+  --bnp-green-dark: 74 144 56;   /* #4A9038 */
+  --bnp-green-light: 123 197 104;/* #7BC568 */
+  --bnp-cyan: 0 159 227;         /* #009FE3 */
+  --bnp-cyan-dark: 0 128 181;    /* #0080B5 */
+}
+
+/* Extruidos (México): el acento primario pasa de verde a navy y el cyan a
+   azul. Todo lo construido con utilidades bnp-green/bnp-cyan se reorienta
+   solo. amber/red/purple no cambian. */
+[data-empresa="extruidos"] {
+  --bnp-green: 31 42 77;         /* navy #1F2A4D (primario) */
+  --bnp-green-dark: 22 32 58;    /* navy oscuro */
+  --bnp-green-light: 62 142 222; /* azul #3E8EDE */
+  --bnp-cyan: 62 142 222;        /* azul #3E8EDE */
+  --bnp-cyan-dark: 46 110 180;   /* azul oscuro */
 }
 
 * {

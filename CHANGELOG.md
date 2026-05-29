@@ -61,11 +61,25 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 - **Input "precio anterior por rollo"** por línea, visible solo en modo
   Extruidos (Tab Pedido); alimenta la columna del PDF.
 
-### Fase B2b (pendiente)
+### Fase B2b (lista) — paleta de color por empresa en toda la UI
 
-- Paleta de color completa por empresa (verde BNP / navy+azul Extruidos) en
-  TODA la app (hoy la UI sigue verde; solo los PDFs, los logos y el acento del
-  selector cambian por empresa).
+- Los acentos de marca (verde y cyan) se tokenizaron como variables CSS
+  (`rgb(var(--bnp-green) / <alpha>)`) en `tailwind.config` + `globals.css`.
+  Un override `[data-empresa="extruidos"]` los reorienta a **navy + azul**, y
+  el wrapper del cotizador lleva `data-empresa={empresa}` — así toda la UI
+  construida con utilidades `bnp-green`/`bnp-cyan` (botones, tabs, bordes,
+  badges, focus, etc.) cambia de verde a navy en modo Extruidos, sin tocar
+  componente por componente. amber/red/purple no cambian (semánticos).
+- Verificado: el login de BioNovaPack mantiene el verde idéntico (la
+  tokenización no alteró el default).
+- Limitación menor: algunos hexes inline sueltos (ej. el semáforo de margen
+  "OK" verde) NO conmutan — quedan como verde semántico, lo cual es
+  aceptable. Si se quiere 100% navy, se migran esos hexes a tokens después.
+
+Con esto, la feature **multi-empresa (BioNovaPack USA + Extruidos México)**
+queda completa: selector inicial, moneda MXN sin TC, transporte
+pickup/Castores, PDF con formato y marca de Extruidos, logos, persistencia y
+tema de color por empresa.
 
 ### Migración requerida
 
