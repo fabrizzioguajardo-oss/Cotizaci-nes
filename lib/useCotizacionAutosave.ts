@@ -40,6 +40,10 @@ export interface DraftPayload {
   tipo_cotizacion?: string | null;
   empresa?: string | null;
   transporte_mx?: string | null;
+  correo_cliente?: string | null;
+  telefono_cliente?: string | null;
+  forma_pago?: string | null;
+  anticipo?: number | null;
   tc: number;
   transport_usd: number;
   items: LineItem[];
@@ -53,6 +57,10 @@ interface UseCotizacionAutosaveParams {
   tipo_cotizacion?: string;
   empresa?: string;
   transporte_mx?: string;
+  correo_cliente?: string;
+  telefono_cliente?: string;
+  forma_pago?: string;
+  anticipo?: number;
   tc: number;
   transport_usd: number;
   total_revenue_usd: number;
@@ -115,6 +123,10 @@ export function useCotizacionAutosave(
           tipo_cotizacion: p.tipo_cotizacion ?? 'directa',
           empresa: p.empresa ?? 'bionovapack',
           transporte_mx: p.transporte_mx ?? 'pickup',
+          correo_cliente: p.correo_cliente ?? '',
+          telefono_cliente: p.telefono_cliente ?? '',
+          forma_pago: p.forma_pago ?? 'contado',
+          anticipo: p.anticipo ?? 0,
           tc: p.tc,
           transport_usd: p.transport_usd,
           total_revenue_usd: p.total_revenue_usd,
@@ -214,6 +226,10 @@ export function useCotizacionAutosave(
     params.tipo_cotizacion,
     params.empresa,
     params.transporte_mx,
+    params.correo_cliente,
+    params.telefono_cliente,
+    params.forma_pago,
+    params.anticipo,
     params.tc,
     params.transport_usd,
     params.total_revenue_usd,
@@ -271,6 +287,10 @@ export function useCotizacionAutosave(
         tipo_cotizacion: data.draft.tipo_cotizacion ?? 'directa',
         empresa: data.draft.empresa ?? 'bionovapack',
         transporte_mx: data.draft.transporte_mx ?? 'pickup',
+        correo_cliente: data.draft.correo_cliente ?? '',
+        telefono_cliente: data.draft.telefono_cliente ?? '',
+        forma_pago: data.draft.forma_pago ?? 'contado',
+        anticipo: data.draft.anticipo ?? 0,
         tc: data.draft.tc ?? 0,
         transport_usd: data.draft.transport_usd ?? 0,
         items: data.draft.items ?? [],

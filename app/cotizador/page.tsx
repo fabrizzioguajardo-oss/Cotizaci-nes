@@ -157,6 +157,10 @@ export default function CotizadorPage() {
     tipo_cotizacion: tipoCotizacion,
     empresa,
     transporte_mx: transporteMX,
+    correo_cliente: correoCliente,
+    telefono_cliente: telefonoCliente,
+    forma_pago: formaPago,
+    anticipo,
     tc,
     transport_usd: transportUSDTotal,
     total_revenue_usd: trailerTotals.totalRevenueUSD,
@@ -185,6 +189,12 @@ export default function CotizadorPage() {
         if (draft.transporte_mx === 'pickup' || draft.transporte_mx === 'castores') {
           setTransporteMX(draft.transporte_mx);
         }
+        setCorreoCliente(draft.correo_cliente || '');
+        setTelefonoCliente(draft.telefono_cliente || '');
+        if (['contado', 'credito30', 'credito60', 'credito90'].includes(draft.forma_pago ?? '')) {
+          setFormaPago(draft.forma_pago as FormaPago);
+        }
+        setAnticipo(draft.anticipo || 0);
         // tc del draft solo si es un valor usable (>0). Un tc de 0 no es un
         // tipo de cambio válido (rompe las conversiones), así que defaulteamos.
         setTc(typeof draft.tc === 'number' && draft.tc > 0 ? draft.tc : 18.5);
@@ -291,6 +301,10 @@ export default function CotizadorPage() {
     setTipoCotizacion('directa');
     setEmpresa('bionovapack');
     setTransporteMX('pickup');
+    setCorreoCliente('');
+    setTelefonoCliente('');
+    setFormaPago('contado');
+    setAnticipo(0);
     setAprobadoPor('');
     setAprobadoEn(null);
     setTc(18.5);
@@ -882,6 +896,7 @@ export default function CotizadorPage() {
             <TabPedido
               item={activeItem}
               result={activeResult}
+              esMexico={empresa === 'extruidos'}
               onChange={updateActive}
             />
           ) : (

@@ -54,12 +54,17 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
   con fallback a encabezado de texto si la imagen no carga.
 - Verificado con render de prueba del PDF Extruidos con logo.
 
-### Fase B1.1 + B2b (pendiente)
+### Fase B1.1 (lista) — persistencia de datos México + precio anterior
 
-- **B1.1**: persistir en el draft los campos México (correo/tel/forma de
-  pago/anticipo) + input de "precio anterior" por línea. (Hoy son de sesión.)
-- **B2b**: paleta de color completa por empresa (verde BNP / navy+azul
-  Extruidos) en TODA la app (la UI sigue verde; solo los PDFs y el acento del
+- Los campos México (correo, teléfono, forma de pago, anticipo) ahora se
+  **persisten en el draft** (migración 012) — sobreviven refresh y reaperturas.
+- **Input "precio anterior por rollo"** por línea, visible solo en modo
+  Extruidos (Tab Pedido); alimenta la columna del PDF.
+
+### Fase B2b (pendiente)
+
+- Paleta de color completa por empresa (verde BNP / navy+azul Extruidos) en
+  TODA la app (hoy la UI sigue verde; solo los PDFs, los logos y el acento del
   selector cambian por empresa).
 
 ### Migración requerida

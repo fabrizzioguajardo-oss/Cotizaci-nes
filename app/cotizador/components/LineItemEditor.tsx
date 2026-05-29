@@ -13,6 +13,7 @@ import { useState } from 'react';
 interface Props {
   item: LineItem;
   result: CalcResult;
+  esMexico?: boolean;   // muestra moneda MXN + campo "precio anterior"
   onChange: (patch: Partial<LineItem>) => void;
 }
 
@@ -21,7 +22,7 @@ interface Props {
 //   2) Configuración logística    - cono, rollos/tarima, tarimas/trailer
 //   3) Costos MXN/kg              - base + adders
 // + campo de precio del cliente al final
-export default function LineItemEditor({ item, result, onChange }: Props) {
+export default function LineItemEditor({ item, result, esMexico, onChange }: Props) {
   const { data } = usePriceData();
   // Calidad del último match aplicado (para mostrar badge en la sección de costos)
   const [matchQuality, setMatchQuality] = useState<'exact' | 'close' | 'interpolated' | null>(null);
@@ -498,7 +499,7 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
         <div className="flex items-center gap-2 mb-3">
           <span className="w-2 h-2 rounded-full bg-bnp-green" />
           <h4 className="text-xs font-semibold text-bnp-green uppercase tracking-wider">
-            Precio negociado con el cliente (USD por {item.unit.toLowerCase()})
+            Precio negociado con el cliente ({esMexico ? 'MXN' : 'USD'} por {item.unit.toLowerCase()})
           </h4>
         </div>
         <div className="grid grid-cols-3 gap-3">
@@ -511,6 +512,18 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
               className="input input-green text-2xl py-3 font-semibold"
               style={{ height: 'auto' }}
             />
+            {esMexico && (
+              <div className="mt-2">
+                <label className="label">Precio anterior por rollo (MXN, opcional)</label>
+                <input
+                  type="number" step="0.01"
+                  value={item.precioAnterior || ''}
+                  onChange={num('precioAnterior')}
+                  placeholder="—"
+                  className="input"
+                />
+              </div>
+            )}
           </div>
           <div className="col-span-2 flex items-center justify-around text-center">
             <div>
