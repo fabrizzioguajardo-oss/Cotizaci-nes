@@ -4,6 +4,45 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.15 — Mayo 2026 — Protección multi-pestaña + fix de persistencia
+
+**Foco**: Push #4 (primera parte). Cierra el último bug del Adversario (autosave race condition multi-tab) y corrige una regresión de v1.13 que dejó la persistencia de contacto/dirección a medias.
+
+### Cambios
+
+- **Protección contra edición simultánea en dos pestañas (concurrencia optimista).** Hasta v1.14, si un vendedor abría el cotizador en dos pestañas y editaba en ambas, la última en guardar **pisaba silenciosamente** el trabajo de la otra (last-write-wins, sin aviso). Ahora cada draft tiene un `updated_at`; cada guardado exige que coincida con la última versión que la pestaña vio. Si otra pestaña ya guardó, el servidor responde **409** y la pestaña conflictiva:
+  - Deja de autoguardar (para no pisar el trabajo de la otra).
+  - Muestra un aviso rojo *"Cambió en otra pestaña"* con un botón **Recargar**.
+  - El vendedor recarga y ve la versión más reciente, sin pérdida silenciosa.
+  - Cubre también dos dispositivos distintos (no solo dos pestañas del mismo navegador).
+- **Fix de persistencia de contacto/dirección (regresión de v1.13).** En v1.13 anuncié que el contacto y la dirección del cliente persistían entre sesiones. La escritura sí funcionaba (POST guardaba en la BD), pero `loadDraft` en el hook de autosave **descartaba ambos campos al releer** — así que al refrescar seguían apareciendo vacíos. Ahora `loadDraft` los retorna correctamente. La persistencia que prometí en v1.13 ya funciona de verdad.
+
+### Migración requerida en Supabase
+
+```sql
+-- supabase/migrations/006_cotizaciones_updated_at.sql
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+UPDATE cotizaciones SET updated_at = COALESCE(updated_at, created_at, NOW()) WHERE updated_at IS NULL;
+```
+
+Sin esta migración el optimistic lock se desactiva (best-effort): el endpoint sigue guardando pero sin la protección multi-tab, porque la columna no existiría.
+
+### Estado del plan post-auditoría
+
+Con v1.15, los **4 bugs del Adversario** quedan cerrados:
+- ✅ PB inflado / lReal explotando (v1.09)
+- ✅ Sugerencia null silenciosa (v1.13)
+- ✅ Flete fantasma de trailer vacío (v1.13)
+- ✅ Autosave race multi-tab (v1.15)
+
+### Push siguiente (Push #4 — resto)
+
+- **UI de historial de cotizaciones emitidas** (consume el snapshot de v1.14).
+- **Chips de PB esperado vs PB real** visibles en el editor.
+- **Bloqueado en respuestas de expertos**: renombrar "Aumento 1/2" (necesita vocabulario de Diego), ambigüedad Cases-vs-rollo (necesita confirmar con Evers si el precio es por rollo o por unidad de venta).
+
+---
+
 ## v1.14 — Mayo 2026 — Snapshot inmutable de cotizaciones emitidas
 
 **Foco**: Push #3 (segunda mitad) del plan post-auditoría. Cierra uno de los 4 puntos ciegos sistémicos que cazó la Mesa Redonda: hasta v1.13 no había forma de reconstruir una cotización emitida si los precios EDSA cambiaban después o si el vendedor modificaba el draft. Esta versión guarda un snapshot inalterable cada vez que se genera un PDF.

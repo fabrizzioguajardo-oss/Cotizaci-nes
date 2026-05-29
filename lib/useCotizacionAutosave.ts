@@ -12,7 +12,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { LineItem } from '@/types';
 
-export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+// 'conflict' = otra pestaña/dispositivo guardó el mismo draft. Dejamos de
+// autoguardar para no pisar ese trabajo; el usuario debe recargar.
+export type AutosaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
 
 export interface AutosaveState {
   status: AutosaveStatus;
@@ -75,10 +77,20 @@ export function useCotizacionAutosave(
   const paramsRef = useRef(params);
   paramsRef.current = params;
   const draftIdRef = useRef<string | null>(null);
+  // updated_at que el servidor reportó en el último save/load exitoso.
+  // Se manda como base del optimistic lock en cada POST.
+  const lastUpdatedAtRef = useRef<string | null>(null);
+  // Una vez en conflicto, dejamos de autoguardar hasta que el usuario
+  // recargue. Evita un loop de 409s y proteje el trabajo de la otra pestaña.
+  const conflictRef = useRef<boolean>(false);
 
   // Función que realmente hace el POST. Callback estable (deps vacías) - lee
   // params y draftId siempre de refs, así no se recrea en cada render.
   const saveDraft = useCallback(async (): Promise<void> => {
+    // Si ya estamos en conflicto, no intentamos guardar más — el usuario
+    // tiene que recargar para resolverlo.
+    if (conflictRef.current) return;
+
     const p = paramsRef.current;
     setState((s) => ({ ...s, status: 'saving', errorMessage: null }));
 
@@ -88,6 +100,7 @@ export function useCotizacionAutosave(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: draftIdRef.current,
+          base_updated_at: lastUpdatedAtRef.current,
           cliente: p.cliente,
           contacto: p.contacto ?? '',
           direccion: p.direccion ?? '',
@@ -102,6 +115,20 @@ export function useCotizacionAutosave(
 
       const data = await res.json();
 
+      // 409 = otra pestaña/dispositivo ya modificó el draft. Entramos en
+      // modo conflicto: dejamos de autoguardar y avisamos al usuario.
+      if (res.status === 409 || data.conflict) {
+        conflictRef.current = true;
+        setState((s) => ({
+          ...s,
+          status: 'conflict',
+          errorMessage:
+            data.error ||
+            'El borrador cambió en otra pestaña. Recarga para ver la versión más reciente.',
+        }));
+        return;
+      }
+
       if (!res.ok || !data.saved) {
         setState((s) => ({
           ...s,
@@ -111,9 +138,11 @@ export function useCotizacionAutosave(
         return;
       }
 
-      // Actualizar ref antes de setState para que el próximo save tenga el id correcto
+      // Actualizar refs antes de setState para que el próximo save tenga el
+      // id y el updated_at correctos (base del próximo optimistic check).
       const newId = data.id ?? draftIdRef.current;
       draftIdRef.current = newId;
+      if (data.updated_at) lastUpdatedAtRef.current = data.updated_at;
 
       setState((s) => ({
         ...s,
@@ -134,6 +163,7 @@ export function useCotizacionAutosave(
   // Trigger autosave con debounce cuando cualquier campo cambia
   useEffect(() => {
     if (!enabled) return;
+    if (conflictRef.current) return; // en conflicto: no autoguardar
 
     // No guardar si la cotización está completamente vacía (cliente vacío + items todos en 0)
     const isEmpty =
@@ -183,6 +213,8 @@ export function useCotizacionAutosave(
     try {
       await fetch('/api/cotizaciones/draft', { method: 'DELETE' });
       draftIdRef.current = null;
+      lastUpdatedAtRef.current = null;
+      conflictRef.current = false;
       setState({ status: 'idle', lastSavedAt: null, errorMessage: null, draftId: null });
     } catch (err) {
       // eslint-disable-next-line no-console
@@ -199,16 +231,21 @@ export function useCotizacionAutosave(
       if (!data.draft) return null;
 
       draftIdRef.current = data.draft.id;
+      // Guardar el updated_at del servidor como base del optimistic lock.
+      lastUpdatedAtRef.current = data.draft.updated_at ?? null;
+      conflictRef.current = false;
       setState((s) => ({
         ...s,
         draftId: data.draft.id,
-        lastSavedAt: new Date(data.draft.created_at ?? Date.now()),
+        lastSavedAt: new Date(data.draft.updated_at ?? data.draft.created_at ?? Date.now()),
         status: 'saved',
       }));
 
       return {
         id: data.draft.id,
         cliente: data.draft.cliente ?? '',
+        contacto: data.draft.contacto ?? '',
+        direccion: data.draft.direccion ?? '',
         tc: data.draft.tc ?? 0,
         transport_usd: data.draft.transport_usd ?? 0,
         items: data.draft.items ?? [],

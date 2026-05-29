@@ -44,7 +44,7 @@ export async function GET() {
 
   const { data, error } = await sb
     .from('cotizaciones')
-    .select('id, cliente, contacto, direccion, tc, transport_usd, total_revenue_usd, total_cost_usd, utilidad_global, items, status, created_at')
+    .select('id, cliente, contacto, direccion, tc, transport_usd, total_revenue_usd, total_cost_usd, utilidad_global, items, status, created_at, updated_at')
     .eq('user_id', user.id)
     .eq('status', 'draft')
     .order('created_at', { ascending: false })
@@ -58,6 +58,10 @@ export async function GET() {
 // POST: upsertear el draft activo
 interface UpsertBody {
   id?: string | null;
+  // updated_at que el cliente vio por última vez. Sirve para concurrencia
+  // optimista: si el draft en la BD tiene un updated_at más nuevo (otra
+  // pestaña ya guardó), el endpoint responde 409 en vez de pisar.
+  base_updated_at?: string | null;
   cliente: string;
   contacto?: string;
   direccion?: string;
@@ -88,6 +92,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'missing required fields' }, { status: 400 });
   }
 
+  // Timestamp de esta escritura. Lo seteamos explícitamente (en vez de
+  // depender de un trigger) para devolvérselo al cliente y que lo use como
+  // base del próximo optimistic check.
+  const nowIso = new Date().toISOString();
+
   const row = {
     cliente: body.cliente || '(sin nombre)',
     contacto: body.contacto ?? null,
@@ -101,17 +110,24 @@ export async function POST(req: NextRequest) {
     status: 'draft' as const,
     user_id: user.id,
     vendedor: user.email ?? 'unknown',
+    updated_at: nowIso,
   };
 
   if (body.id) {
-    // Update existing draft
-    const { data, error } = await sb
+    // Update existing draft con CONCURRENCIA OPTIMISTA.
+    // Si el cliente trae base_updated_at, exigimos que coincida con el de
+    // la BD. Si otra pestaña ya guardó (updated_at más nuevo), el filtro
+    // .eq('updated_at', base) no matchea ninguna fila → devolvemos 409.
+    let q = sb
       .from('cotizaciones')
       .update(row)
       .eq('id', body.id)
-      .eq('user_id', user.id) // RLS extra check
-      .select('id')
-      .maybeSingle();
+      .eq('user_id', user.id); // RLS extra check
+    if (body.base_updated_at) {
+      q = q.eq('updated_at', body.base_updated_at);
+    }
+    const { data, error } = await q.select('id, updated_at').maybeSingle();
+
     if (error) {
       // eslint-disable-next-line no-console
       console.error('[draft][update]', {
@@ -129,14 +145,40 @@ export async function POST(req: NextRequest) {
         hint: error.hint,
       }, { status: 500 });
     }
-    return NextResponse.json({ saved: true, id: data?.id ?? body.id });
+
+    // Sin fila actualizada: o el draft fue borrado, o (más común) otra
+    // pestaña ya lo modificó y el optimistic check falló. Distinguimos
+    // releyendo el draft actual.
+    if (!data) {
+      const { data: current } = await sb
+        .from('cotizaciones')
+        .select('id, updated_at')
+        .eq('id', body.id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (current) {
+        // El draft existe pero con updated_at distinto → conflicto multi-tab.
+        return NextResponse.json(
+          {
+            saved: false,
+            conflict: true,
+            error: 'El borrador cambió en otra pestaña o dispositivo.',
+            server_updated_at: current.updated_at,
+          },
+          { status: 409 },
+        );
+      }
+      // El draft ya no existe (borrado en otro lado) → caer a insert nuevo.
+    } else {
+      return NextResponse.json({ saved: true, id: data.id, updated_at: data.updated_at });
+    }
   }
 
   // Insert nuevo draft
   const { data, error } = await sb
     .from('cotizaciones')
     .insert([row])
-    .select('id')
+    .select('id, updated_at')
     .single();
   if (error) {
     // eslint-disable-next-line no-console
@@ -158,7 +200,7 @@ export async function POST(req: NextRequest) {
       hint: error.hint,
     }, { status: 500 });
   }
-  return NextResponse.json({ saved: true, id: data.id });
+  return NextResponse.json({ saved: true, id: data.id, updated_at: data.updated_at });
 }
 
 // DELETE: borra el draft activo del usuario
