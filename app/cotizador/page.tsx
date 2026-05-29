@@ -242,23 +242,57 @@ export default function CotizadorPage() {
   // colapsa todo a UN trailer (sin límite de capacidad) y reasigna las líneas
   // a él. Al volver a USA, restaura el kg_max normal del trailer.
   const handleEmpresaChange = useCallback((e: Empresa) => {
-    setEmpresa(e);
-    const nueva = empresaInfo(e);
-    if (!nueva.multiTrailer) {
-      setItems((prev) => prev.map((it) => ({ ...it, trailerId: 1 })));
-      setTrailers((prev) => {
-        const t0 = prev[0] ?? newTrailer(1);
-        return [{ ...t0, id: 1, kg_max: Number.MAX_SAFE_INTEGER }];
-      });
-    } else {
-      setTrailers((prev) =>
-        prev.map((t) => ({
-          ...t,
-          kg_max: t.kg_max === Number.MAX_SAFE_INTEGER ? TRAILER_MAX_KG : t.kg_max,
-        })),
-      );
-    }
-  }, [transporteMX]);
+    setEmpresa((prevEmpresa) => {
+      if (e === prevEmpresa) return prevEmpresa;
+
+      // El cambio de empresa cambia de MONEDA (USD↔MXN). Si hay datos a medias
+      // (varias líneas, varios trailers o flete), confirmar — el cambio es
+      // destructivo (colapsa trailers, resetea flete y datos del cliente
+      // específicos del mercado).
+      const hayDatos =
+        items.length > 1 ||
+        trailers.length > 1 ||
+        trailers.some((t) => t.transport_usd > 0) ||
+        items.some((it) => it.precioCliente > 0 || it.lCliente > 0);
+      if (hayDatos && typeof window !== 'undefined') {
+        const ok = window.confirm(
+          `Cambiar a ${empresaInfo(e).corto} cambia la moneda y reinicia el transporte y los datos del cliente (correo, teléfono, forma de pago, anticipo). ` +
+            (e === 'extruidos' && trailers.length > 1 ? 'Además, las líneas de todos los trailers se juntan en uno solo. ' : '') +
+            '¿Continuar?',
+        );
+        if (!ok) return prevEmpresa;
+      }
+
+      const nueva = empresaInfo(e);
+      // RESET de transporte y moneda: el flete NO puede arrastrarse entre
+      // monedas (un flete MXN reinterpretado como USD, o viceversa, corrompe
+      // costo/PDF). Siempre se reinicia a pickup / 0.
+      setTransporteMX('pickup');
+      // Datos del cliente específicos del mercado: se limpian para no mezclar
+      // (ej. anticipo de un cliente México apareciendo en otra cotización).
+      setCorreoCliente('');
+      setTelefonoCliente('');
+      setFormaPago('contado');
+      setAnticipo(0);
+
+      if (!nueva.multiTrailer) {
+        setItems((prev) => prev.map((it) => ({ ...it, trailerId: 1 })));
+        setTrailers((prev) => {
+          const t0 = prev[0] ?? newTrailer(1);
+          return [{ ...t0, id: 1, destino: '', transport_usd: 0, kg_max: Number.MAX_SAFE_INTEGER }];
+        });
+      } else {
+        setTrailers((prev) =>
+          prev.map((t) => ({
+            ...t,
+            transport_usd: 0,
+            kg_max: t.kg_max === Number.MAX_SAFE_INTEGER ? TRAILER_MAX_KG : t.kg_max,
+          })),
+        );
+      }
+      return e;
+    });
+  }, [items, trailers]);
 
   // En México, el transporte se elige aquí (pickup / Castores) y escribe el
   // flete (MXN) en el único trailer.
@@ -541,6 +575,8 @@ export default function CotizadorPage() {
         transportUSDActivo: transportUSDTotal,
         tipoCotizacion,
         aprobacion: aprobacionSnapshot(),
+        empresa,
+        moneda,
       });
       return;
     }
@@ -569,6 +605,8 @@ export default function CotizadorPage() {
       transportUSDActivo: transportUSDTotal,
       tipoCotizacion,
       aprobacion: aprobacionSnapshot(),
+      empresa,
+      moneda,
     });
   };
 
@@ -596,6 +634,8 @@ export default function CotizadorPage() {
       transportUSDActivo: transportUSDTotal,
       tipoCotizacion,
       aprobacion: aprobacionSnapshot(),
+      empresa,
+      moneda,
     });
   };
 
@@ -906,7 +946,7 @@ export default function CotizadorPage() {
               directResult={activeDirectResult}
               tipoCotizacion={tipoCotizacion}
               esMexico={empresa === 'extruidos'}
-              tc={tc}
+              tc={tcCalc}
               onChange={updateActive}
               onGenerateQuote={handleGenerateQuote}
               onGeneratePO={handleGeneratePO}

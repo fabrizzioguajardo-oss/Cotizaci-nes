@@ -198,6 +198,9 @@ export function useCotizacionAutosave(
       !params.cliente.trim() &&
       !(params.contacto ?? '').trim() &&
       !(params.direccion ?? '').trim() &&
+      !(params.correo_cliente ?? '').trim() &&
+      !(params.telefono_cliente ?? '').trim() &&
+      !(params.anticipo ?? 0) &&
       params.items.length === 1 &&
       params.items[0].aCliente === 0 &&
       params.items[0].calCliente === 0 &&

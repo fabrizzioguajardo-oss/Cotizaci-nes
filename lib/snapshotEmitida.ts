@@ -11,7 +11,7 @@
 // `schemaVersion` permite evolucionar el formato del snapshot sin romper
 // la lectura de snapshots viejos.
 
-import type { LineItem, Trailer, TipoCotizacion } from '@/types';
+import type { LineItem, Trailer, TipoCotizacion, Empresa, Moneda } from '@/types';
 import type { QuoteResult } from './computeQuote';
 
 // Versión actual del schema del snapshot.
@@ -42,6 +42,10 @@ export interface SnapshotMeta {
   // registrado qué opción se usó y quién aprobó.
   tipoCotizacion: TipoCotizacion;
   aprobacion?: AprobacionInfo | null;
+  // Empresa/moneda con la que se emitió — discriminador para que el histórico
+  // no mezcle pesos y dólares al reportar tc/transporte/totales.
+  empresa: Empresa;
+  moneda: Moneda;
 }
 
 export interface Snapshot {

@@ -527,19 +527,22 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
           </div>
           <div className="col-span-2 flex items-center justify-around text-center">
             <div>
-              <p className="text-2xs text-text-muted uppercase tracking-wider">Costo USD</p>
+              <p className="text-2xs text-text-muted uppercase tracking-wider">Costo {esMexico ? 'MXN' : 'USD'}</p>
               <p className="mono text-base font-semibold">{fmtUSD(result.costoRolloUSD)}</p>
             </div>
             <div>
-              <p className="text-2xs text-text-muted uppercase tracking-wider">Margen $</p>
+              <p className="text-2xs text-text-muted uppercase tracking-wider">Margen {esMexico ? 'MXN' : '$'}</p>
               <p className="mono text-base font-semibold text-bnp-green">
                 {fmtUSD(item.precioCliente - result.costoRolloUSD)}
               </p>
             </div>
-            <div>
-              <p className="text-2xs text-text-muted uppercase tracking-wider">Price/lb</p>
-              <p className="mono text-base font-semibold">{fmtUSD(result.pricePerLb, 3)}</p>
-            </div>
+            {/* Price/lb es métrica del mercado USA; en México (MXN) no aplica */}
+            {!esMexico && (
+              <div>
+                <p className="text-2xs text-text-muted uppercase tracking-wider">Price/lb</p>
+                <p className="mono text-base font-semibold">{fmtUSD(result.pricePerLb, 3)}</p>
+              </div>
+            )}
           </div>
         </div>
       </section>
