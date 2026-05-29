@@ -1,0 +1,168 @@
+'use client';
+
+import { X, Rocket, Layers, Calculator, User, History, ShieldCheck, Bug } from 'lucide-react';
+import { APP_VERSION } from '@/lib/version';
+
+interface Props {
+  open: boolean;
+  onClose: () => void;
+}
+
+// Clave de localStorage para no volver a mostrar el modal de novedades de
+// esta versión. Cuando APP_VERSION cambie, la clave cambia y el modal vuelve
+// a aparecer una vez.
+export const WHATS_NEW_KEY = `sice_whatsnew_v${APP_VERSION}`;
+
+interface Seccion {
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  titulo: string;
+  color: string;
+  puntos: string[];
+}
+
+const SECCIONES: Seccion[] = [
+  {
+    icon: Layers,
+    color: '#5BAA47',
+    titulo: 'Nueva forma de cotizar: dos modos claros',
+    puntos: [
+      'Elige el tipo de cotización arriba del panel: Directa, Optimizada u Optimizada + revisión.',
+      'Directa: cotizas exactamente lo que pide el cliente, sin cambios.',
+      'Optimizada: el sistema propone una versión más rentable y te muestra una comparación lado a lado (ahorro por rollo, ahorro total, cuánto sube el margen y una recomendación).',
+      'Optimizada + revisión: si la propuesta reduce el material más de 35%, te pide aprobación antes de generar el documento y lo deja registrado.',
+    ],
+  },
+  {
+    icon: Calculator,
+    color: '#009FE3',
+    titulo: 'Cálculos más exactos y confiables',
+    puntos: [
+      'El cono ahora distingue entre lo que el cliente espera y lo que se fabrica, y avisa si el paquete pesaría de más.',
+      'El peso neto se redondea siempre hacia abajo (no se regala producto).',
+      'La sugerencia de largo usa el tipo de cambio real que pones en pantalla.',
+      'Los PDFs cuadran: la cantidad por línea siempre suma con el total.',
+      'Se agregaron 1,329 productos de la tabla maestra de EDSA como referencia para sugerir cono.',
+    ],
+  },
+  {
+    icon: User,
+    color: '#6B2C91',
+    titulo: 'Experiencia de uso',
+    puntos: [
+      'Cada cotización y PO se firma con tu nombre real (la primera vez te pide capturarlo).',
+      'Campos nuevos de contacto y dirección del cliente, que se guardan entre sesiones.',
+      'Si te falta llenar algo, el sistema te dice exactamente qué falta.',
+      'Se quitó el cuadro de transporte que no servía; el flete se edita en cada trailer.',
+      'Editar tu nombre ya no recarga la página ni te hace perder tu trabajo.',
+    ],
+  },
+  {
+    icon: History,
+    color: '#F59E0B',
+    titulo: 'Trazabilidad y flujos internos',
+    puntos: [
+      'Cada cotización y PO queda guardada en una bóveda interna, congelada con todos sus datos. Si un cliente reclama meses después, se reconstruye exactamente lo que se envió.',
+      'Queda registrado qué tipo de cotización se usó y quién la aprobó.',
+      'Si trabajas en dos pestañas a la vez, ya no se borra el trabajo de una con la otra.',
+    ],
+  },
+  {
+    icon: ShieldCheck,
+    color: '#5BAA47',
+    titulo: 'Herramientas de control',
+    puntos: [
+      'Antes de generar un PDF, el sistema revisa la cotización y avisa si el paquete pesaría de más, el margen quedó bajo el 12%, un trailer excede capacidad, o falta información.',
+      'Las verificaciones corren solas y muestran las alertas antes de mandar el documento al cliente.',
+    ],
+  },
+  {
+    icon: Bug,
+    color: '#EF4444',
+    titulo: 'Correcciones',
+    puntos: [
+      'Los conos sugeridos ya no se acumulan al picarles varias veces.',
+      'El sistema ya no propone fabricar más material del que el cliente pide.',
+      'El formulario de "Reportar" ya no conserva el texto anterior.',
+      'Las cotizaciones con varios trailers ya no se corrompen al recargar.',
+      'Y una larga lista de ajustes finos de precisión y consistencia.',
+    ],
+  },
+];
+
+// Modal de novedades de la versión actual. Aparece una vez por usuario
+// (controlado con localStorage) y se puede reabrir desde el botón "Novedades".
+export default function WhatsNewModal({ open, onClose }: Props) {
+  if (!open) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0, 0, 0, 0.75)' }}
+      onClick={onClose}
+    >
+      <div
+        className="card max-w-2xl w-full max-h-[88vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="card-header sticky top-0 bg-bg-elevated z-10">
+          <div className="flex items-center gap-2">
+            <Rocket className="w-5 h-5 text-bnp-green" />
+            <div>
+              <h3 className="text-sm font-semibold">
+                Actualización v{APP_VERSION} — una mejora mayor del cotizador
+              </h3>
+              <p className="text-2xs text-text-muted">
+                Cambios en funcionalidad, experiencia, lógica, cálculos, flujos y control.
+              </p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-bg-hover rounded" title="Cerrar">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="card-body space-y-5">
+          <p className="text-xs text-text-secondary">
+            Esta no es una mejora menor. La <strong>versión {APP_VERSION}</strong> reúne una
+            renovación profunda del cotizador — la actualización más grande del sistema hasta ahora.
+          </p>
+
+          {SECCIONES.map((s) => {
+            const Icon = s.icon;
+            return (
+              <div key={s.titulo}>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Icon className="w-4 h-4 flex-shrink-0" style={{ color: s.color }} />
+                  <h4 className="text-xs font-semibold" style={{ color: s.color }}>
+                    {s.titulo}
+                  </h4>
+                </div>
+                <ul className="space-y-1 pl-6">
+                  {s.puntos.map((p, i) => (
+                    <li key={i} className="text-2xs text-text-secondary list-disc list-outside">
+                      {p}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+
+          <div className="border-t border-border-subtle pt-3">
+            <p className="text-2xs text-text-muted">
+              Cualquier cosa que veas rara, repórtala desde el botón <strong>Reportar</strong> de la
+              app. Cada reporte ayuda.
+            </p>
+          </div>
+        </div>
+
+        <div className="px-4 py-3 border-t border-border-subtle flex justify-end">
+          <button onClick={onClose} className="btn-primary">
+            Entendido, empezar a cotizar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

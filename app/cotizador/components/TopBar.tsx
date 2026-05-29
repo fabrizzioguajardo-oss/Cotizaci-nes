@@ -2,11 +2,12 @@
 
 import { fmtUSD, fmtNum } from '@/lib/format';
 import { TRAILER_MAX_KG } from '@/lib/pricingEngine';
-import { Database, Package, Settings, LogOut, Pencil } from 'lucide-react';
+import { Database, Package, Settings, LogOut, Pencil, Rocket } from 'lucide-react';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import GlobalFreshnessBadge from './GlobalFreshnessBadge';
 import OnboardingNameModal from './OnboardingNameModal';
+import WhatsNewModal, { WHATS_NEW_KEY } from './WhatsNewModal';
 import { useAuth } from '@/lib/useAuth';
 import { APP_VERSION_LABEL, APP_ORG } from '@/lib/version';
 
@@ -32,6 +33,23 @@ export default function TopBar(p: Props) {
   // (bloqueante cuando profile.name está vacío) vive en page.tsx; aquí solo
   // manejamos el caso "ya tengo nombre pero lo quiero corregir".
   const [editingName, setEditingName] = useState(false);
+  // Modal de novedades: aparece UNA vez por usuario cuando la versión cambia
+  // (clave en localStorage). Re-abrible con el botón "Novedades".
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(WHATS_NEW_KEY) !== '1') setWhatsNewOpen(true);
+    } catch {
+      // localStorage no disponible (modo privado raro): no auto-mostrar.
+    }
+  }, []);
+  const closeWhatsNew = () => {
+    setWhatsNewOpen(false);
+    try {
+      localStorage.setItem(WHATS_NEW_KEY, '1');
+    } catch {}
+  };
+
   const utilidadColor =
     p.utilidadGlobal === null
       ? '#64748B'
@@ -68,6 +86,15 @@ export default function TopBar(p: Props) {
         </div>
 
         <nav className="flex items-center gap-2">
+          <button
+            onClick={() => setWhatsNewOpen(true)}
+            className="btn-secondary text-xs"
+            title={`Novedades de la versión ${APP_VERSION_LABEL}`}
+          >
+            <Rocket className="w-3.5 h-3.5" />
+            Novedades
+          </button>
+
           <GlobalFreshnessBadge />
 
           {/* Botones admin solo visibles para usuarios con rol 'admin' */}
@@ -129,6 +156,9 @@ export default function TopBar(p: Props) {
               onCancel={() => setEditingName(false)}
             />
           )}
+
+          {/* Modal de novedades de la versión (auto-show 1 vez + botón Novedades) */}
+          <WhatsNewModal open={whatsNewOpen} onClose={closeWhatsNew} />
         </nav>
       </div>
 

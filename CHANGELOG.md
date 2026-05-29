@@ -2,6 +2,44 @@
 
 Registro de cambios entre versiones. Las versiones más recientes aparecen primero.
 
+> **Nota de versionado:** la versión que VE el usuario es **v1.10** — se presenta
+> como una **actualización mayor** que consolida todo el arco de trabajo
+> reciente. Internamente ese arco pasó por builds 1.09 → 1.22 (detallados abajo
+> como historial técnico). El indicador de la app, el modal de Novedades y los
+> documentos muestran **v1.10** a propósito.
+
+---
+
+## v1.10 (versión visible) — Gran actualización del cotizador
+
+Reúne todo lo construido en los builds internos 1.09–1.22. De cara al equipo es
+**una sola actualización grande**, comunicada dentro de la app con un **modal de
+Novedades** (aparece una vez por usuario; re-abrible con el botón "Novedades").
+
+Resumen por área (el detalle técnico está en las entradas 1.09–1.22 de abajo):
+
+- **Funcionalidad nueva**: dos modos de cotización (Directa / Optimizada /
+  Optimizada + revisión), pantalla comparativa económica, flag y captura de
+  aprobación, historial inmutable de cotizaciones emitidas, tabla maestra EDSA
+  (1,329 SKUs) como fuente de cono.
+- **Lógica del cotizador y cálculos**: cono cliente vs cono real separados (la
+  red de seguridad ya detecta sobrecompensación), PN truncado hacia abajo, TC
+  real en la sugerencia, PDFs que cuadran (qty = total), preview de precio =
+  precio aplicado, recálculo autoritativo del snapshot en el servidor.
+- **Experiencia de usuario**: nombre real del vendedor en PDFs + onboarding,
+  contacto/dirección del cliente persistentes, diagnóstico de "qué falta",
+  edición de nombre sin recargar, input fantasma de transporte eliminado.
+- **Flujos internos y control**: red de seguridad de invariantes (PB ≤
+  PB_cliente, margen ≥ 12%, capacidad de trailer, etc.) con aviso antes de
+  emitir, protección multi-pestaña (optimistic lock), un solo draft por usuario.
+
+### Implementación de la presentación (build interno)
+
+- `WhatsNewModal`: modal de novedades, auto-show una vez por versión
+  (`localStorage`), re-abrible desde el botón "Novedades" del TopBar.
+- `APP_VERSION` fijado en `1.10` (indicador visible). El historial granular
+  1.09–1.22 se conserva abajo como referencia de desarrollo.
+
 ---
 
 ## v1.22 — Mayo 2026 — Aprobación + historial (Fase 1b)
