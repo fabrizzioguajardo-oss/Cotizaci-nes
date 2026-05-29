@@ -4,6 +4,45 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v1.16 — Mayo 2026 — Hotfix de 5 bugs críticos (revisión de código)
+
+**Foco**: una revisión de código extra-alta (9 ángulos de búsqueda + verificación adversaria) sobre el arco v1.09–v1.15 destapó 5 bugs críticos — varios en código de esta misma tanda, incluido uno en la propia red de seguridad de v1.10. Esta versión los arregla todos.
+
+### Críticos arreglados
+
+1. **La invariante `pb_excedido` no podía detectar sobrecompensación de cono.** En `computeQuote` el chequeo calculaba `pbCliente` y `pbReal` con el MISMO `item.cono`, así que el término se cancelaba y se reducía a "¿hicimos más película de la declarada?" — incapaz de ver el exceso de cono, que es justo lo que la regla existe para vigilar. **Fix de raíz**: nuevo campo `conoCliente` en `LineItem`, separado del `cono` real de fabricación. El cliente espera `conoCliente`; la compensación sube solo `cono`. Ahora `pbCliente = pnTeoricoCliente + conoCliente` y el chequeo sí detecta cuando el cono real infla el peso bruto arriba de lo esperado. Caso de regresión agregado a `npm run verify`.
+   - `LineItemEditor` y el catálogo de conos ahora setean `conoCliente` y `cono` juntos (espejo, como ancho/calibre cliente→real); Tab 2 sube solo `cono`.
+   - Migración automática de drafts viejos: `conoCliente ??= cono` al cargar.
+
+2. **Los PDFs mostraban QTY de línea que no cuadraba con el total.** La columna QTY y el total de línea usaban `item.qty`, pero el gran total usaba `rollosPallet × palletTrailer` (lo que usa el motor para revenue/costo). Si no coincidían, **el documento al cliente tenía aritmética que no cerraba**. Ahora ambos PDFs usan `rollosPallet × palletTrailer` consistentemente. (La semántica de venta por Cases/Pallets queda pendiente de confirmar con el área comercial.)
+
+3. **Editar el nombre podía atorarse en loop infinito.** Si la fila de perfil no existía, el `UPDATE` matcheaba 0 filas, devolvía "ok" sin guardar, el modal recargaba y reaparecía para siempre — vendedor encerrado. **Fix**: `/api/profile` ahora hace upsert (crea la fila si falta) y verifica que volvió fila antes de reportar éxito. Migración 007 agrega la policy INSERT.
+
+4. **PDFs podían salir firmados con un genérico cuando el perfil no cargaba.** El modal de onboarding solo aparece si `profile` existe; si era `null` (RLS/sesión), no aparecía y el PDF se firmaba "BioNovaPack LLC". **Fix**: guard duro en los generadores de PDF — sin nombre real de vendedor, se bloquea con aviso.
+
+5. **Cotización multi-trailer se corrompía al recargar.** El draft nunca persistía el arreglo `trailers` (destinos, kg_max, flete por trailer); al recargar se colapsaba a un solo trailer y los items de trailers 2/3 quedaban huérfanos, con flete y destino perdidos. **Fix**: migración 008 agrega columna `trailers` JSONB; el draft ahora persiste y restaura el arreglo completo. Fallback legacy para drafts viejos sin la columna.
+
+### Mejora incluida (de la misma revisión)
+
+- El reset del override de cono en Tab 2 ahora también observa `conoCliente`, `aReal` y `calReal` — evita aplicar un cono "pegado" que ya no corresponde al spec.
+
+### Migraciones requeridas en Supabase (aplicar en orden)
+
+```sql
+-- 007_user_profile_self_insert.sql
+DROP POLICY IF EXISTS "users_insert_own_profile" ON user_profiles;
+CREATE POLICY "users_insert_own_profile" ON user_profiles FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- 008_cotizaciones_trailers.sql
+ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS trailers JSONB;
+```
+
+### Pendiente (de la misma revisión, no crítico)
+
+Hallazgos "altos/medios" que quedan para próximos pushes: TC hardcodeado `18` en Tab Sugerencia, `handleConePick` revierte la reducción de Tab 2, candado multi-tab opt-in, snapshot hash sobre datos del cliente, fallback EDSA pierde código SKU, y la cola de menores. Ver el reporte de la revisión.
+
+---
+
 ## v1.15 — Mayo 2026 — Protección multi-pestaña + fix de persistencia
 
 **Foco**: Push #4 (primera parte). Cierra el último bug del Adversario (autosave race condition multi-tab) y corrige una regresión de v1.13 que dejó la persistencia de contacto/dirección a medias.

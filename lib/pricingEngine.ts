@@ -532,6 +532,7 @@ export function newLineItem(id: number, trailerId = 1): LineItem {
     aCliente: 0,
     calCliente: 0,
     lCliente: 0,
+    conoCliente: 0,
     aReal: 0,
     calReal: 0,
     lReal: 0,

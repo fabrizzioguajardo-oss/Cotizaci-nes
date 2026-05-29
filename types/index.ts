@@ -27,12 +27,19 @@ export interface LineItem {
   aCliente: number;
   calCliente: number;
   lCliente: number;
+  // Cono que el CLIENTE espera (declarado). Base del peso bruto que el cliente
+  // va a pesar al recibir. Cuando se aplica compensación de cono, este valor NO
+  // cambia — solo cambia `cono` (el real). Mantenerlos separados es lo que
+  // permite verificar la invariante PB_real ≤ PB_cliente: antes, con un solo
+  // campo `cono`, al subir el cono se perdía el original y el chequeo de
+  // computeQuote se cancelaba a sí mismo (no detectaba sobrecompensación).
+  conoCliente: number;
 
   // Spec real (lo que Extruidos realmente fabrica)
   aReal: number;
   calReal: number;
   lReal: number;
-  cono: number;
+  cono: number;            // cono REAL de fabricación (puede subir por compensación)
 
   // Configuración logística
   rollosPallet: number;

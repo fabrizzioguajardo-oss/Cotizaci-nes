@@ -60,11 +60,21 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
 
-  // Update SOLO del campo name. RLS verifica que auth.uid() = user_id.
-  const { error } = await sb
+  // Upsert por user_id: si la fila existe actualiza SOLO name; si no existe
+  // (trigger handle_new_user falló, cuenta vieja) la crea. Esto evita el loop
+  // infinito de onboarding donde un UPDATE sobre fila inexistente devolvía
+  // "ok" sin guardar nada. email viene del server (user.email), nunca del
+  // cliente, y role se omite → toma el default 'vendedor' en INSERT y se
+  // preserva en UPDATE. Un vendedor no puede auto-promoverse a admin.
+  // Requiere policies users_update_own_profile (003) y users_insert_own_profile (007).
+  const { data, error } = await sb
     .from('user_profiles')
-    .update({ name })
-    .eq('user_id', user.id);
+    .upsert(
+      { user_id: user.id, email: user.email ?? '', name },
+      { onConflict: 'user_id' },
+    )
+    .select('user_id, name')
+    .maybeSingle();
 
   if (error) {
     // eslint-disable-next-line no-console
@@ -72,5 +82,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
   }
 
-  return NextResponse.json({ ok: true, name });
+  // Defensa adicional: si por alguna razón no volvió fila, NO reportar éxito
+  // (evita que el modal se cierre creyendo que guardó).
+  if (!data) {
+    return NextResponse.json(
+      { error: 'No se pudo guardar el nombre. Contacta al admin.' },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ ok: true, name: data.name ?? name });
 }

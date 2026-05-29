@@ -39,10 +39,17 @@ export default function TabSugerencia({
   const [conoOverride, setConoOverride] = useState<number | null>(null);
 
   // Resetear el override si el item cambia (otra linea seleccionada) o si
-  // el vendedor edita el spec real manualmente (que cambia item.cono).
+  // cambia cualquier campo que altere la sugerencia. Incluye conoCliente
+  // (base de la compensación), aReal y calReal — sin estos, un cambio de
+  // spec recalculaba la sugerencia pero dejaba el override "pegado" a un
+  // cono que ya no corresponde, y handleApply commiteaba ese cono stale.
   useEffect(() => {
     setConoOverride(null);
-  }, [item.id, item.cono, item.aCliente, item.calCliente, item.lCliente]);
+  }, [
+    item.id, item.cono, item.conoCliente,
+    item.aCliente, item.calCliente, item.lCliente,
+    item.aReal, item.calReal,
+  ]);
 
   // Recalcular sugerencia en tiempo real al mover el slider.
   // Si retorna null, `diagnosis` explica AL VENDEDOR qué falta (vs hasta
@@ -68,7 +75,11 @@ export default function TabSugerencia({
       lCliente: item.lCliente,
       aReal: item.aReal,
       calReal: item.calReal,
-      cono: item.cono,
+      // Base de la compensación = cono que el CLIENTE espera (conoCliente),
+      // no el cono real actual. Así conoSugerido se calcula contra el peso
+      // bruto declarado y PB_real ≤ PB_cliente se mantiene. Fallback a cono
+      // para drafts viejos sin conoCliente.
+      cono: item.conoCliente ?? item.cono,
       marginTarget,
     });
     return { suggestion: s, diagnosis: diag };

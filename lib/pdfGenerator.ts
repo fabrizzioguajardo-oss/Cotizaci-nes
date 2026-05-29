@@ -129,10 +129,17 @@ export function generateQuotePDF(
 
   const totals = calcTrailerTotals(items, meta.tc, meta.transportUSD);
 
-  // Tabla de items
+  // Tabla de items.
+  // QTY y total de línea usan rollosPallet×palletTrailer (las unidades reales
+  // que usa el motor de pricing en calcTrailerTotals para revenue/costo). Antes
+  // la columna QTY mostraba item.qty mientras el gran total usaba
+  // rollosPallet×palletTrailer → la suma de líneas no cuadraba con el TOTAL.
+  // (La semántica de venta por Cases/Pallets vs rollo queda pendiente de
+  // confirmar con el área comercial; por ahora el documento es internamente
+  // consistente con lo que la app calcula como ingreso.)
   const body = items.map((item, i) => {
     const r = results[i];
-    const unidades = item.qty;
+    const unidades = item.rollosPallet * item.palletTrailer;
     const totalLine = item.precioCliente * unidades;
     const description = `${item.desc || 'PALLET WRAP'} - ${item.aCliente}″ × ${item.calCliente}GA × ${item.lCliente}′`;
     return [
@@ -250,11 +257,14 @@ export function generatePOPDF(
   drawHeader(doc, 'PURCHASE ORDER', true);
   drawMetaBox(doc, meta, true);
 
-  // Tabla de items con SPEC REAL
+  // Tabla de items con SPEC REAL.
+  // QTY usa rollosPallet×palletTrailer (consistente con el multiplicador del
+  // costo de línea, que ya usaba ese valor). Antes la columna QTY mostraba
+  // item.qty pero el costo se multiplicaba por rollosPallet×palletTrailer.
   const body = items.map((item, i) => {
     const r = results[i];
-    const unidades = item.qty;
-    const totalLineMXN = r.costoRolloMXN * (item.rollosPallet * item.palletTrailer);
+    const unidades = item.rollosPallet * item.palletTrailer;
+    const totalLineMXN = r.costoRolloMXN * unidades;
     const description = `${item.desc || 'PALLET WRAP'} - ${item.aReal}″ × ${item.calReal}GA × ${item.lReal}′`;
     return [
       String(unidades),

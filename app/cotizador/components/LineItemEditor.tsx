@@ -66,14 +66,18 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
       largo_ft: item.lCliente,
       cono: option.cono,
       resin_class: resinClass,
+      color: item.tipoColor,  // pasa color para filter por orange/black/etc
       preciosEDSA: data.precios_edsa,
       preciosColor: data.precios_color,
       rangos: data.rangos_tarima,
     });
 
     if (!fill) {
-      // No encontramos precio - solo aplicamos cono y rollos/tarima
+      // No encontramos precio - solo aplicamos cono y rollos/tarima.
+      // Setea conoCliente (lo que el cliente espera) Y cono (real), iguales
+      // al inicio. La compensación en Tab 2 después sube solo `cono`.
       onChange({
+        conoCliente: option.cono,
         cono: option.cono,
         aReal: item.aCliente,
         calReal: item.calCliente,
@@ -85,6 +89,7 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
     }
 
     onChange({
+      conoCliente: fill.cono,
       cono: fill.cono,
       aReal: item.aCliente,
       calReal: item.calCliente,
@@ -217,6 +222,8 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
         calibre={item.calCliente}
         largo={item.lCliente}
         selectedCono={item.cono}
+        resinType={item.tipoResina}
+        tipoColor={item.tipoColor}
         onPick={handleConePick}
       />
 
@@ -236,8 +243,14 @@ export default function LineItemEditor({ item, result, onChange }: Props) {
             <label className="label">Cono (kg)</label>
             <input
               type="number" step="0.01"
-              value={item.cono || ''}
-              onChange={num('cono')}
+              value={item.conoCliente || ''}
+              // Edita el cono que el cliente espera. Espeja al cono real
+              // (igual que ancho/calibre cliente→real); la compensación de
+              // Tab 2 después sube solo el cono real sin tocar conoCliente.
+              onChange={(e) => {
+                const v = parseFloat(e.target.value) || 0;
+                onChange({ conoCliente: v, cono: v });
+              }}
               className="input input-purple"
             />
           </div>

@@ -144,10 +144,16 @@ function detectWarnings(
 
     // === Invariante 1: PB_real ≤ PB_cliente ===
     // El cono compensatorio nunca debe inflar el peso bruto arriba del
-    // declarado al cliente. Esa fue la regla rota en v1.07-v1.08 (lReal
-    // explotaba) y arreglada en v1.09 con cap multi-capa. Esta assertion
-    // la blinda contra futuras regresiones.
-    const pbCliente = result.pnTeoricoClienteKg + item.cono;
+    // declarado al cliente.
+    // CRÍTICO: pbCliente usa conoCliente (el cono ORIGINAL que el cliente
+    // espera), NO item.cono (el cono real, posiblemente subido por
+    // compensación). Antes ambos lados usaban item.cono y el término se
+    // cancelaba — el chequeo se reducía a pnReal>pnTeoricoCliente y era
+    // estructuralmente incapaz de detectar sobrecompensación de cono (que es
+    // exactamente lo que esta invariante existe para vigilar). Fallback a
+    // item.cono para drafts viejos migrados que aún no tienen conoCliente.
+    const conoClienteEf = item.conoCliente ?? item.cono;
+    const pbCliente = result.pnTeoricoClienteKg + conoClienteEf;
     const pbReal = result.pbReal;
     if (pbCliente > 0) {
       const tolerance = pbCliente * PB_FLOAT_TOLERANCE_PCT;

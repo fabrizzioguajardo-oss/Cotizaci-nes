@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import type { LineItem } from '@/types';
+import type { LineItem, Trailer } from '@/types';
 
 export const runtime = 'nodejs';
 
@@ -44,7 +44,7 @@ export async function GET() {
 
   const { data, error } = await sb
     .from('cotizaciones')
-    .select('id, cliente, contacto, direccion, tc, transport_usd, total_revenue_usd, total_cost_usd, utilidad_global, items, status, created_at, updated_at')
+    .select('id, cliente, contacto, direccion, tc, transport_usd, total_revenue_usd, total_cost_usd, utilidad_global, items, trailers, status, created_at, updated_at')
     .eq('user_id', user.id)
     .eq('status', 'draft')
     .order('created_at', { ascending: false })
@@ -71,6 +71,7 @@ interface UpsertBody {
   total_cost_usd?: number;
   utilidad_global?: number | null;
   items: LineItem[];
+  trailers?: Trailer[];
 }
 
 export async function POST(req: NextRequest) {
@@ -107,6 +108,7 @@ export async function POST(req: NextRequest) {
     total_cost_usd: body.total_cost_usd ?? 0,
     utilidad_global: body.utilidad_global ?? null,
     items: body.items,
+    trailers: body.trailers ?? null,
     status: 'draft' as const,
     user_id: user.id,
     vendedor: user.email ?? 'unknown',

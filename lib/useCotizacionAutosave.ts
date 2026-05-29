@@ -10,7 +10,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { LineItem } from '@/types';
+import type { LineItem, Trailer } from '@/types';
 
 // 'conflict' = otra pestaña/dispositivo guardó el mismo draft. Dejamos de
 // autoguardar para no pisar ese trabajo; el usuario debe recargar.
@@ -40,6 +40,7 @@ export interface DraftPayload {
   tc: number;
   transport_usd: number;
   items: LineItem[];
+  trailers?: Trailer[] | null;
 }
 
 interface UseCotizacionAutosaveParams {
@@ -52,6 +53,7 @@ interface UseCotizacionAutosaveParams {
   total_cost_usd: number;
   utilidad_global: number | null;
   items: LineItem[];
+  trailers: Trailer[];
   // Si está enabled=false, NO autosaves (útil al cargar inicialmente)
   enabled?: boolean;
   // Delay del debounce (default 2000ms)
@@ -110,6 +112,7 @@ export function useCotizacionAutosave(
           total_cost_usd: p.total_cost_usd,
           utilidad_global: p.utilidad_global,
           items: p.items,
+          trailers: p.trailers,
         }),
       });
 
@@ -199,6 +202,7 @@ export function useCotizacionAutosave(
     params.total_cost_usd,
     params.utilidad_global,
     JSON.stringify(params.items),
+    JSON.stringify(params.trailers),
   ]);
 
   // Save manual inmediato (sin debounce)
@@ -249,6 +253,7 @@ export function useCotizacionAutosave(
         tc: data.draft.tc ?? 0,
         transport_usd: data.draft.transport_usd ?? 0,
         items: data.draft.items ?? [],
+        trailers: data.draft.trailers ?? null,
       };
     } catch (err) {
       // eslint-disable-next-line no-console

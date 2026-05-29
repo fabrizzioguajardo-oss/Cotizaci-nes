@@ -98,6 +98,7 @@ export default function CotizadorPage() {
     total_cost_usd: trailerTotals.totalCostUSD,
     utilidad_global: trailerTotals.utilidadGlobal,
     items,
+    trailers,
     enabled: autosaveEnabled,
   });
 
@@ -111,14 +112,35 @@ export default function CotizadorPage() {
         setContacto(draft.contacto || '');
         setDireccion(draft.direccion || '');
         setTc(draft.tc || 18.5);
-        // Migración: items sin trailerId → asignar a trailer 1
-        const migrated = draft.items.map((it) =>
-          it.trailerId ? it : { ...it, trailerId: 1 },
-        );
+        // Migración doble de items:
+        //  - trailerId: items viejos sin trailer → trailer 1.
+        //  - conoCliente: items previos a v1.16 no lo tienen → inicializar
+        //    al cono real (en esos drafts cono == lo que el cliente esperaba).
+        const migrated = draft.items.map((it) => ({
+          ...it,
+          trailerId: it.trailerId ?? 1,
+          conoCliente: it.conoCliente ?? it.cono ?? 0,
+        }));
         setItems(migrated);
-        // El draft viejo solo tenia 1 transport_usd, lo asignamos al trailer 1
-        if (draft.transport_usd) {
-          setTrailers([{ id: 1, destino: '', transport_usd: draft.transport_usd, kg_max: TRAILER_MAX_KG }]);
+        // Restaurar el arreglo COMPLETO de trailers (destino, kg_max, flete por
+        // trailer). Antes solo se reconstruía un trailer 1 con el flete
+        // agregado, lo que dejaba huérfanos a los items de trailers 2/3 en
+        // cotizaciones multi-trailer. Fallback: drafts viejos sin `trailers`
+        // → reconstruir trailer 1 con el transport_usd agregado (comportamiento
+        // legacy), preservando además cualquier trailerId referenciado por los
+        // items para no orfanarlos.
+        if (draft.trailers && draft.trailers.length > 0) {
+          setTrailers(draft.trailers);
+        } else {
+          const referenced = Array.from(new Set(migrated.map((it) => it.trailerId)));
+          setTrailers(
+            referenced.map((id) => ({
+              id,
+              destino: '',
+              transport_usd: id === 1 ? (draft.transport_usd ?? 0) : 0,
+              kg_max: TRAILER_MAX_KG,
+            })),
+          );
         }
         const firstId = migrated[0]?.id ?? 1;
         setActiveId(firstId);
@@ -291,17 +313,28 @@ export default function CotizadorPage() {
     return window.confirm(lineas.join('\n'));
   };
 
-  // Identidad del vendedor para firmar PDFs. Si por alguna razón el profile
-  // no cargó (sesión nueva, fallback de admin), usamos el email o un
-  // genérico — pero nunca volvemos al 'Evers Lopez' hardcoded del pasado.
-  const vendedorFirma =
-    profile?.name?.trim() ||
-    profile?.email?.split('@')[0] ||
-    'BioNovaPack LLC';
+  // Identidad del vendedor para firmar PDFs. Solo el nombre real del profile.
+  const vendedorFirma = profile?.name?.trim() ?? '';
+
+  // Guard: ningún PDF puede generarse sin un nombre de vendedor real. Cubre
+  // el caso donde profile es null (sesión no cargó, RLS falló, trigger no
+  // creó el perfil) — en ese caso el modal de onboarding NO aparece (su gate
+  // es `profile && !profile.name`), así que sin este guard un PDF saldría
+  // firmado con un genérico. Si no hay nombre, bloqueamos y mandamos al
+  // vendedor a configurarlo.
+  const tieneNombreVendedor = (): boolean => {
+    if (vendedorFirma) return true;
+    window.alert(
+      'Antes de generar PDFs necesitas configurar tu nombre (aparece como firma en el documento). ' +
+        'Si no ves la ventana para hacerlo, recarga la página; si el problema sigue, contacta al admin.',
+    );
+    return false;
+  };
 
   // Generadores de PDF — persisten snapshot inmutable ANTES de descargar.
   // Si el snapshot falla, NO se bloquea la descarga (errores van al console).
   const handleGenerateQuote = async () => {
+    if (!tieneNombreVendedor()) return;
     if (!confirmarAntesPDF('cotización al cliente')) return;
     const meta = {
       cliente,
@@ -329,6 +362,7 @@ export default function CotizadorPage() {
   };
 
   const handleGeneratePO = async () => {
+    if (!tieneNombreVendedor()) return;
     if (!confirmarAntesPDF('PO a Extruidos')) return;
     const meta = {
       cliente: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',

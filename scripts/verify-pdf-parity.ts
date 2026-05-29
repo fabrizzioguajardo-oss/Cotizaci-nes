@@ -39,6 +39,7 @@ function baseItem(partial: Partial<LineItem>): LineItem {
     aCliente: 3,
     calCliente: 70,
     lCliente: 1000,
+    conoCliente: 0.1,
     aReal: 3,
     calReal: 70,
     lReal: 1000,
@@ -77,6 +78,7 @@ const casos: Caso[] = [
       baseItem({
         id: 1, desc: '9.87×80 Machine',
         aCliente: 9.87, calCliente: 80, lCliente: 5000,
+        conoCliente: 0.9,
         aReal: 9.87, calReal: 80, lReal: 4610,
         cono: 0.9, rollosPallet: 80, palletTrailer: 5,
         precioCliente: 23.75, costoBase: 50.35,
@@ -84,6 +86,7 @@ const casos: Caso[] = [
       baseItem({
         id: 2, desc: '3×70 Bandling',
         aCliente: 3, calCliente: 70, lCliente: 1000,
+        conoCliente: 0.15,
         aReal: 3, calReal: 70, lReal: 790,
         cono: 0.15, rollosPallet: 1764, palletTrailer: 9,
         precioCliente: 1.125, costoBase: 52.90,
@@ -91,6 +94,7 @@ const casos: Caso[] = [
       baseItem({
         id: 3, desc: '5×70 Bandling',
         aCliente: 5, calCliente: 70, lCliente: 1000,
+        conoCliente: 0.25,
         aReal: 5, calReal: 70, lReal: 790,
         cono: 0.25, rollosPallet: 1176, palletTrailer: 9,
         precioCliente: 1.8417, costoBase: 51.83,
@@ -98,6 +102,7 @@ const casos: Caso[] = [
       baseItem({
         id: 4, desc: '20×75 Ext Core',
         aCliente: 20, calCliente: 75, lCliente: 1000,
+        conoCliente: 0.25,
         aReal: 20, calReal: 75, lReal: 825,
         cono: 0.25, rollosPallet: 320, palletTrailer: 1,
         precioCliente: 8.4325, costoBase: 52.95,
@@ -126,6 +131,30 @@ const casos: Caso[] = [
     // pb_excedido es la violación clave; margen_perdida es consecuencia
     // natural (al exagerar el largo, el costo del rollo supera el precio).
     esperaErrores: ['pb_excedido', 'margen_perdida'],
+  },
+
+  // === B'. Regression v1.16: sobrecompensación de cono ===
+  // El cliente espera cono 0.10 (conoCliente). El vendedor reduce el largo y
+  // sube el cono real a 0.55 (más de lo necesario). pbReal = pnReal + 0.55
+  // debe superar pbCliente = pnTeoricoCliente + 0.10. ANTES de v1.16 esto
+  // NO se detectaba (computeQuote usaba item.cono en ambos lados y el término
+  // se cancelaba). Ahora pbCliente usa conoCliente y SÍ dispara pb_excedido.
+  {
+    nombre: 'Regression v1.16: cono real >> conoCliente (sobrecompensación)',
+    tc: TC,
+    trailers: [defaultTrailer(7000)],
+    items: [
+      baseItem({
+        id: 1,
+        aCliente: 3, calCliente: 70, lCliente: 1000,
+        conoCliente: 0.10,            // lo que el cliente espera
+        aReal: 3, calReal: 70, lReal: 800, // largo reducido
+        cono: 0.55,                   // cono real inflado de más
+        rollosPallet: 1764, palletTrailer: 9,
+        precioCliente: 1.80, costoBase: 50,
+      }),
+    ],
+    esperaErrores: ['pb_excedido'],
   },
 
   // === C. Margen perdida ===
@@ -172,6 +201,7 @@ const casos: Caso[] = [
       baseItem({
         id: 1,
         aCliente: 20, calCliente: 80, lCliente: 5000,
+        conoCliente: 1.0,
         aReal: 20, calReal: 80, lReal: 5000,
         cono: 1.0,
         rollosPallet: 600, palletTrailer: 10, // ~87,000 kg netos
