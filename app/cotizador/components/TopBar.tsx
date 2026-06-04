@@ -42,6 +42,16 @@ export default function TopBar(p: Props) {
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   useEffect(() => {
     try {
+      // En la PRIMERA visita absoluta NO mostramos Novedades: a alguien que
+      // nunca vio la app, un "qué hay de nuevo" no le dice nada y solo se
+      // encima del onboarding del nombre. Marcamos la app como vista y esta
+      // versión como "ya conocida"; las versiones FUTURAS sí saltarán una vez.
+      const yaUsoLaApp = localStorage.getItem('sice_app_seen') === '1';
+      if (!yaUsoLaApp) {
+        localStorage.setItem('sice_app_seen', '1');
+        localStorage.setItem(WHATS_NEW_KEY, '1');
+        return;
+      }
       if (localStorage.getItem(WHATS_NEW_KEY) !== '1') setWhatsNewOpen(true);
     } catch {
       // localStorage no disponible (modo privado raro): no auto-mostrar.
@@ -65,6 +75,11 @@ export default function TopBar(p: Props) {
 
   const kgPct = (p.kgNetoTotal / TRAILER_MAX_KG) * 100;
   const kgColor = kgPct > 100 ? '#EF4444' : kgPct > 95 ? '#F59E0B' : '#5BAA47';
+
+  // En EUA el TC es obligatorio: si el vendedor lo borra y queda en 0, las
+  // conversiones de costo a USD se corrompen en silencio (margen/precio mal).
+  // Lo marcamos en rojo para que NO pase inadvertido.
+  const tcInvalido = p.usaTC && (!p.tc || p.tc <= 0);
 
   return (
     <header className="border-b border-border bg-bg-elevated">
@@ -128,17 +143,20 @@ export default function TopBar(p: Props) {
               </div>
               <button
                 onClick={() => setEditingName(true)}
-                className="p-1.5 rounded border border-border-subtle hover:border-bnp-green/40 hover:text-bnp-green transition-colors"
+                className="p-2 rounded border border-border-subtle hover:border-bnp-green/40 hover:text-bnp-green transition-colors"
                 title="Editar mi nombre (aparece como firma en los PDFs)"
               >
-                <Pencil className="w-3.5 h-3.5" />
+                <Pencil className="w-4 h-4" />
               </button>
+              {/* Logout separado del resto (ml-3) para no picarlo por error
+                  cuando se busca editar el nombre — es una acción que tira la
+                  sesión y el trabajo en curso. */}
               <button
                 onClick={signOut}
-                className="p-1.5 rounded border border-border-subtle hover:border-bnp-red/40 hover:text-bnp-red transition-colors"
+                className="p-2 ml-3 rounded border border-border-subtle hover:border-bnp-red/40 hover:text-bnp-red transition-colors"
                 title="Cerrar sesión"
               >
-                <LogOut className="w-3.5 h-3.5" />
+                <LogOut className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -197,13 +215,22 @@ export default function TopBar(p: Props) {
         {/* TC solo para EUA (USD). México opera en MXN sin tipo de cambio. */}
         {p.usaTC ? (
           <div className="col-span-1">
-            <label className="label">TC (MXN/USD)</label>
+            <label
+              className="label"
+              title="TC = tipo de cambio MXN por USD. Convierte el costo (en pesos) a dólares para la cotización."
+            >
+              TC (MXN/USD)
+            </label>
             <input
-              type="number" step="0.01"
+              type="number" step="0.01" min="0"
               value={p.tc || ''}
               onChange={(e) => p.onTcChange(parseFloat(e.target.value) || 0)}
-              className="input"
+              className={`input ${tcInvalido ? 'border-bnp-red text-bnp-red' : ''}`}
+              title={tcInvalido ? 'Sin tipo de cambio, el precio y el margen no se calculan bien.' : undefined}
             />
+            {tcInvalido && (
+              <p className="text-2xs text-bnp-red mt-0.5 leading-tight">Pon el tipo de cambio</p>
+            )}
           </div>
         ) : (
           <div className="col-span-1">

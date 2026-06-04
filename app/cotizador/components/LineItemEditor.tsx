@@ -123,7 +123,7 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         <div className="col-span-3">
           <label className="label">Cantidad</label>
           <input
-            type="number"
+            type="number" min="0"
             value={item.qty || ''}
             onChange={num('qty')}
             className="input"
@@ -154,27 +154,32 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="label">Ancho (in)</label>
+            <label className="label" title="Ancho del rollo, en pulgadas (in).">Ancho (in)</label>
             <input
-              type="number" step="0.1"
+              type="number" step="0.1" min="0"
               value={item.aCliente || ''}
               onChange={setAnchoCliente}
               className="input input-cyan"
             />
           </div>
           <div>
-            <label className="label">Calibre (GA)</label>
+            <label
+              className="label"
+              title="Calibre (GA = gauge): el grosor de la película. Más GA = película más gruesa. Típico 60–90."
+            >
+              Calibre (GA)
+            </label>
             <input
-              type="number" step="1"
+              type="number" step="1" min="0"
               value={item.calCliente || ''}
               onChange={setCalibreCliente}
               className="input input-cyan"
             />
           </div>
           <div>
-            <label className="label">Largo (ft)</label>
+            <label className="label" title="Largo del rollo, en pies (ft).">Largo (ft)</label>
             <input
-              type="number" step="10"
+              type="number" step="10" min="0"
               value={item.lCliente || ''}
               onChange={num('lCliente')}
               className="input input-cyan"
@@ -243,9 +248,14 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="label">Cono (kg)</label>
+            <label
+              className="label"
+              title="Cono: el tubo de cartón en el centro del rollo. Su peso (kg) suma al peso bruto que el cliente recibe."
+            >
+              Cono (kg)
+            </label>
             <input
-              type="number" step="0.01"
+              type="number" step="0.01" min="0"
               value={item.conoCliente || ''}
               // Edita el cono que el cliente espera. Espeja al cono real
               // (igual que ancho/calibre cliente→real); la compensación de
@@ -258,18 +268,18 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
             />
           </div>
           <div>
-            <label className="label">Rollos / tarima</label>
+            <label className="label" title="Cuántos rollos caben en una tarima (pallet).">Rollos / tarima</label>
             <input
-              type="number" step="1"
+              type="number" step="1" min="0"
               value={item.rollosPallet || ''}
               onChange={num('rollosPallet')}
               className="input input-purple"
             />
           </div>
           <div>
-            <label className="label">Tarimas / trailer</label>
+            <label className="label" title="Cuántas tarimas caben en un trailer.">Tarimas / trailer</label>
             <input
-              type="number" step="1"
+              type="number" step="1" min="0"
               value={item.palletTrailer || ''}
               onChange={num('palletTrailer')}
               className="input input-purple"
@@ -287,8 +297,11 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-bnp-amber" />
-            <h4 className="text-xs font-semibold text-text-primary uppercase tracking-wider">
-              Build-up de costo (MXN/kg)
+            <h4
+              className="text-xs font-semibold text-text-primary uppercase tracking-wider"
+              title="Desglose del costo por kilo: el costo base del proveedor (EDSA) más los aditivos. Normalmente se llena solo al elegir el cono — solo se edita a mano en casos especiales."
+            >
+              Desglose de costo (MXN/kg)
             </h4>
           </div>
           <MatchQualityBadge quality={matchQuality} source={matchSource} />
@@ -302,7 +315,10 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
           {/* Base EDSA */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">
+              <label
+                className="text-2xs font-semibold text-text-secondary uppercase tracking-wider"
+                title="Costo base por kilo del proveedor de extrusión (EDSA). Es el punto de partida del costo."
+              >
                 Base EDSA
               </label>
             </div>
@@ -505,7 +521,7 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         <div className="grid grid-cols-3 gap-3">
           <div className="col-span-1">
             <input
-              type="number" step="0.01"
+              type="number" step="0.01" min="0"
               value={item.precioCliente || ''}
               onChange={num('precioCliente')}
               placeholder="0.00"
@@ -516,7 +532,7 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
               <div className="mt-2">
                 <label className="label">Precio anterior por rollo (MXN, opcional)</label>
                 <input
-                  type="number" step="0.01"
+                  type="number" step="0.01" min="0"
                   value={item.precioAnterior || ''}
                   onChange={num('precioAnterior')}
                   placeholder="—"

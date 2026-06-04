@@ -512,6 +512,19 @@ export default function CotizadorPage() {
     return false;
   };
 
+  // Gate de tipo de cambio: en EUA (USD) el TC es obligatorio. Si quedó en 0
+  // (el vendedor lo borró), las conversiones de costo a USD se corrompen en
+  // silencio y el PDF saldría con un precio/margen mal calculado. En México
+  // (MXN) no aplica (tc efectivo = 1).
+  const tieneTC = (): boolean => {
+    if (!info.usaTC || tc > 0) return true;
+    window.alert(
+      'Falta el tipo de cambio (TC) en la barra de arriba. Sin él, el precio y el margen no se calculan bien. ' +
+        'Captúralo antes de generar el documento.',
+    );
+    return false;
+  };
+
   // Gate de aprobación: en modo 'optimizada + revisión' con una reducción
   // crítica (>35%), no se puede emitir hasta capturar la aprobación.
   const tieneAprobacion = (): boolean => {
@@ -547,6 +560,7 @@ export default function CotizadorPage() {
   // prioritario". Si el snapshot falla, se loguea y no afecta la descarga.
   const handleGenerateQuote = async () => {
     if (!tieneNombreVendedor()) return;
+    if (!tieneTC()) return;
     if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('cotización al cliente')) return;
 
@@ -616,6 +630,7 @@ export default function CotizadorPage() {
 
   const handleGeneratePO = async () => {
     if (!tieneNombreVendedor()) return;
+    if (!tieneTC()) return;
     if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('PO a Extruidos')) return;
     const meta = {
