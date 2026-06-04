@@ -32,6 +32,26 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
   `typecheck` antes de cada push; una regresión en la matemática nunca llega a
   Vercel. Se activa con `git config core.hooksPath .githooks`.
 
+### Ajustes de claridad — mesa redonda de diseño (UX)
+
+- **Tooltips de jerga**: al pasar el cursor sobre Calibre (GA), Cono, Ancho,
+  Largo, Base EDSA, Desglose de costo y TC, aparece una explicación corta en
+  español llano. "Build-up de costo" → "Desglose de costo (MXN/kg)".
+- **TC obligatorio (EUA)**: si el tipo de cambio queda en 0/vacío se marca en
+  rojo ("Pon el tipo de cambio") y se **bloquea** la generación del PDF/PO —
+  antes el precio se corrompía en silencio. En México no aplica (tc=1).
+- **`min=0`** en ancho/calibre/largo/cono/cantidad/precio: el spinner ya no baja
+  a negativos.
+- **Accesibilidad TopBar**: iconos editar-nombre / cerrar-sesión más grandes
+  (16px) y el de salir separado, para no picarlo por error.
+- **Novedades** ya no salta automáticamente en la PRIMERA visita (a quien nunca
+  vio la app no le dice nada y se encimaba con el onboarding); sí salta una vez
+  para quien ya la conocía y entra a una versión nueva.
+- **Barra de contexto compacta**: el selector de empresa y el de tipo de
+  cotización pasaron de dos tarjetas altas apiladas a una sola fila compacta, y
+  las descripciones largas se movieron a tooltips — así la captura del pedido
+  (la tarea principal) sube y deja de quedar enterrada bajo la configuración.
+
 ### Fase A (lista) — fundación multi-empresa
 
 - **Pregunta al inicio**: selector "Cotizar para BioNovaPack · USA / Extruidos · México"

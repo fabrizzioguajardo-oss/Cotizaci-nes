@@ -797,76 +797,89 @@ export default function CotizadorPage() {
 
         {/* Panel central: tabs */}
         <main className="col-span-9 overflow-y-auto max-h-[calc(100vh-180px)]">
-          {/* Selector de EMPRESA / mercado (v1.23) — pregunta al inicio */}
+          {/* Barra compacta de contexto: empresa + tipo de cotización en UNA
+              sola fila. Antes eran dos tarjetas altas apiladas que empujaban la
+              captura del pedido hacia abajo (la mesa de diseño: "config antes de
+              capturar, sin punto focal"). Las descripciones largas viven ahora
+              en tooltips para devolverle el espacio al formulario, que es la
+              tarea principal. */}
           <div
-            className="card p-3 mb-4 flex flex-wrap items-center gap-3"
+            className="card px-3 py-2 mb-4 flex flex-wrap items-center gap-x-5 gap-y-2"
             style={{ borderColor: `${info.accent}66` }}
           >
-            <span className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">
-              Cotizar para
-            </span>
-            <div className="inline-flex rounded-md border border-border-subtle overflow-hidden">
-              {([
-                ['bionovapack', 'BioNovaPack · USA'],
-                ['extruidos', 'Extruidos · México'],
-              ] as [Empresa, string][]).map(([e, label]) => (
-                <button
-                  key={e}
-                  onClick={() => handleEmpresaChange(e)}
-                  className="px-3 py-1.5 text-2xs font-semibold transition-colors"
-                  style={
-                    empresa === e
-                      ? { backgroundColor: `${info.accent}26`, color: info.accent }
-                      : { color: 'var(--color-text-secondary)' }
-                  }
-                >
-                  {label}
-                </button>
-              ))}
+            {/* Empresa / mercado */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">
+                Empresa
+              </span>
+              <div className="inline-flex rounded-md border border-border-subtle overflow-hidden">
+                {([
+                  ['bionovapack', 'BioNovaPack · USA'],
+                  ['extruidos', 'Extruidos · México'],
+                ] as [Empresa, string][]).map(([e, label]) => (
+                  <button
+                    key={e}
+                    onClick={() => handleEmpresaChange(e)}
+                    title={
+                      e === 'extruidos'
+                        ? 'México · todo en pesos (MXN), sin tipo de cambio.'
+                        : 'EUA · todo en dólares (USD), con tipo de cambio.'
+                    }
+                    className="px-3 py-1.5 text-2xs font-semibold transition-colors"
+                    style={
+                      empresa === e
+                        ? { backgroundColor: `${info.accent}26`, color: info.accent }
+                        : { color: 'var(--color-text-secondary)' }
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <span
+                className="text-2xs font-bold px-1.5 py-0.5 rounded"
+                style={{ backgroundColor: `${info.accent}22`, color: info.accent }}
+              >
+                {moneda}
+              </span>
             </div>
-            <span className="text-2xs text-text-muted flex-1 min-w-[200px]">
-              {moneda === 'MXN'
-                ? 'Mercado México · todo en pesos (MXN), sin tipo de cambio.'
-                : 'Mercado EUA · todo en dólares (USD), con tipo de cambio.'}
-            </span>
-            <span
-              className="text-2xs font-bold px-2 py-0.5 rounded"
-              style={{ backgroundColor: `${info.accent}22`, color: info.accent }}
-            >
-              {moneda}
-            </span>
-          </div>
 
-          {/* Selector de MODO de cotización (v1.21) */}
-          <div className="card p-3 mb-4 flex flex-wrap items-center gap-3">
-            <span className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">
-              Tipo de cotización
-            </span>
-            <div className="inline-flex rounded-md border border-border-subtle overflow-hidden">
-              {([
-                ['directa', 'Directa'],
-                ['optimizada', 'Optimizada'],
-                ['optimizada_revision', 'Optimizada + revisión'],
-              ] as [TipoCotizacion, string][]).map(([modo, label]) => (
-                <button
-                  key={modo}
-                  onClick={() => handleModeChange(modo)}
-                  className={`px-3 py-1.5 text-2xs font-semibold transition-colors ${
-                    tipoCotizacion === modo
-                      ? 'bg-bnp-green/20 text-bnp-green'
-                      : 'bg-bg-surface text-text-secondary hover:text-text-primary'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+            <div className="h-5 w-px bg-border-subtle hidden sm:block" />
+
+            {/* Tipo de cotización (descripciones en tooltip) */}
+            <div className="flex items-center gap-2">
+              <span className="text-2xs font-semibold text-text-muted uppercase tracking-wider">
+                Cotización
+              </span>
+              <div className="inline-flex rounded-md border border-border-subtle overflow-hidden">
+                {([
+                  ['directa', 'Directa', 'Se fabrica EXACTAMENTE lo que pide el cliente. Sin optimización.'],
+                  ['optimizada', 'Optimizada', 'El sistema propone una alternativa más rentable (reducir largo + compensar cono).'],
+                  ['optimizada_revision', 'Optimizada + revisión', 'Optimizada, pero un cambio de spec crítica (reducción > 35%) requiere aprobación.'],
+                ] as [TipoCotizacion, string, string][]).map(([modo, label, hint]) => (
+                  <button
+                    key={modo}
+                    onClick={() => handleModeChange(modo)}
+                    title={hint}
+                    className={`px-3 py-1.5 text-2xs font-semibold transition-colors ${
+                      tipoCotizacion === modo
+                        ? 'bg-bnp-green/20 text-bnp-green'
+                        : 'bg-bg-surface text-text-secondary hover:text-text-primary'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
-            <span className="text-2xs text-text-muted flex-1 min-w-[200px]">
+
+            {/* Recordatorio corto del modo activo; se oculta en pantallas chicas */}
+            <span className="text-2xs text-text-muted flex-1 min-w-[140px] text-right hidden lg:block">
               {tipoCotizacion === 'directa'
-                ? 'Se fabrica EXACTAMENTE lo que pide el cliente. Sin optimización.'
+                ? 'Tal cual lo pide el cliente.'
                 : tipoCotizacion === 'optimizada'
-                ? 'El sistema propone una alternativa más rentable (reducir largo + compensar cono).'
-                : 'Optimizada, pero un cambio de spec crítica (reducción > 35%) requiere aprobación.'}
+                ? 'Propone una versión más rentable.'
+                : 'Optimizada; reducción >35% pide aprobación.'}
             </span>
           </div>
 

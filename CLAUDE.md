@@ -333,11 +333,11 @@ de pushear directo."
 
 Cosas que Fabrizzio espera por default, sin tener que pedirlas cada vez:
 
-1. **Después de cada cambio, feature o fix que se mete a producción**, entregarle un **texto de anuncio** listo para mandar al equipo/clientes/WhatsApp. Formato sugerido:
-   - Título corto: "Cotizador v1.XX disponible" o "Nueva mejora en el cotizador"
-   - 2-5 bullets en lenguaje no técnico explicando QUÉ es nuevo y POR QUÉ le importa al vendedor (no listar archivos modificados ni jerga de código).
-   - Cerrar con "Cualquier cosa, repórtalo desde el botón Reportar de la app."
-   - El anuncio se entrega DESPUÉS del push exitoso a `main` (cuando Vercel ya está desplegando), no antes.
+1. **Después de cada cambio, feature o fix que se mete a producción**, hacer SIEMPRE estas tres cosas (no una, las tres):
+   - **(a) Actualizar la pestaña de Novedades dentro de la app** (`app/cotizador/components/WhatsNewModal.tsx`): agregar/ajustar el punto correspondiente para que el equipo vea TODO lo que cambió y no se omita nada. Si quieres que el modal vuelva a saltar solo para todos, hay que subir `APP_VERSION` (la clave de localStorage depende de la versión); si no se sube, el cambio queda visible al picar el botón "Novedades".
+   - **(b) Texto de anuncio corto estilo WhatsApp**: título corto ("Cotizador vX.XX disponible" / "Nueva mejora"), 2-5 bullets en lenguaje no técnico (QUÉ es nuevo y POR QUÉ le importa al vendedor, sin jerga de código), cerrando con "Cualquier cosa, repórtalo desde el botón Reportar de la app."
+   - **(c) Mensaje para enviar por correo**: versión un poco más formal del anuncio (saludo + contexto breve + los cambios + cierre/firma), lista para copiar y pegar.
+   - Las tres se entregan DESPUÉS del push exitoso a `main` (cuando Vercel ya está desplegando), no antes.
 2. **Comunicación en español**, tono directo, sin emojis a menos que él los use.
 3. **Cuando una pregunta técnica le requiera "pensar"**, preguntarle con opciones concretas en vez de respuestas abiertas (él lo prefiere para tomar decisiones rápido).
 4. **No proponer cambios fuera de scope** — si veo algo más por arreglar, lo flageo como tarea aparte (`mcp__ccd_session__spawn_task`) en vez de meterlo al cambio actual.

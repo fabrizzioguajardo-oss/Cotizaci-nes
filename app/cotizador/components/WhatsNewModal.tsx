@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Rocket, Building2, Layers, Calculator, User, History, ShieldCheck, Bug } from 'lucide-react';
+import { X, Rocket, Building2, Eye, Layers, Calculator, User, History, ShieldCheck, Bug } from 'lucide-react';
 import { APP_VERSION } from '@/lib/version';
 
 interface Props {
@@ -30,6 +30,17 @@ const SECCIONES: Seccion[] = [
       'Extruidos opera todo en pesos mexicanos, sin tipo de cambio, con su propio formato de cotización, su logo y sus colores de marca.',
       'En México el envío es por recolección en almacén o por Castores, y el documento al cliente sale con el formato de Extruidos e incluye IVA.',
       'El cotizador se adapta solo a la empresa que elijas: moneda, transporte, PDF e identidad cambian sin que hagas nada extra.',
+    ],
+  },
+  {
+    icon: Eye,
+    color: '#3E8EDE',
+    titulo: 'Más claro y a prueba de errores',
+    puntos: [
+      'Pantalla más despejada: la empresa y el tipo de cotización ahora viven en una sola barra compacta arriba, dejando más espacio para capturar el pedido.',
+      'Si pasas el cursor sobre un término técnico (Calibre/GA, Cono, TC, Base EDSA), aparece una explicación corta de qué significa.',
+      'El tipo de cambio es obligatorio en cotizaciones de EUA: si lo dejas vacío se marca en rojo y no deja generar el documento, para que ningún precio salga mal calculado.',
+      'Los campos numéricos ya no aceptan negativos por error, y el botón de cerrar sesión quedó separado para no picarlo sin querer.',
     ],
   },
   {
