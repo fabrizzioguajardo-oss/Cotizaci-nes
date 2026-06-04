@@ -348,6 +348,46 @@ if (j1 === j2) {
   casosFallidos++;
 }
 
+// === Paridad PDF Extruidos (México, tc=1) ===============================
+// El PDF al cliente de Extruidos calcula SUBTOTAL/IVA/TOTAL. Antes lo hacía
+// con aritmética propia, divergiendo del motor (computeQuote) que el servidor
+// usa para el snapshot inmutable — el documento firmado y el registro podían
+// mentir distinto. Ahora el PDF recibe `quote.totals.revenueUSD` como subtotal
+// autoritativo. Este caso fija el contrato: el subtotal que el PDF muestra por
+// fila (precio × rollosPallet × palletTrailer) DEBE igualar el revenue del
+// motor con tc=1 (México). Si alguien cambia cualquiera de las dos fórmulas,
+// este test truena antes de llegar a producción.
+console.log('\n• Paridad PDF Extruidos: subtotal del documento == revenue del motor (tc=1)');
+{
+  const mxItems: LineItem[] = [
+    baseItem({
+      id: 1, aCliente: 20, calCliente: 60, lCliente: 1000,
+      conoCliente: 0.4, aReal: 20, calReal: 60, lReal: 1000, cono: 0.4,
+      rollosPallet: 320, palletTrailer: 1, precioCliente: 121, costoBase: 30,
+    }),
+    baseItem({
+      id: 2, aCliente: 20, calCliente: 60, lCliente: 1000,
+      conoCliente: 0.4, aReal: 20, calReal: 60, lReal: 1000, cono: 0.4,
+      rollosPallet: 320, palletTrailer: 2, precioCliente: 117, costoBase: 30,
+    }),
+  ];
+  const mxTrailers: Trailer[] = [
+    { id: 1, destino: 'México', transport_usd: 0, kg_max: TRAILER_MAX_KG },
+  ];
+  const mxQuote = computeQuote(mxItems, mxTrailers, 1); // tc=1 = México (sin conversión)
+  // Misma fórmula que muestra el PDF de Extruidos por fila.
+  const subtotalPDF = mxItems.reduce(
+    (acc, it) => acc + it.precioCliente * it.rollosPallet * it.palletTrailer, 0,
+  );
+  const diff = Math.abs(mxQuote.totals.revenueUSD - subtotalPDF);
+  if (diff < 0.01) {
+    console.log(`  ✓ subtotal documento (${subtotalPDF.toFixed(2)}) == revenue motor (${mxQuote.totals.revenueUSD.toFixed(2)})`);
+  } else {
+    console.error(`  ✗ subtotal documento (${subtotalPDF.toFixed(2)}) ≠ revenue motor (${mxQuote.totals.revenueUSD.toFixed(2)}) — diff ${diff.toFixed(4)}`);
+    casosFallidos++;
+  }
+}
+
 // === Resumen final ======================================================
 console.log('\n' + '='.repeat(95));
 console.log(`Casos: ${casos.length} ejecutados, ${casosFallidos} fallidos`);

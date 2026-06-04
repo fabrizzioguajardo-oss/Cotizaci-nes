@@ -62,7 +62,13 @@ export const PRICE_PER_LB_WARN_HIGH = 1.60;
 // Fórmula validada contra todos los camiones reales.
 // Valor RAW: util para algoritmo inverso (suggestRealSpec) donde necesitamos precision.
 export function calcPN(ancho: number, largo: number, calibre: number): number {
-  return ancho * largo * calibre * PN_FORMULA_CONST;
+  const v = ancho * largo * calibre * PN_FORMULA_CONST;
+  // Un peso físico no puede ser negativo ni NaN. Un spec corrupto (largo
+  // negativo en un draft, inputs vacíos que dan NaN) se clampa a 0 en vez de
+  // propagar pesos y costos negativos por todo el motor. Sin esto,
+  // Math.floor() de un valor negativo redondea hacia MÁS negativo (−3.81 →
+  // −3.82) e infla la "reducción de material" arriba de 100%.
+  return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
 // Peso neto FACTURABLE: trunca el PN hacia abajo a 2 decimales (NO redondea
@@ -72,6 +78,8 @@ export function calcPN(ancho: number, largo: number, calibre: number): number {
 // cuando el rollo lo alcanza completo. Usado en TODOS los flujos de costo y
 // despliegue al cliente (calcLineItem, suggestRealSpec, PDFs, kg trailer).
 export function calcPNFacturable(ancho: number, largo: number, calibre: number): number {
+  // raw ya viene clampado a >= 0 finito desde calcPN, así que Math.floor()
+  // nunca redondea "hacia más negativo".
   const raw = calcPN(ancho, largo, calibre);
   return Math.floor(raw * 100) / 100;
 }

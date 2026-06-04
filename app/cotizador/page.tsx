@@ -566,7 +566,11 @@ export default function CotizadorPage() {
         vendedorEmail: profile?.email,
       };
       const logoExt = await loadLogo('/logos/extruidos.jpg', 'JPEG');
-      const doc = generateExtruidosQuotePDF(items, metaMX, logoExt);
+      // Pasa el subtotal AUTORITATIVO del motor (en México tc=1, así que
+      // revenueUSD ya está en MXN). El servidor recalcula el mismo árbol con
+      // computeQuote al guardar el snapshot, así que el PDF firmado y el
+      // registro inmutable usan la MISMA cifra — no pueden divergir.
+      const doc = generateExtruidosQuotePDF(items, metaMX, logoExt, quote.totals.revenueUSD);
       savePDF(doc, `Cotizacion_Extruidos_${(cliente || 'cliente').replace(/\s+/g, '_')}_${numero}.pdf`);
       void persistirSnapshot('quote', numero, {
         cliente, contacto, direccion,

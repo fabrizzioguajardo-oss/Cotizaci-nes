@@ -1,0 +1,30 @@
+#!/bin/sh
+# ───────────────────────────────────────────────────────────────────────────
+# Candado pre-push del SICE Cotizador.
+#
+# Corre la red de seguridad (npm run verify = invariantes de margen/PB/paridad)
+# y el typecheck ANTES de permitir un push a GitHub. Si algo falla, el push se
+# aborta y NO llega a Vercel — así una regresión en la matemática del cotizador
+# nunca se despliega en silencio.
+#
+# Se activa UNA vez por máquina con:
+#     git config core.hooksPath .githooks
+# (ya quedó configurado en la Mac de Fabrizzio; un clon nuevo debe repetirlo).
+#
+# Para saltarlo en una emergencia puntual:  git push --no-verify
+# ───────────────────────────────────────────────────────────────────────────
+set -e
+
+echo "→ pre-push: red de seguridad (npm run verify)…"
+if ! npm run verify --silent; then
+  echo "✗ npm run verify falló — push abortado. Arregla las invariantes antes de pushear."
+  exit 1
+fi
+
+echo "→ pre-push: typecheck (tsc --noEmit)…"
+if ! npx tsc --noEmit; then
+  echo "✗ typecheck falló — push abortado. Arregla los errores de tipo antes de pushear."
+  exit 1
+fi
+
+echo "✓ pre-push OK — invariantes y tipos sanos. Pusheando…"

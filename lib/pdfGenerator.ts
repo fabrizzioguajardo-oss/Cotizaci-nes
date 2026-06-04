@@ -434,6 +434,12 @@ export function generateExtruidosQuotePDF(
   items: LineItem[],
   meta: ExtruidosMeta,
   logo?: LogoImage | null,
+  // Subtotal AUTORITATIVO calculado por el motor (computeQuote.totals.revenueUSD,
+  // que en México viene en MXN porque tc=1). Cuando se pasa, el documento usa
+  // ESTE número para SUBTOTAL/IVA/TOTAL en vez de su propia suma — así el PDF
+  // firmado por el cliente y el snapshot inmutable del servidor JAMÁS pueden
+  // divergir. La suma local de filas queda solo como verificación de paridad.
+  engineSubtotal?: number,
 ): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
@@ -547,8 +553,19 @@ export function generateExtruidosQuotePDF(
     margin: { left: 14, right: 14 },
   });
 
-  const iva = subtotal * IVA_RATE;
-  const total = subtotal + iva;
+  // SUBTOTAL autoritativo: si el motor lo proveyó, ese manda; la suma local
+  // (`subtotal`) solo sirve para detectar si la aritmética del PDF se desvió
+  // del motor (drift que rompería la paridad documento ↔ snapshot).
+  const subtotalFinal = engineSubtotal != null ? engineSubtotal : subtotal;
+  if (engineSubtotal != null && Math.abs(engineSubtotal - subtotal) > 0.01) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[extruidos-pdf] El subtotal del motor (${engineSubtotal.toFixed(2)}) difiere ` +
+      `de la suma de filas del PDF (${subtotal.toFixed(2)}). Revisar paridad PDF/motor.`,
+    );
+  }
+  const iva = subtotalFinal * IVA_RATE;
+  const total = subtotalFinal + iva;
 
   let ty = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
   const totalRow = (label: string, value: string, bold = false) => {
@@ -559,7 +576,7 @@ export function generateExtruidosQuotePDF(
     ty += bold ? 6 : 5;
   };
   doc.setTextColor(...TEXT_DARK);
-  totalRow('SUBTOTAL:', mxn(subtotal));
+  totalRow('SUBTOTAL:', mxn(subtotalFinal));
   totalRow('I.V.A. (16%):', mxn(iva));
   doc.setFillColor(...EXT_NAVY);
   doc.rect(125, ty - 4, 71, 8, 'F');

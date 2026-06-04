@@ -153,7 +153,13 @@ function detectWarnings(
     // estructuralmente incapaz de detectar sobrecompensación de cono (que es
     // exactamente lo que esta invariante existe para vigilar). Fallback a
     // item.cono para drafts viejos migrados que aún no tienen conoCliente.
-    const conoClienteEf = item.conoCliente ?? item.cono;
+    // conoCliente puede venir en 0 por dos razones: (a) draft viejo migrado
+    // que nunca tuvo el campo, (b) el vendedor no llenó el cono del cliente.
+    // En ambos casos un cono de 0 NO es un "cono esperado" real (los conos
+    // físicos son >= 0.1 kg), así que caemos al cono real del item. El `??`
+    // no bastaba: solo atrapa null/undefined, no el 0 — dejaba pbCliente
+    // subvaluado y disparaba un pb_excedido falso-positivo.
+    const conoClienteEf = item.conoCliente > 0 ? item.conoCliente : item.cono;
     const pbCliente = result.pnTeoricoClienteKg + conoClienteEf;
     const pbReal = result.pbReal;
     if (pbCliente > 0) {
