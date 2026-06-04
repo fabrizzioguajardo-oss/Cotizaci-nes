@@ -93,7 +93,7 @@ export default function TopBar(p: Props) {
                 <span className="text-text-muted">·</span>{' '}
                 <span className="text-text-primary">Cotizador</span>
                 <span
-                  className="ml-1 px-1.5 py-0.5 rounded text-2xs font-bold tracking-wider bg-bnp-amber/20 text-bnp-amber border border-bnp-amber/40"
+                  className="ml-1 px-1.5 py-0.5 rounded text-2xs font-semibold tracking-wider bg-bg-surface text-text-muted border border-border-subtle"
                   title="Beta — reportar bugs y sugerencias"
                 >
                   BETA
@@ -245,26 +245,35 @@ export default function TopBar(p: Props) {
           </div>
         )}
 
-        <div className="col-span-4 grid grid-cols-4 gap-3">
+        <div className="col-span-4 grid grid-cols-4 gap-3 items-stretch">
+          {/* Revenue y Costo a gris: son auditoría, no la decisión del vendedor.
+              Antes Revenue iba en verde y competía con el verde de marca/acción. */}
           <div className="bg-bg-surface rounded-md p-2.5 text-center">
             <p className="text-2xs text-text-muted uppercase tracking-wider">Revenue {p.moneda}</p>
-            <p className="mono text-sm font-semibold mt-0.5 text-bnp-green">
+            <p className="mono text-sm font-medium mt-0.5 text-text-secondary">
               {fmtUSD(p.totalRevenue)}
             </p>
           </div>
           <div className="bg-bg-surface rounded-md p-2.5 text-center">
             <p className="text-2xs text-text-muted uppercase tracking-wider">Costo {p.moneda}</p>
-            <p className="mono text-sm font-semibold mt-0.5">{fmtUSD(p.totalCost)}</p>
+            <p className="mono text-sm font-medium mt-0.5 text-text-secondary">{fmtUSD(p.totalCost)}</p>
           </div>
-          <div className="bg-bg-surface rounded-md p-2.5 text-center">
-            <p className="text-2xs text-text-muted uppercase tracking-wider">Utilidad</p>
-            <p className="mono text-sm font-semibold mt-0.5" style={{ color: utilidadColor }}>
+          {/* Utilidad: el dato que importa de un vistazo — ÚNICO KPI resaltado
+              (borde + color del semáforo + número más grande). */}
+          <div
+            className="rounded-md p-2.5 text-center border"
+            style={{ backgroundColor: `${utilidadColor}14`, borderColor: `${utilidadColor}55` }}
+          >
+            <p className="text-2xs uppercase tracking-wider font-semibold" style={{ color: utilidadColor }}>
+              Utilidad
+            </p>
+            <p className="mono text-base font-bold mt-0.5" style={{ color: utilidadColor }}>
               {p.utilidadGlobal === null ? '—' : `${(p.utilidadGlobal * 100).toFixed(1)}%`}
             </p>
           </div>
           <div className="bg-bg-surface rounded-md p-2.5 text-center">
             <p className="text-2xs text-text-muted uppercase tracking-wider">KG neto</p>
-            <p className="mono text-sm font-semibold mt-0.5" style={{ color: kgColor }}>
+            <p className="mono text-sm font-medium mt-0.5" style={{ color: kgColor }}>
               {p.usaTC
                 ? `${fmtNum(p.kgNetoTotal, 0)} / ${fmtNum(TRAILER_MAX_KG, 0)}`
                 : fmtNum(p.kgNetoTotal, 0)}

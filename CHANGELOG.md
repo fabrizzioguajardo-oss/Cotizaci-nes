@@ -55,6 +55,12 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
   costo" (8+ campos que el selector de cono autollena) arranca plegada mostrando
   solo el costo total; se abre con "Ajustar a mano". Baja el formulario de ~25
   campos visibles a ~17 sin esconder nada que el motor necesite.
+- **Jerarquía del TopBar**: de los 4 KPIs, **Utilidad** se vuelve el único
+  resaltado (borde + color del semáforo + número más grande); Revenue y Costo
+  pasan a gris (auditoría, no decisión). El número de Revenue dejó de ir en
+  verde (competía con el verde de marca/acción). El pill "BETA" pasó de ámbar a
+  neutro para reservar el ámbar al semáforo de margen. Ataca el "todo grita al
+  mismo volumen" que detectó la mesa.
 
 ### Fase A (lista) — fundación multi-empresa
 
