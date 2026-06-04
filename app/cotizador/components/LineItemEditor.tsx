@@ -9,6 +9,7 @@ import SpecCards from './SpecCards';
 import { usePriceData } from '@/lib/dataStore';
 import { buildAutoFill, deriveResinClass, type ConoOption } from '@/lib/lookupEngine';
 import { useState } from 'react';
+import { ChevronRight } from 'lucide-react';
 
 interface Props {
   item: LineItem;
@@ -27,6 +28,9 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
   // Calidad del último match aplicado (para mostrar badge en la sección de costos)
   const [matchQuality, setMatchQuality] = useState<'exact' | 'close' | 'interpolated' | null>(null);
   const [matchSource, setMatchSource] = useState<string>('');
+  // El desglose de costo se autollena al elegir el cono y casi nunca se edita a
+  // mano; arranca PLEGADO para no saturar el formulario (progressive disclosure).
+  const [costosAbiertos, setCostosAbiertos] = useState(false);
 
   const num = (key: keyof LineItem) =>
     (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -294,8 +298,16 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
 
       {/* === Sección 3: Costos MXN/kg (build-up) === */}
       <section className="border border-border bg-bg-surface rounded-lg p-4">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => setCostosAbiertos((o) => !o)}
+            className="flex items-center gap-2 text-left"
+            title="Mostrar u ocultar el desglose de costo"
+          >
+            <ChevronRight
+              className={`w-4 h-4 text-text-muted transition-transform ${costosAbiertos ? 'rotate-90' : ''}`}
+            />
             <span className="w-2 h-2 rounded-full bg-bnp-amber" />
             <h4
               className="text-xs font-semibold text-text-primary uppercase tracking-wider"
@@ -303,10 +315,32 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
             >
               Desglose de costo (MXN/kg)
             </h4>
+          </button>
+          <div className="flex items-center gap-3">
+            <span className="mono text-sm font-semibold text-bnp-amber">
+              {fmtNum(result.costoTotalKgMXN, 3)} + {fmtNum(result.transpKgMXN, 3)} flete
+            </span>
+            <MatchQualityBadge quality={matchQuality} source={matchSource} />
           </div>
-          <MatchQualityBadge quality={matchQuality} source={matchSource} />
         </div>
-        <p className="text-2xs text-text-muted mb-3">
+
+        {!costosAbiertos && (
+          <p className="text-2xs text-text-muted mt-2">
+            Se llena solo al elegir el cono.{' '}
+            <button
+              type="button"
+              onClick={() => setCostosAbiertos(true)}
+              className="text-bnp-green font-semibold hover:underline"
+            >
+              Ajustar a mano
+            </button>{' '}
+            si necesitas cambiarlo.
+          </p>
+        )}
+
+        {costosAbiertos && (
+        <>
+        <p className="text-2xs text-text-muted mb-3 mt-3">
           Cada adder se puede cargar del catálogo central (botón <span className="text-bnp-green">catálogo</span>).
           Lo que se centraliza una vez se reusa en todas las cotizaciones.
         </p>
@@ -485,7 +519,7 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
           <div>
             <label className="label">Rollos / caja</label>
             <input
-              type="number" step="1"
+              type="number" step="1" min="0"
               value={item.rollosCaja || ''}
               onChange={num('rollosCaja')}
               className="input"
@@ -500,14 +534,8 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
             />
           </div>
         </div>
-        <div className="mt-3 pt-3 border-t border-border-subtle flex items-center justify-between">
-          <span className="text-2xs text-text-secondary uppercase tracking-wider font-semibold">
-            Costo total MXN/kg
-          </span>
-          <span className="mono text-base font-semibold text-bnp-amber">
-            {fmtNum(result.costoTotalKgMXN, 3)} + {fmtNum(result.transpKgMXN, 3)} flete
-          </span>
-        </div>
+        </>
+        )}
       </section>
 
       {/* === Precio del cliente (verde, prominente) === */}

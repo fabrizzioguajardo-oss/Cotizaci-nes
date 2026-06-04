@@ -51,6 +51,10 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
   cotización pasaron de dos tarjetas altas apiladas a una sola fila compacta, y
   las descripciones largas se movieron a tooltips — así la captura del pedido
   (la tarea principal) sube y deja de quedar enterrada bajo la configuración.
+- **Formulario plegable (progressive disclosure)**: la sección "Desglose de
+  costo" (8+ campos que el selector de cono autollena) arranca plegada mostrando
+  solo el costo total; se abre con "Ajustar a mano". Baja el formulario de ~25
+  campos visibles a ~17 sin esconder nada que el motor necesite.
 
 ### Fase A (lista) — fundación multi-empresa
 
