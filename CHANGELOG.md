@@ -2,18 +2,35 @@
 
 Registro de cambios entre versiones. Las versiones más recientes aparecen primero.
 
-> **Nota de versionado:** la versión que VE el usuario es **v1.10** — se presenta
-> como una **actualización mayor** que consolida todo el arco de trabajo
-> reciente. Internamente ese arco pasó por builds 1.09 → 1.22 (detallados abajo
-> como historial técnico). El indicador de la app, el modal de Novedades y los
-> documentos muestran **v1.10** a propósito.
+> **Nota de versionado:** la versión que VE el usuario es **v2.0** — estrena
+> multi-empresa (BioNovaPack USA + Extruidos México) y consolida el arco previo
+> que de cara al equipo se presentó como **v1.10**. Internamente ese arco pasó
+> por builds 1.09 → 1.22 (detallados abajo como historial técnico). El salto
+> 1.10 → 2.0 es a propósito: cotizar para una segunda empresa/país es el cambio
+> más grande del proyecto.
 
 ---
 
-## En desarrollo (post-v1.10) — Multi-empresa: BioNovaPack (USA) + Extruidos (México)
+## v2.0 (versión visible) — Multi-empresa: BioNovaPack (USA) + Extruidos (México)
 
-> Trabajo en progreso, **no anunciado al equipo todavía**. El indicador visible
-> sigue en v1.10 hasta que la feature esté completa (Fase B pendiente).
+> **Lanzada y anunciada al equipo.** El indicador de la app, el modal de
+> Novedades y los documentos muestran **v2.0**. Es la actualización más grande
+> del proyecto: cotizar para una segunda empresa, mercado y moneda.
+
+### Cierre v2.0 — auditoría mesa redonda (confiabilidad)
+
+- **Paridad PDF Extruidos ↔ motor**: el PDF de Extruidos toma el subtotal de
+  `computeQuote` (en México tc=1, así que `revenueUSD` ya está en MXN) en vez de
+  calcularlo aparte. El documento firmado por el cliente y el snapshot inmutable
+  del servidor ya no pueden divergir. `verify-pdf-parity` ahora cubre el caso
+  Extruidos (subtotal del documento == revenue del motor con tc=1).
+- **Robustez de specs**: `calcPN`/`calcPNFacturable` clampan largo negativo y
+  NaN a 0 (un spec corrupto ya no propaga PN negativo ni infla la reducción de
+  material). `computeQuote` trata `conoCliente = 0` como "no capturado" y cae al
+  cono real (evita un `pb_excedido` falso-positivo).
+- **Candado pre-push** (`.githooks/pre-push`): corre `npm run verify` +
+  `typecheck` antes de cada push; una regresión en la matemática nunca llega a
+  Vercel. Se activa con `git config core.hooksPath .githooks`.
 
 ### Fase A (lista) — fundación multi-empresa
 
@@ -91,7 +108,7 @@ ALTER TABLE cotizaciones ADD COLUMN IF NOT EXISTS transporte_mx TEXT NOT NULL DE
 
 ---
 
-## v1.10 (versión visible) — Gran actualización del cotizador
+## v1.10 — Gran actualización del cotizador (consolidada dentro de v2.0)
 
 Reúne todo lo construido en los builds internos 1.09–1.22. De cara al equipo es
 **una sola actualización grande**, comunicada dentro de la app con un **modal de

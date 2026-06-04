@@ -1,6 +1,6 @@
 'use client';
 
-import { X, Rocket, Layers, Calculator, User, History, ShieldCheck, Bug } from 'lucide-react';
+import { X, Rocket, Building2, Layers, Calculator, User, History, ShieldCheck, Bug } from 'lucide-react';
 import { APP_VERSION } from '@/lib/version';
 
 interface Props {
@@ -22,9 +22,20 @@ interface Seccion {
 
 const SECCIONES: Seccion[] = [
   {
+    icon: Building2,
+    color: '#1F2A4D',
+    titulo: 'Lo más grande: ahora cotizas para dos empresas',
+    puntos: [
+      'Al entrar eliges para quién cotizas: BioNovaPack (Estados Unidos, en dólares) o Extruidos (México, en pesos).',
+      'Extruidos opera todo en pesos mexicanos, sin tipo de cambio, con su propio formato de cotización, su logo y sus colores de marca.',
+      'En México el envío es por recolección en almacén o por Castores, y el documento al cliente sale con el formato de Extruidos e incluye IVA.',
+      'El cotizador se adapta solo a la empresa que elijas: moneda, transporte, PDF e identidad cambian sin que hagas nada extra.',
+    ],
+  },
+  {
     icon: Layers,
     color: '#5BAA47',
-    titulo: 'Nueva forma de cotizar: dos modos claros',
+    titulo: 'Dos modos claros de cotizar',
     puntos: [
       'Elige el tipo de cotización arriba del panel: Directa, Optimizada u Optimizada + revisión.',
       'Directa: cotizas exactamente lo que pide el cliente, sin cambios.',
@@ -73,6 +84,8 @@ const SECCIONES: Seccion[] = [
     puntos: [
       'Antes de generar un PDF, el sistema revisa la cotización y avisa si el paquete pesaría de más, el margen quedó bajo el 12%, un trailer excede capacidad, o falta información.',
       'Las verificaciones corren solas y muestran las alertas antes de mandar el documento al cliente.',
+      'En las cotizaciones de Extruidos, el total del PDF y el registro interno siempre coinciden al centavo.',
+      'Una red de seguridad automática revisa la matemática del cotizador antes de publicar cualquier cambio nuevo.',
     ],
   },
   {
