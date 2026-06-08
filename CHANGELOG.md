@@ -61,6 +61,22 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
   verde (competía con el verde de marca/acción). El pill "BETA" pasó de ámbar a
   neutro para reservar el ámbar al semáforo de margen. Ataca el "todo grita al
   mismo volumen" que detectó la mesa.
+- **Auditoría del PDF de salida (hallazgo #4 de la mesa)**: se revisaron a ojo
+  los tres documentos reales (cotización BNP, PO, cotización Extruidos) con
+  `scripts/audit-pdfs.ts`. Fixes en los PDFs de BioNovaPack:
+  - **Spec legible**: las medidas usaban `″`/`′` (comillas tipográficas) que la
+    fuente del PDF no soporta y salían como "3"/"2"; ahora usan `"`/`'` rectas
+    (`9.87" × 80GA × 5000'`).
+  - **Separador de miles**: los montos pasaban por `toFixed(2)` sin comas
+    (`$46853.05`); ahora `$46,853.05` (helper `money()`), igual que Extruidos.
+  - **Banda del TOTAL**: empezaba en x=125 y la etiqueta "TOTAL (USD):" caía
+    fuera del relleno (texto blanco sobre blanco → "TAL (USD):"); ahora la banda
+    arranca en x=108 y cubre la etiqueta.
+  - **Precio unitario reconcilia**: el precio se redondeaba a 2 decimales y
+    `cantidad × precio` no cuadraba con el total; ahora muestra hasta 4 decimales
+    sin inventar ceros (helper `price()`), así 15876 × $1.125 = $17,860.50.
+  - **PO**: "MXN" se movió al encabezado de columna para que el monto no
+    envuelva a dos renglones.
 
 ### Fase A (lista) — fundación multi-empresa
 

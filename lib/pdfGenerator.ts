@@ -57,6 +57,23 @@ const TEXT_DARK: [number, number, number] = [20, 30, 40];
 const TEXT_GRAY: [number, number, number] = [120, 130, 140];
 const BG_LIGHT: [number, number, number] = [245, 247, 250];
 
+// Monto con separador de miles y 2 decimales fijos (subtotales, totales,
+// costos): 158107.85 -> "158,107.85". jsPDF no formatea solo, así que sin
+// esto los importes salían como "$158107.85" — poco profesional para el cliente.
+function money(n: number): string {
+  if (!Number.isFinite(n)) return '0.00';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Precio unitario: hasta 4 decimales sin inventar ceros (23.75 -> "23.75",
+// 1.125 -> "1.125"). Preserva la precisión real para que cantidad × precio
+// reconcilie con el total de la línea (antes 1.125 se mostraba "1.13" y no
+// cuadraba con el total).
+function price(n: number): string {
+  if (!Number.isFinite(n)) return '0.00';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+}
+
 interface PdfMeta {
   cliente: string;
   contacto?: string;
@@ -190,13 +207,13 @@ export function generateQuotePDF(
     const r = results[i];
     const unidades = item.rollosPallet * item.palletTrailer;
     const totalLine = item.precioCliente * unidades;
-    const description = `${item.desc || 'PALLET WRAP'} - ${item.aCliente}″ × ${item.calCliente}GA × ${item.lCliente}′`;
+    const description = `${item.desc || 'PALLET WRAP'} - ${item.aCliente}" × ${item.calCliente}GA × ${item.lCliente}'`;
     return [
       String(unidades),
       item.unit.toUpperCase(),
       description,
-      `$${item.precioCliente.toFixed(2)}`,
-      `$${totalLine.toFixed(2)}`,
+      `$${price(item.precioCliente)}`,
+      `$${money(totalLine)}`,
     ];
   });
 
@@ -237,18 +254,21 @@ export function generateQuotePDF(
   doc.setFontSize(9);
   doc.setTextColor(...TEXT_DARK);
   doc.text('Subtotal:', 145, y, { align: 'right' });
-  doc.text(`$${subtotal.toFixed(2)}`, 196, y, { align: 'right' });
+  doc.text(`$${money(subtotal)}`, 196, y, { align: 'right' });
   y += 5;
   doc.text('Shipment:', 145, y, { align: 'right' });
-  doc.text(`$${meta.transportUSD.toFixed(2)}`, 196, y, { align: 'right' });
+  doc.text(`$${money(meta.transportUSD)}`, 196, y, { align: 'right' });
   y += 6;
+  // Banda ancha (x=108) para que la etiqueta "TOTAL (USD):" quede DENTRO del
+  // relleno; antes empezaba en x=125 y la etiqueta (texto blanco) caía fuera,
+  // sobre fondo blanco → se leía "TAL (USD):".
   doc.setFillColor(...BNP_GREEN);
-  doc.rect(125, y - 4, 71, 8, 'F');
+  doc.rect(108, y - 4, 88, 8, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('TOTAL (USD):', 145, y + 1, { align: 'right' });
-  doc.text(`$${totals.totalRevenueUSD.toFixed(2)}`, 196, y + 1, { align: 'right' });
+  doc.text(`$${money(totals.totalRevenueUSD)}`, 196, y + 1, { align: 'right' });
 
   // Payment Information
   y += 18;
@@ -315,19 +335,19 @@ export function generatePOPDF(
     const r = results[i];
     const unidades = item.rollosPallet * item.palletTrailer;
     const totalLineMXN = r.costoRolloMXN * unidades;
-    const description = `${item.desc || 'PALLET WRAP'} - ${item.aReal}″ × ${item.calReal}GA × ${item.lReal}′`;
+    const description = `${item.desc || 'PALLET WRAP'} - ${item.aReal}" × ${item.calReal}GA × ${item.lReal}'`;
     return [
       String(unidades),
       item.unit.toUpperCase(),
       description,
-      `$${r.costoRolloMXN.toFixed(2)} MXN`,
-      `$${totalLineMXN.toFixed(2)} MXN`,
+      `$${money(r.costoRolloMXN)}`,
+      `$${money(totalLineMXN)}`,
     ];
   });
 
   autoTable(doc, {
     startY: 95,
-    head: [['QTY', 'UNIT', 'DESCRIPTION (real spec)', 'UNIT COST', 'TOTAL COST']],
+    head: [['QTY', 'UNIT', 'DESCRIPTION (real spec)', 'UNIT COST (MXN)', 'TOTAL COST (MXN)']],
     body,
     theme: 'plain',
     headStyles: {
@@ -364,13 +384,14 @@ export function generatePOPDF(
   doc.text(`TC: ${meta.tc.toFixed(4)} MXN/USD`, 14, y);
   y += 6;
 
+  // Banda ancha (x=108) para que "TOTAL (USD):" quede dentro del relleno.
   doc.setFillColor(...BNP_PURPLE);
-  doc.rect(125, y - 4, 71, 8, 'F');
+  doc.rect(108, y - 4, 88, 8, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
   doc.text('TOTAL (USD):', 145, y + 1, { align: 'right' });
-  doc.text(`$${totalCostUSD.toFixed(2)}`, 196, y + 1, { align: 'right' });
+  doc.text(`$${money(totalCostUSD)}`, 196, y + 1, { align: 'right' });
 
   y += 14;
   doc.setTextColor(...TEXT_DARK);
