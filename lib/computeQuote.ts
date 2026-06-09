@@ -18,6 +18,7 @@ import type { LineItem, Trailer, CalcResult } from '@/types';
 import {
   calcAllTrailerTotals,
   calcLineItem,
+  conoEsperado,
   MARGIN_MIN,
   TRAILER_MAX_KG,
   type TrailerSummary,
@@ -159,7 +160,7 @@ function detectWarnings(
     // físicos son >= 0.1 kg), así que caemos al cono real del item. El `??`
     // no bastaba: solo atrapa null/undefined, no el 0 — dejaba pbCliente
     // subvaluado y disparaba un pb_excedido falso-positivo.
-    const conoClienteEf = item.conoCliente > 0 ? item.conoCliente : item.cono;
+    const conoClienteEf = conoEsperado(item.conoCliente, item.cono);
     const pbCliente = result.pnTeoricoClienteKg + conoClienteEf;
     const pbReal = result.pbReal;
     if (pbCliente > 0) {

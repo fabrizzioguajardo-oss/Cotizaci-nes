@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { LineItem, CalcResult, TipoCotizacion } from '@/types';
-import { suggestRealSpec, sumAdders, MARGIN_MIN, diagnoseSuggestion } from '@/lib/pricingEngine';
+import { suggestRealSpec, sumAdders, MARGIN_MIN, diagnoseSuggestion, conoEsperado } from '@/lib/pricingEngine';
 import MarginSlider from './MarginSlider';
 import SuggestionCard from './SuggestionCard';
 import ComparisonCard from './ComparisonCard';
@@ -94,7 +94,7 @@ export default function TabSugerencia({
       // no el cono real actual. Así conoSugerido se calcula contra el peso
       // bruto declarado y PB_real ≤ PB_cliente se mantiene. Fallback a cono
       // para drafts viejos sin conoCliente.
-      cono: item.conoCliente ?? item.cono,
+      cono: conoEsperado(item.conoCliente, item.cono),
       marginTarget,
     });
     return { suggestion: s, diagnosis: diag };

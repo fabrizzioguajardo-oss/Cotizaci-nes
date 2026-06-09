@@ -2,6 +2,7 @@
 
 import type { LineItem, SuggestionResult } from '@/types';
 import type { SuggestionDiagnosis } from '@/lib/pricingEngine';
+import { conoEsperado } from '@/lib/pricingEngine';
 import { fmtNum, fmtPct, fmtUSD } from '@/lib/format';
 import { AlertTriangle, CheckCircle, ArrowRight, Package } from 'lucide-react';
 
@@ -107,7 +108,7 @@ export default function SuggestionCard({ item, suggestion, diagnosis, conoEfecti
             <div className="pt-2 mt-2 border-t border-bnp-cyan/20 text-2xs">
               <div className="flex justify-between text-text-secondary">
                 <span>Cono cliente:</span>
-                <span className="mono text-text-primary">{fmtNum(item.conoCliente ?? item.cono, 3)} kg</span>
+                <span className="mono text-text-primary">{fmtNum(conoEsperado(item.conoCliente, item.cono), 3)} kg</span>
               </div>
               <div className="flex justify-between text-text-secondary mt-0.5">
                 <span>PB esperado:</span>
@@ -130,7 +131,7 @@ export default function SuggestionCard({ item, suggestion, diagnosis, conoEfecti
                 <span>{conoFinal !== suggestion.conoSugerido ? 'Cono escogido:' : 'Cono sugerido:'}</span>
                 <span className="mono text-bnp-green font-semibold">
                   {fmtNum(conoFinal, 3)} kg
-                  <span className="text-text-muted ml-1">(+{fmtNum(conoFinal - (item.conoCliente ?? item.cono), 2)})</span>
+                  <span className="text-text-muted ml-1">(+{fmtNum(conoFinal - (conoEsperado(item.conoCliente, item.cono)), 2)})</span>
                 </span>
               </div>
               <div className="flex justify-between text-text-secondary mt-0.5">
@@ -152,7 +153,7 @@ export default function SuggestionCard({ item, suggestion, diagnosis, conoEfecti
               <p className="text-2xs text-text-secondary">
                 Al reducir el largo, el rollo pesaría {fmtNum(suggestion.pbCliente - suggestion.pnReal, 2)} kg
                 menos del PB que el cliente espera. Subiendo el cono de{' '}
-                <span className="mono text-text-primary">{fmtNum(item.conoCliente ?? item.cono, 2)} kg</span> a{' '}
+                <span className="mono text-text-primary">{fmtNum(conoEsperado(item.conoCliente, item.cono), 2)} kg</span> a{' '}
                 <span className="mono text-bnp-green font-semibold">{fmtNum(conoFinal, 2)} kg</span>,
                 el paquete final pesa{' '}
                 <span className="mono text-text-primary">{fmtNum(pbFinal, 2)} kg</span>

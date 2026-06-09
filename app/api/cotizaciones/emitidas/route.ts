@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { hashSnapshot, type Snapshot } from '@/lib/snapshotEmitida';
 import { computeQuote } from '@/lib/computeQuote';
+import { tcEfectivo } from '@/lib/empresa';
 import { getSupabaseServer as getAuthedSupabase } from '@/lib/supabaseServer';
 
 export const runtime = 'nodejs';
@@ -68,7 +69,15 @@ export async function POST(req: NextRequest) {
   // cliente (best-effort) en vez de rechazar la emisión.
   if (Array.isArray(body.snapshot.items) && Array.isArray(body.snapshot.trailers)) {
     try {
-      const tcSnap = Number(body.snapshot.meta.tc) || 0;
+      // tc AUTORITATIVO derivado de la EMPRESA del snapshot, no del meta.tc
+      // crudo que controla el cliente. En México (extruidos) tcEfectivo fuerza
+      // 1 sin importar lo que venga, así un navegador adversario no puede mandar
+      // empresa=extruidos + tc=18.5 y lograr que el servidor 'autoritativo'
+      // divida costos MXN como si fueran USD (firmando un total falso con hash
+      // válido). Fallback a 'bionovapack' para snapshots viejos (schema v1) sin
+      // empresa → usa el tc crudo, idéntico al comportamiento previo.
+      const empresaSnap = body.snapshot.meta.empresa ?? 'bionovapack';
+      const tcSnap = tcEfectivo(empresaSnap, Number(body.snapshot.meta.tc) || 0);
       body.snapshot.quote = computeQuote(body.snapshot.items, body.snapshot.trailers, tcSnap);
     } catch (e) {
       // eslint-disable-next-line no-console

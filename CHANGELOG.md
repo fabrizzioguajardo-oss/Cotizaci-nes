@@ -78,6 +78,32 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
   - **PO**: "MXN" se movió al encabezado de columna para que el monto no
     envuelva a dos renglones.
 
+### Robustez (re-trace adversarial post-v2.0)
+
+Un re-trace con verificación + refutación adversarial contra el código encontró
+5 huecos preexistentes; se cerraron 4 (el 5º era el `.gitignore`, ya resuelto):
+
+- **Guard de doble-emisión** (riesgo #1): `handleGenerateQuote`/`handleGeneratePO`
+  ahora usan un `emitiendoRef` (reentrada) con try/finally — un doble-clic o un
+  re-clic mientras la descarga tarda ya no crea dos registros "inmutables"
+  duplicados de la misma cotización.
+- **PDF Extruidos a prueba de `$NaN`**: `mxn()` ahora tiene guard
+  `Number.isFinite` (devuelve `$0.00`) y el subtotal autoritativo usa
+  `Number.isFinite(engineSubtotal)` en vez de `!= null`, así un revenue NaN no
+  se imprime en una cotización firmada.
+- **Recompute del servidor deriva el TC de la empresa**: `emitidas/route.ts`
+  ahora hace `tcEfectivo(meta.empresa, meta.tc)` en vez de confiar en el
+  `meta.tc` crudo del cliente — un navegador adversario no puede mandar
+  `empresa=extruidos` + `tc=18.5` y firmar un total falso con hash válido.
+- **`conoCliente=0` unificado**: nuevo helper `conoEsperado(conoCliente, cono)`
+  en `pricingEngine`, usado por `computeQuote`, la migración de drafts,
+  `TabSugerencia` y `SuggestionCard` — antes la UI (`??`) y el motor (`>0`)
+  modelaban el cono 0 distinto.
+
+Pendientes documentados (cobertura, no bugs): endpoint de autosave del draft,
+`lookupEngine`/parsers, modelo del middleware (fail-open + `/api/` exento, la
+defensa real es RLS dentro de cada ruta).
+
 ### Fase A (lista) — fundación multi-empresa
 
 - **Pregunta al inicio**: selector "Cotizar para BioNovaPack · USA / Extruidos · México"

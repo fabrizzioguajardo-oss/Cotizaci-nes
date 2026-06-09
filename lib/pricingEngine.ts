@@ -49,6 +49,16 @@ export function getConoOptionsNear(target: number, count = 3): number[] {
   return sorted.slice(0, count).sort((a, b) => a - b);
 }
 
+// El cono que el cliente ESPERA. Un conoCliente de 0 significa "no capturado"
+// (los conos físicos son >= 0.1 kg), así que cae al cono real del item. Vive en
+// UN solo lugar para que la UI (Tab 2 / sugerencia) y el motor (invariante
+// PB_real ≤ PB_cliente) modelen el 0 de forma idéntica — antes diferían
+// (ternario >0 en computeQuote vs `??` en la UI), produciendo comportamientos
+// divergentes cuando conoCliente=0.
+export function conoEsperado(conoCliente: number, cono: number): number {
+  return conoCliente > 0 ? conoCliente : cono;
+}
+
 // Rangos de validación históricos
 export const REDUCTION_MIN = 0.05;
 export const REDUCTION_MAX = 0.40;

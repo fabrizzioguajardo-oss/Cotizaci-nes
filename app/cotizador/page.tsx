@@ -1,11 +1,12 @@
 'use client';
 
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { LineItem, Trailer, TipoCotizacion, Empresa, TransporteMX, FormaPago } from '@/types';
 import { FORMA_PAGO_LABEL } from '@/types';
 import {
   newLineItem,
   calcLineItem,
+  conoEsperado,
   TRAILER_MAX_KG,
   REDUCTION_WARN_HIGH,
 } from '@/lib/pricingEngine';
@@ -68,6 +69,10 @@ export default function CotizadorPage() {
   // su propio costo logístico y capacidad. Default: 1 trailer.
   const [trailers, setTrailers] = useState<Trailer[]>([newTrailer(1)]);
   const [items, setItems] = useState<LineItem[]>([newLineItem(1, 1)]);
+  // Candado de reentrada: evita que un doble-clic (o un re-clic mientras la
+  // descarga aún no aparece) emita la MISMA cotización dos veces y cree dos
+  // registros "inmutables" duplicados. Se libera en el finally del handler.
+  const emitiendoRef = useRef(false);
   const [activeId, setActiveId] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<'pedido' | 'sugerencia'>('pedido');
 
@@ -205,7 +210,10 @@ export default function CotizadorPage() {
         const migrated = draft.items.map((it) => ({
           ...it,
           trailerId: it.trailerId ?? 1,
-          conoCliente: it.conoCliente ?? it.cono ?? 0,
+          // Mismo criterio que el motor (conoEsperado): un conoCliente en 0 se
+          // trata como "no capturado" y cae al cono real, para que UI y motor
+          // no modelen el 0 distinto.
+          conoCliente: conoEsperado(it.conoCliente ?? 0, it.cono ?? 0),
         }));
         setItems(migrated);
         // Restaurar el arreglo COMPLETO de trailers (destino, kg_max, flete por
@@ -559,103 +567,114 @@ export default function CotizadorPage() {
   // retrasaba la descarga — contradecía el diseño "el papel del cliente es
   // prioritario". Si el snapshot falla, se loguea y no afecta la descarga.
   const handleGenerateQuote = async () => {
+    if (emitiendoRef.current) return; // ya hay una emisión en curso
     if (!tieneNombreVendedor()) return;
     if (!tieneTC()) return;
     if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('cotización al cliente')) return;
+    emitiendoRef.current = true;
+    try {
+      // México (Extruidos): PDF con formato y marca de Extruidos, en MXN.
+      if (empresa === 'extruidos') {
+        const numero = genNumero('COT');
+        const metaMX: ExtruidosMeta = {
+          cliente,
+          correo: correoCliente,
+          contacto,
+          telefono: telefonoCliente,
+          fecha: new Date().toLocaleDateString('es-MX'),
+          numero,
+          formaPago: FORMA_PAGO_LABEL[formaPago],
+          anticipo,
+          vendedor: vendedorFirma,
+          vendedorEmail: profile?.email,
+        };
+        const logoExt = await loadLogo('/logos/extruidos.jpg', 'JPEG');
+        // Pasa el subtotal AUTORITATIVO del motor (en México tc=1, así que
+        // revenueUSD ya está en MXN). El servidor recalcula el mismo árbol con
+        // computeQuote al guardar el snapshot, así que el PDF firmado y el
+        // registro inmutable usan la MISMA cifra — no pueden divergir.
+        const doc = generateExtruidosQuotePDF(items, metaMX, logoExt, quote.totals.revenueUSD);
+        savePDF(doc, `Cotizacion_Extruidos_${(cliente || 'cliente').replace(/\s+/g, '_')}_${numero}.pdf`);
+        void persistirSnapshot('quote', numero, {
+          cliente, contacto, direccion,
+          vendedor: vendedorFirma,
+          fecha: metaMX.fecha, numero, tc: tcCalc,
+          transportUSDActivo: transportUSDTotal,
+          tipoCotizacion,
+          aprobacion: aprobacionSnapshot(),
+          empresa,
+          moneda,
+        });
+        return;
+      }
 
-    // México (Extruidos): PDF con formato y marca de Extruidos, en MXN.
-    if (empresa === 'extruidos') {
-      const numero = genNumero('COT');
-      const metaMX: ExtruidosMeta = {
+      const meta = {
         cliente,
-        correo: correoCliente,
         contacto,
-        telefono: telefonoCliente,
-        fecha: new Date().toLocaleDateString('es-MX'),
-        numero,
-        formaPago: FORMA_PAGO_LABEL[formaPago],
-        anticipo,
+        direccion,
+        fecha: new Date().toLocaleDateString('en-US'),
+        numero: genNumero('Q'),
         vendedor: vendedorFirma,
-        vendedorEmail: profile?.email,
+        tc,
+        transportUSD: transportUSDTotal,
       };
-      const logoExt = await loadLogo('/logos/extruidos.jpg', 'JPEG');
-      // Pasa el subtotal AUTORITATIVO del motor (en México tc=1, así que
-      // revenueUSD ya está en MXN). El servidor recalcula el mismo árbol con
-      // computeQuote al guardar el snapshot, así que el PDF firmado y el
-      // registro inmutable usan la MISMA cifra — no pueden divergir.
-      const doc = generateExtruidosQuotePDF(items, metaMX, logoExt, quote.totals.revenueUSD);
-      savePDF(doc, `Cotizacion_Extruidos_${(cliente || 'cliente').replace(/\s+/g, '_')}_${numero}.pdf`);
-      void persistirSnapshot('quote', numero, {
-        cliente, contacto, direccion,
-        vendedor: vendedorFirma,
-        fecha: metaMX.fecha, numero, tc: tcCalc,
+      const logoBnp = await loadLogo('/logos/bionovapack.png', 'PNG');
+      const doc = generateQuotePDF(items, results, meta, logoBnp);
+      savePDF(doc, `Quotation_${(cliente || 'cliente').replace(/\s+/g, '_')}_${meta.numero}.pdf`);
+      void persistirSnapshot('quote', meta.numero, {
+        cliente: meta.cliente,
+        contacto: meta.contacto,
+        direccion: meta.direccion,
+        vendedor: meta.vendedor,
+        fecha: meta.fecha,
+        numero: meta.numero,
+        tc: meta.tc,
         transportUSDActivo: transportUSDTotal,
         tipoCotizacion,
         aprobacion: aprobacionSnapshot(),
         empresa,
         moneda,
       });
-      return;
+    } finally {
+      emitiendoRef.current = false;
     }
-
-    const meta = {
-      cliente,
-      contacto,
-      direccion,
-      fecha: new Date().toLocaleDateString('en-US'),
-      numero: genNumero('Q'),
-      vendedor: vendedorFirma,
-      tc,
-      transportUSD: transportUSDTotal,
-    };
-    const logoBnp = await loadLogo('/logos/bionovapack.png', 'PNG');
-    const doc = generateQuotePDF(items, results, meta, logoBnp);
-    savePDF(doc, `Quotation_${(cliente || 'cliente').replace(/\s+/g, '_')}_${meta.numero}.pdf`);
-    void persistirSnapshot('quote', meta.numero, {
-      cliente: meta.cliente,
-      contacto: meta.contacto,
-      direccion: meta.direccion,
-      vendedor: meta.vendedor,
-      fecha: meta.fecha,
-      numero: meta.numero,
-      tc: meta.tc,
-      transportUSDActivo: transportUSDTotal,
-      tipoCotizacion,
-      aprobacion: aprobacionSnapshot(),
-      empresa,
-      moneda,
-    });
   };
 
   const handleGeneratePO = async () => {
+    if (emitiendoRef.current) return; // ya hay una emisión en curso
     if (!tieneNombreVendedor()) return;
     if (!tieneTC()) return;
     if (!tieneAprobacion()) return;
     if (!confirmarAntesPDF('PO a Extruidos')) return;
-    const meta = {
-      cliente: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',
-      fecha: new Date().toLocaleDateString('en-US'),
-      numero: genNumero('PO'),
-      vendedor: vendedorFirma,
-      tc,
-      transportUSD: transportUSDTotal,
-    };
-    const logoBnp = await loadLogo('/logos/bionovapack.png', 'PNG');
-    const doc = generatePOPDF(items, results, meta, logoBnp);
-    savePDF(doc, `PurchaseOrder_${meta.numero}.pdf`);
-    void persistirSnapshot('po', meta.numero, {
-      cliente: meta.cliente,
-      vendedor: meta.vendedor,
-      fecha: meta.fecha,
-      numero: meta.numero,
-      tc: meta.tc,
-      transportUSDActivo: transportUSDTotal,
-      tipoCotizacion,
-      aprobacion: aprobacionSnapshot(),
-      empresa,
-      moneda,
-    });
+    emitiendoRef.current = true;
+    try {
+      const meta = {
+        cliente: 'EXTRUIDOS DE POLIETILENO S.A. DE C.V.',
+        fecha: new Date().toLocaleDateString('en-US'),
+        numero: genNumero('PO'),
+        vendedor: vendedorFirma,
+        tc,
+        transportUSD: transportUSDTotal,
+      };
+      const logoBnp = await loadLogo('/logos/bionovapack.png', 'PNG');
+      const doc = generatePOPDF(items, results, meta, logoBnp);
+      savePDF(doc, `PurchaseOrder_${meta.numero}.pdf`);
+      void persistirSnapshot('po', meta.numero, {
+        cliente: meta.cliente,
+        vendedor: meta.vendedor,
+        fecha: meta.fecha,
+        numero: meta.numero,
+        tc: meta.tc,
+        transportUSDActivo: transportUSDTotal,
+        tipoCotizacion,
+        aprobacion: aprobacionSnapshot(),
+        empresa,
+        moneda,
+      });
+    } finally {
+      emitiendoRef.current = false;
+    }
   };
 
   return (

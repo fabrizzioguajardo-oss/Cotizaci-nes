@@ -41,6 +41,7 @@ const SECCIONES: Seccion[] = [
       'Formulario más corto: el desglose de costo (que casi siempre se llena solo al elegir el cono) ahora arranca plegado. Lo abres con "Ajustar a mano" solo si necesitas cambiarlo.',
       'Indicadores más claros arriba: la Utilidad (lo que más importa de un vistazo) ahora resalta, y Revenue/Costo pasan a segundo plano para leer rápido cómo va el margen.',
       'PDFs más profesionales: en las cotizaciones y órdenes de BioNovaPack los montos salen con separador de miles ($46,853.05), las medidas se leen bien (9.87" × 80GA × 5000\') y el total ya no se recorta.',
+      'Sin cotizaciones duplicadas: si por error picas "Generar" dos veces (o la descarga tarda), el sistema ya no crea dos documentos repetidos de la misma cotización.',
       'Si pasas el cursor sobre un término técnico (Calibre/GA, Cono, TC, Base EDSA), aparece una explicación corta de qué significa.',
       'El tipo de cambio es obligatorio en cotizaciones de EUA: si lo dejas vacío se marca en rojo y no deja generar el documento, para que ningún precio salga mal calculado.',
       'Los campos numéricos ya no aceptan negativos por error, y el botón de cerrar sesión quedó separado para no picarlo sin querer.',

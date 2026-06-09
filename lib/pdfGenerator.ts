@@ -444,6 +444,10 @@ const EXT_DOMICILIO =
   'Autopista Méx - Querétaro KM. 37.5 #5010 Bodega 46, Complejo Industrial, Cuautitlán Izcalli, Edo. de México C.P. 54730';
 
 function mxn(n: number): string {
+  // Guard de no-finito (igual que money()/price()): un revenue NaN/Infinity
+  // (p.ej. una división por tc=0 aguas arriba) NO debe imprimirse como "$NaN"
+  // en una cotización FIRMADA por el cliente.
+  if (!Number.isFinite(n)) return '$0.00';
   return `$${n.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -577,11 +581,13 @@ export function generateExtruidosQuotePDF(
   // SUBTOTAL autoritativo: si el motor lo proveyó, ese manda; la suma local
   // (`subtotal`) solo sirve para detectar si la aritmética del PDF se desvió
   // del motor (drift que rompería la paridad documento ↔ snapshot).
-  const subtotalFinal = engineSubtotal != null ? engineSubtotal : subtotal;
-  if (engineSubtotal != null && Math.abs(engineSubtotal - subtotal) > 0.01) {
+  // Number.isFinite (no `!= null`): un engineSubtotal NaN/Infinity NO debe
+  // ganarle a la suma local sana — caería en SUBTOTAL/IVA/TOTAL del documento.
+  const subtotalFinal = Number.isFinite(engineSubtotal) ? (engineSubtotal as number) : subtotal;
+  if (Number.isFinite(engineSubtotal) && Math.abs((engineSubtotal as number) - subtotal) > 0.01) {
     // eslint-disable-next-line no-console
     console.warn(
-      `[extruidos-pdf] El subtotal del motor (${engineSubtotal.toFixed(2)}) difiere ` +
+      `[extruidos-pdf] El subtotal del motor (${(engineSubtotal as number).toFixed(2)}) difiere ` +
       `de la suma de filas del PDF (${subtotal.toFixed(2)}). Revisar paridad PDF/motor.`,
     );
   }
