@@ -42,6 +42,8 @@ const SECCIONES: Seccion[] = [
       'Indicadores más claros arriba: la Utilidad (lo que más importa de un vistazo) ahora resalta, y Revenue/Costo pasan a segundo plano para leer rápido cómo va el margen.',
       'PDFs más profesionales: en las cotizaciones y órdenes de BioNovaPack los montos salen con separador de miles ($46,853.05), las medidas se leen bien (9.87" × 80GA × 5000\') y el total ya no se recorta.',
       'Sin cotizaciones duplicadas: si por error picas "Generar" dos veces (o la descarga tarda), el sistema ya no crea dos documentos repetidos de la misma cotización.',
+      'Tu trabajo no se pierde: el cotizador guarda también la descripción y la cantidad desde el inicio, conserva lo último al cerrar la pestaña, y ya no se pisan cotizaciones cuando tienes dos pestañas abiertas.',
+      'Te avisa de los precios: si el costo es un match aproximado, o si está usando precios de respaldo porque no pudo conectarse a los vigentes, ahora lo ves en pantalla antes de cotizar.',
       'Si pasas el cursor sobre un término técnico (Calibre/GA, Cono, TC, Base EDSA), aparece una explicación corta de qué significa.',
       'El tipo de cambio es obligatorio en cotizaciones de EUA: si lo dejas vacío se marca en rojo y no deja generar el documento, para que ningún precio salga mal calculado.',
       'Los campos numéricos ya no aceptan negativos por error, y el botón de cerrar sesión quedó separado para no picarlo sin querer.',
