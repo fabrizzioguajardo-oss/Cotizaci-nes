@@ -22,9 +22,21 @@ interface Seccion {
 
 const SECCIONES: Seccion[] = [
   {
+    icon: Rocket,
+    color: '#5BAA47',
+    titulo: 'Novedades de esta versión (v2.1)',
+    puntos: [
+      'Cotizar paso por paso: la pantalla ya no muestra todo en ceros de golpe. Arranca pidiendo solo el pedido del cliente (Paso 1); el cono y los cálculos (Paso 2) y el precio (Paso 3) se abren conforme llenas.',
+      'Tu trabajo no se pierde: guarda desde el inicio (descripción y cantidad incluidas), conserva lo último al cerrar la pestaña, y ya no se duplican cotizaciones por doble-clic.',
+      'Te avisa de los precios: marca si el costo es un cálculo aproximado, o si está usando precios de respaldo porque no se pudo conectar a los vigentes.',
+      'Documentos más profesionales: montos con separador de miles, medidas legibles y el total que ya no se recorta.',
+      'Más seguro y estable por dentro: reforzamos la protección de los datos confidenciales y la precisión con que se leen los precios.',
+    ],
+  },
+  {
     icon: Building2,
     color: '#1F2A4D',
-    titulo: 'Lo más grande: ahora cotizas para dos empresas',
+    titulo: 'Multi-empresa: cotizas para dos empresas',
     puntos: [
       'Al entrar eliges para quién cotizas: BioNovaPack (Estados Unidos, en dólares) o Extruidos (México, en pesos).',
       'Extruidos opera todo en pesos mexicanos, sin tipo de cambio, con su propio formato de cotización, su logo y sus colores de marca.',
@@ -37,7 +49,6 @@ const SECCIONES: Seccion[] = [
     color: '#3E8EDE',
     titulo: 'Más claro y a prueba de errores',
     puntos: [
-      'Cotizar paso por paso: la pantalla ya no te muestra todo en ceros de golpe. Arranca pidiendo solo el pedido del cliente (Paso 1); el cono y los cálculos (Paso 2) y el precio (Paso 3) se van abriendo conforme llenas. Menos celdas vacías, más claro qué sigue.',
       'Pantalla más despejada: la empresa y el tipo de cotización ahora viven en una sola barra compacta arriba, dejando más espacio para capturar el pedido.',
       'Formulario más corto: el desglose de costo (que casi siempre se llena solo al elegir el cono) ahora arranca plegado. Lo abres con "Ajustar a mano" solo si necesitas cambiarlo.',
       'Indicadores más claros arriba: la Utilidad (lo que más importa de un vistazo) ahora resalta, y Revenue/Costo pasan a segundo plano para leer rápido cómo va el margen.',
@@ -141,10 +152,10 @@ export default function WhatsNewModal({ open, onClose }: Props) {
             <Rocket className="w-5 h-5 text-bnp-green" />
             <div>
               <h3 className="text-sm font-semibold">
-                Actualización v{APP_VERSION} — una mejora mayor del cotizador
+                Novedades del cotizador · v{APP_VERSION}
               </h3>
               <p className="text-2xs text-text-muted">
-                Cambios en funcionalidad, experiencia, lógica, cálculos, flujos y control.
+                Arriba, lo más reciente; abajo, el resumen completo por área.
               </p>
             </div>
           </div>

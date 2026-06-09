@@ -2,16 +2,15 @@
 
 Registro de cambios entre versiones. Las versiones más recientes aparecen primero.
 
-> **Nota de versionado:** la versión que VE el usuario es **v2.0** — estrena
-> multi-empresa (BioNovaPack USA + Extruidos México) y consolida el arco previo
-> que de cara al equipo se presentó como **v1.10**. Internamente ese arco pasó
-> por builds 1.09 → 1.22 (detallados abajo como historial técnico). El salto
-> 1.10 → 2.0 es a propósito: cotizar para una segunda empresa/país es el cambio
-> más grande del proyecto.
+> **Nota de versionado:** la versión que VE el usuario es **v2.1**. v2.0 estrenó
+> multi-empresa (BioNovaPack USA + Extruidos México); v2.1 trae el cotizar
+> guiado paso por paso y el cierre de las auditorías (robustez, seguridad,
+> precios, autosave, PDFs). Internamente el arco previo pasó por builds
+> 1.09 → 1.22. Subir `APP_VERSION` actualiza login/TopBar y reabre Novedades.
 
 ---
 
-## v2.0 — Cotizar paso por paso (revelado progresivo del formulario)
+## v2.1 — Cotizar paso por paso (revelado progresivo del formulario)
 
 Feedback del vendedor: la pantalla de cotizar mostraba TODO de golpe y en ceros
 (6 KPIs, barra de margen, 4 tarjetas calculadas, logística) antes de capturar
