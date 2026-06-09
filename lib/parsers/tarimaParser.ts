@@ -125,9 +125,15 @@ export function findTarimaRule(
   ancho: number,
   pesoTotal: number,
 ): ParsedTarimaRange | null {
-  // Match exacto de ancho primero, sino el ancho mas cercano
+  // Match exacto de ancho primero; si ese ancho no tiene reglas, tolerar SOLO
+  // anchos cercanos (±1"). Antes el fallback era `: rangos` (TODOS los anchos),
+  // así que un ancho sin reglas tomaba el acomodo de un ancho NO relacionado y
+  // propagaba rollos/tarima equivocados sin avisar. Si ni el ancho exacto ni
+  // los cercanos cubren el peso, devuelve null (el caller avisa "sin regla").
   const candidatos = rangos.filter((r) => r.ancho === ancho);
-  const pool = candidatos.length > 0 ? candidatos : rangos;
+  const pool = candidatos.length > 0
+    ? candidatos
+    : rangos.filter((r) => Math.abs(r.ancho - ancho) <= 1);
   for (const r of pool) {
     if (pesoTotal >= r.peso_min && pesoTotal <= r.peso_max) return r;
   }

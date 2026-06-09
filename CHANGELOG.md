@@ -121,11 +121,33 @@ Una segunda auditoría (autosave, lookupEngine/parsers, middleware/auth) halló
   Reescrito para manejar formato US y europeo (último separador = decimal).
   Verificado con 11 casos.
 
-Pendientes de esta auditoría (no críticos, documentados para después): overwrite
-ciego del draft sin lock en el branch dedup (alto), fallback silencioso a precios
-estáticos del build ante 500 (alto), `isEmpty` que ignora desc/qty/cono, sin
-flush al cerrar, upload que parsea antes de autenticar, y varios de robustez en
-lookup/parsers/RLS.
+### Lote B — precios/lookup (correctitud del costo)
+
+- **A2 — Fallback silencioso a precios viejos**: `dataStore` ahora distingue un
+  ERROR de Supabase (500/timeout) de "no hay datos" (204). Ante error marca
+  `source='static-error'` y el cotizador muestra un **banner rojo** ("Precios de
+  respaldo… pueden estar desactualizados") en vez de cotizar en silencio con el
+  JSON del build.
+- **M5 — Reciclado contaminado con color**: el filtro de `lookupPrice` ahora es
+  estricto por clase (virgen→virgen, reciclado→reciclado, color→color); antes un
+  lookup de reciclado podía traer una fila 'color' (~$45 vs ~$30).
+- **M6 — "Intenso Recic" nunca se leía**: el regex exigía "reciclado" completo y
+  el header real es "Intenso Recic" → ahora `/intenso.*recic/i`.
+- **M7 — Avisos de match aproximado, antes invisibles**: `buildAutoFill` producía
+  warnings que NADIE mostraba; ahora el LineItemEditor los despliega (match
+  aproximado con la distancia de PB, sin regla de tarima).
+- **M8 — Regla de tarima de otro ancho**: `findTarimaRule` ya no cae a TODOS los
+  anchos cuando el ancho cotizado no tiene reglas; tolera ±1" y si no, devuelve
+  null (el caller avisa) en vez de usar un acomodo no relacionado.
+
+Pendiente de Lote B (difiere — necesita coordinación con RLS): M9 — `/api/catalog`
+usa cliente anónimo y el catálogo de costos termina en localStorage por
+dispositivo; el fix (ruta con auth + policy de lectura para autenticados) debe
+aplicarse junto con SQL en Supabase para no romper la lectura en prod.
+
+Pendientes restantes (Lotes A y C): overwrite ciego del draft sin lock (alto),
+`isEmpty` que ignora desc/qty/cono, sin flush al cerrar, upload que parsea antes
+de autenticar, rutas anónimas huérfanas y `schema.sql` con `allow_all_*`.
 
 ### Fase A (lista) — fundación multi-empresa
 

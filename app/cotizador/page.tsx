@@ -14,6 +14,7 @@ import { empresaInfo, tcEfectivo, monedaDe } from '@/lib/empresa';
 import { generatePOPDF, generateQuotePDF, generateExtruidosQuotePDF, savePDF, loadLogo, type ExtruidosMeta } from '@/lib/pdfGenerator';
 import { useCotizacionAutosave } from '@/lib/useCotizacionAutosave';
 import { computeQuote, partitionWarnings, type QuoteResult } from '@/lib/computeQuote';
+import { usePriceData } from '@/lib/dataStore';
 import { buildSnapshot, type SnapshotMeta } from '@/lib/snapshotEmitida';
 import { useAuth } from '@/lib/useAuth';
 
@@ -24,7 +25,7 @@ import TabSugerencia from './components/TabSugerencia';
 import FeedbackButton from './components/FeedbackButton';
 import AutosaveIndicator from './components/AutosaveIndicator';
 import OnboardingNameModal from './components/OnboardingNameModal';
-import { Layers, Sparkles, FilePlus, ShieldAlert } from 'lucide-react';
+import { Layers, Sparkles, FilePlus, ShieldAlert, AlertTriangle } from 'lucide-react';
 
 // Factory para crear un trailer nuevo con defaults
 function newTrailer(id: number, destino = ''): Trailer {
@@ -97,6 +98,11 @@ export default function CotizadorPage() {
     [items, trailers, tcCalc],
   );
   const results = quote.perItem;
+  // Origen de los precios: si Supabase falló y caímos al respaldo del build
+  // ('static-error'), hay que advertir que se cotiza con precios posiblemente
+  // viejos (antes esto se caía en silencio).
+  const { data: priceData } = usePriceData();
+  const preciosDeRespaldo = priceData?.source === 'static-error';
   // Shape de compatibilidad para los consumidores que esperaban `trailerTotals`.
   const trailerTotals = {
     perTrailer: quote.perTrailer,
@@ -816,6 +822,21 @@ export default function CotizadorPage() {
 
         {/* Panel central: tabs */}
         <main className="col-span-9 overflow-y-auto max-h-[calc(100vh-180px)]">
+          {/* Aviso: precios de respaldo (Supabase falló → JSON del build).
+              Antes esta degradación era SILENCIOSA y se cotizaba con precios
+              posiblemente viejos sin que nadie se enterara. */}
+          {preciosDeRespaldo && (
+            <div className="card p-3 mb-4 border-bnp-red/40 bg-bnp-red/5 flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-bnp-red flex-shrink-0 mt-0.5" />
+              <p className="text-2xs text-text-secondary">
+                <span className="font-semibold text-bnp-red">Precios de respaldo.</span>{' '}
+                No se pudo conectar a los precios vigentes; se está cotizando con
+                los del último respaldo (pueden estar desactualizados). Recarga la
+                página; si sigue, avísale a Diego/Fabrizzio antes de enviar.
+              </p>
+            </div>
+          )}
+
           {/* Barra compacta de contexto: empresa + tipo de cotización en UNA
               sola fila. Antes eran dos tarjetas altas apiladas que empujaban la
               captura del pedido hacia abajo (la mesa de diseño: "config antes de

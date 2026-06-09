@@ -9,7 +9,7 @@ import SpecCards from './SpecCards';
 import { usePriceData } from '@/lib/dataStore';
 import { buildAutoFill, deriveResinClass, type ConoOption } from '@/lib/lookupEngine';
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, AlertTriangle } from 'lucide-react';
 
 interface Props {
   item: LineItem;
@@ -28,6 +28,10 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
   // Calidad del último match aplicado (para mostrar badge en la sección de costos)
   const [matchQuality, setMatchQuality] = useState<'exact' | 'close' | 'interpolated' | null>(null);
   const [matchSource, setMatchSource] = useState<string>('');
+  // Avisos del auto-fill (match aproximado, sin regla de tarima). Antes
+  // buildAutoFill los producía pero NADIE los mostraba — el vendedor no veía si
+  // el precio era un match exacto o uno interpolado lejano. Ahora se muestran.
+  const [matchWarnings, setMatchWarnings] = useState<string[]>([]);
   // El desglose de costo se autollena al elegir el cono y casi nunca se edita a
   // mano; arranca PLEGADO para no saturar el formulario (progressive disclosure).
   const [costosAbiertos, setCostosAbiertos] = useState(false);
@@ -92,6 +96,7 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         rollosPallet: option.rollos_por_tarima || item.rollosPallet,
       });
       setMatchQuality(null);
+      setMatchWarnings([]);
       return;
     }
 
@@ -108,6 +113,7 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
     });
     setMatchQuality(fill.match_quality);
     setMatchSource(fill.source_note);
+    setMatchWarnings(fill.warnings);
   };
 
   return (
@@ -323,6 +329,17 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
             <MatchQualityBadge quality={matchQuality} source={matchSource} />
           </div>
         </div>
+
+        {matchWarnings.length > 0 && (
+          <div className="mt-2 space-y-0.5">
+            {matchWarnings.map((w, i) => (
+              <p key={i} className="text-2xs text-bnp-amber flex items-start gap-1">
+                <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                <span>{w}</span>
+              </p>
+            ))}
+          </div>
+        )}
 
         {!costosAbiertos && (
           <p className="text-2xs text-text-muted mt-2">

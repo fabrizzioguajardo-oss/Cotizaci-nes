@@ -26,9 +26,13 @@ export interface PriceData {
   // de tarima (subconjunto filtrado) no tiene match para un (ancho, calibre).
   productos_edsa?: ParsedTarimaRow[];
   stats: Record<string, number>;
-  // De donde vienen los datos: 'supabase' = vigentes que subio Diego;
-  // 'static' = fallback al precios.json del build (datos viejos, advertir).
-  source?: 'supabase' | 'static';
+  // De donde vienen los datos:
+  //   'supabase'     = vigentes que subio Diego (lo normal).
+  //   'static'       = no hay datos en Supabase todavia (204) → JSON del build. OK.
+  //   'static-error' = Supabase respondio ERROR (500/timeout/sesion) → caemos al
+  //                    build PERO son precios de respaldo posiblemente viejos:
+  //                    la UI debe advertirlo (antes esto se caía en silencio).
+  source?: 'supabase' | 'static' | 'static-error';
 }
 
 let _cache: PriceData | null = null;
@@ -47,6 +51,10 @@ export async function loadPriceData(): Promise<PriceData | null> {
   if (_loadingPromise) return _loadingPromise;
 
   _loadingPromise = (async () => {
+    // ¿Supabase respondió un ERROR real (no un simple "no hay datos")? Si sí,
+    // el fallback estático son precios de respaldo posiblemente viejos y hay
+    // que advertirlo, no caer en silencio.
+    let supabaseError = false;
     // 1) Primero intentar Supabase (datos vigentes que Diego subio desde el admin)
     try {
       const res = await fetch('/api/data/current', { cache: 'no-store' });
@@ -56,10 +64,18 @@ export async function loadPriceData(): Promise<PriceData | null> {
         _cache = data;
         return data;
       }
-      // 204 = no hay datos en Supabase, caer al fallback
+      // 204 = no hay datos en Supabase (esperado en primer arranque). Cualquier
+      // OTRO status (500 RLS/timeout, 401 sesión) es un error: caer al estático
+      // pero marcarlo como 'static-error'.
+      if (res.status !== 204) {
+        supabaseError = true;
+        // eslint-disable-next-line no-console
+        console.error('[dataStore] /api/data/current respondió', res.status, '— usando precios de respaldo (build)');
+      }
     } catch (err) {
+      supabaseError = true;
       // eslint-disable-next-line no-console
-      console.warn('[dataStore] /api/data/current falló, intento fallback estatico:', err);
+      console.error('[dataStore] /api/data/current inaccesible, usando precios de respaldo:', err);
     }
 
     // 2) Fallback: JSON estatico precompilado en build time
@@ -71,7 +87,7 @@ export async function loadPriceData(): Promise<PriceData | null> {
         return null;
       }
       const data = (await res.json()) as PriceData;
-      data.source = 'static';
+      data.source = supabaseError ? 'static-error' : 'static';
       _cache = data;
       return data;
     } catch (err) {

@@ -135,7 +135,10 @@ function parseColorSheet(
   const idxPesoT = findColumn(colHeaders, /^peso\s*t/);
   const idxPRecic = findColumn(colHeaders, /^p\.\s*reciclado|p reciclado/i);
   const idxPVirgen = findColumn(colHeaders, /^p\.\s*virgen|p virgen/i);
-  const idxIntensoRecic = findColumn(colHeaders, /intenso.*reciclado/i);
+  // /intenso.*recic/ (no /reciclado/ completo): el header real es "Intenso Recic"
+  // (abreviado), así que exigir "reciclado" completo nunca matcheaba y el
+  // intenso reciclado quedaba sin leer → subcotización del reciclado intenso.
+  const idxIntensoRecic = findColumn(colHeaders, /intenso.*recic/i);
   const idxIntensoVirgen = findColumn(colHeaders, /intenso.*virgen/i);
 
   if (idxMedidas < 0 || idxPesoT < 0) {

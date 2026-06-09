@@ -225,9 +225,15 @@ export function lookupPrice(params: {
     (r) =>
       Math.abs(r.ancho - ancho) <= anchoTol &&
       Math.abs(r.cono - cono) < 0.01 &&
+      // Coincidencia de resina ESTRICTA por clase. Antes el caso no-virgen
+      // aceptaba `=== resin_class || === 'color'`, así que un lookup de
+      // RECICLADO podía traer una fila 'color' (con master, ~$45 vs ~$30) y
+      // cotizar de más. Ahora: virgen→virgen, reciclado→reciclado, color→color.
       (resin_class === 'virgen'
         ? r.resin_class === 'virgen'
-        : r.resin_class === resin_class || r.resin_class === 'color'),
+        : resin_class === 'reciclado'
+          ? r.resin_class === 'reciclado'
+          : r.resin_class === 'color'),
   );
 
   // Filtrar product_type si fue especificado, pero abrir si no hay matches
