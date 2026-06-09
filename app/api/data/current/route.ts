@@ -27,6 +27,14 @@ export async function GET() {
     return new NextResponse(null, { status: 204 });
   }
 
+  // Defensa en profundidad (B3): exigir sesión explícitamente, no depender solo
+  // de RLS. Es el endpoint más sensible (precios EDSA/color/catálogo); si la
+  // policy de price_data_files se aflojara, este 401 sigue cerrando la puerta.
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  }
+
   const { data, error } = await sb
     .from('price_data_files')
     .select('kind, source_filename, uploaded_at, stats, data')

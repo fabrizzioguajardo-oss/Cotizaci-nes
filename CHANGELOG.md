@@ -162,8 +162,26 @@ aplicarse junto con SQL en Supabase para no romper la lectura en prod.
   `pagehide`, `visibilitychange→hidden` y al desmontar; antes el cleanup solo
   hacía `clearTimeout` y se perdían hasta 2s de la última edición.
 
-Pendiente restante (Lote C): upload que parsea antes de autenticar (DoS), rutas
-anónimas huérfanas y `schema.sql` con `allow_all_*`.
+### Lote C — endurecer APIs (defensa en profundidad)
+
+- **M4 — upload parseaba antes de autenticar (DoS sin login)**: `/api/data/upload`
+  ahora exige sesión ANTES de leer/parsear el Excel (cuando Supabase está
+  configurado), y rechaza archivos > 15 MB. Antes un anónimo podía gastar
+  CPU/memoria con un xlsx grande/zip-bomb antes del 401.
+- **B3 — `/api/data/current` sin auth explícita**: agrega `getUser()`/401 como
+  segunda barrera; antes dependía 100% de RLS.
+- **B1/B2 — rutas anónimas huérfanas eliminadas**: borradas
+  `app/api/cotizaciones/route.ts`, `app/api/precios/route.ts` y
+  `app/api/precios/upload/route.ts` (cliente anon, sin consumidores, fail-closed
+  hoy pero frágiles ante un re-apply de `schema.sql`). Menos superficie de ataque.
+- **B4 — `schema.sql` con policies `allow_all_*`**: eliminadas las 5 policies
+  `FOR ALL USING(true)` que reabrían acceso público a precios/cotizaciones si
+  alguien re-aplicaba `schema.sql`. Quedan las policies reales (auth + admin) de
+  las migraciones 002+; sin ellas las tablas quedan en deny-all (seguro).
+
+Con esto, las 3 áreas no cubiertas de la auditoría quedan cerradas (2 críticos +
+lotes B/A/C). Único diferido: M9 (catalog anónimo → localStorage), que necesita
+coordinar el cambio de ruta con una policy de lectura en Supabase.
 
 ### Fase A (lista) — fundación multi-empresa
 

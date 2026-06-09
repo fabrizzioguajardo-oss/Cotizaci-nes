@@ -29,6 +29,24 @@ function isKind(s: string): s is Kind {
 }
 
 export async function POST(req: NextRequest) {
+  // AUTENTICAR ANTES DE PARSEAR (bug M4 — DoS sin login): el parse de xlsx es
+  // pesado; un anónimo no debe poder gastar CPU/memoria del server con un
+  // archivo grande/malicioso antes de ser rechazado. Si Supabase está
+  // configurado (producción) exigimos sesión aquí mismo. Sin Supabase = modo
+  // demo local (sin persistencia), se permite.
+  const sb = await getAuthedSupabase();
+  let user: { email?: string | null } | null = null;
+  if (sb) {
+    const { data } = await sb.auth.getUser();
+    if (!data.user) {
+      return NextResponse.json(
+        { error: 'No estas autenticado. Vuelve a iniciar sesion.' },
+        { status: 401 },
+      );
+    }
+    user = data.user;
+  }
+
   let formData: FormData;
   try {
     formData = await req.formData();
@@ -45,6 +63,13 @@ export async function POST(req: NextRequest) {
   const kindStr = typeof kindRaw === 'string' ? kindRaw : '';
   if (!isKind(kindStr)) {
     return NextResponse.json({ error: 'kind debe ser edsa|color|tarima|productos_edsa' }, { status: 400 });
+  }
+
+  // Límite de tamaño: los Excel de precios son chicos (<1MB típico). Acota el
+  // costo de parseo incluso para usuarios autenticados (zip-bomb / hoja enorme).
+  const MAX_BYTES = 15 * 1024 * 1024;
+  if (file.size > MAX_BYTES) {
+    return NextResponse.json({ error: 'El archivo es demasiado grande (máx 15 MB).' }, { status: 413 });
   }
 
   const filename = (file instanceof File ? file.name : '') || `upload-${Date.now()}.xlsx`;
@@ -126,19 +151,9 @@ export async function POST(req: NextRequest) {
   // que auth.uid() pertenezca a un user_profiles con role='admin'. Con el
   // cliente anon (singleton) auth.uid() es null y RLS rechaza con
   // "new row violates row-level security policy".
-  const sb = await getAuthedSupabase();
-  if (sb) {
-    // Verificar que el usuario este autenticado y sea admin antes de intentar
-    const { data: { user } } = await sb.auth.getUser();
-    if (!user) {
-      return NextResponse.json(
-        { error: 'No estas autenticado. Vuelve a iniciar sesion.' },
-        { status: 401 },
-      );
-    }
-    // El RLS se encarga del resto: si user no es admin, el insert va a fallar
-    // con un mensaje claro
-
+  if (sb && user) {
+    // Auth ya verificada al inicio del handler. El RLS valida que el usuario
+    // sea admin en el insert; si no lo es, falla con un mensaje claro.
     // Marcar versiones anteriores del mismo kind como obsoletas
     await sb.from('price_data_files').update({ vigente: false }).eq('kind', kindStr).eq('vigente', true);
 

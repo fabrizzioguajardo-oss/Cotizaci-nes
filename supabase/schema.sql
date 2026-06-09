@@ -60,7 +60,10 @@ CREATE INDEX IF NOT EXISTS idx_catalog_category ON cost_catalog(category);
 CREATE INDEX IF NOT EXISTS idx_catalog_vigente ON cost_catalog(vigente) WHERE vigente = TRUE;
 
 ALTER TABLE cost_catalog ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow_all_cost_catalog" ON cost_catalog FOR ALL USING (true) WITH CHECK (true);
+-- SEGURIDAD (B4): se eliminó la policy "allow_all_cost_catalog" (FOR ALL
+-- USING true) que abría acceso PÚBLICO con la anon key a datos confidenciales.
+-- Las policies reales (auth + admin) viven en las migraciones 002+. SIEMPRE
+-- aplica las migraciones después de schema.sql (o usa CONSOLIDADO_*.sql).
 
 -- Archivos de precios parseados (EDSA, Color, Tarima)
 -- Diego sube los Excel y aqui se guarda el resultado del parser.
@@ -79,7 +82,8 @@ CREATE TABLE IF NOT EXISTS price_data_files (
 CREATE INDEX IF NOT EXISTS idx_price_data_kind_vigente ON price_data_files(kind, uploaded_at DESC) WHERE vigente = TRUE;
 
 ALTER TABLE price_data_files ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "allow_all_price_data_files" ON price_data_files FOR ALL USING (true) WITH CHECK (true);
+-- SEGURIDAD (B4): eliminada la policy "allow_all_price_data_files" (acceso
+-- público a precios). Las policies reales (auth + admin) están en migración 002.
 
 -- Historial de cambios de precio (auditoría)
 CREATE TABLE IF NOT EXISTS precios_historial (
@@ -92,11 +96,11 @@ CREATE TABLE IF NOT EXISTS precios_historial (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS: dejar abierto para MVP, en prod habrá auth de usuarios
+-- SEGURIDAD (B4): RLS habilitado pero SIN policies "allow_all" — esas abrían
+-- acceso público (anon key) a precios y cotizaciones. Las policies reales
+-- (auth + admin + scoping por user_id) viven en las migraciones 002+. Aplica
+-- las migraciones después de schema.sql; si no, estas tablas quedan en
+-- deny-all (fail-closed), que es el estado seguro por defecto.
 ALTER TABLE precios_base ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cotizaciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE precios_historial ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "allow_all_precios_base" ON precios_base FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_cotizaciones" ON cotizaciones FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "allow_all_precios_historial" ON precios_historial FOR ALL USING (true) WITH CHECK (true);
