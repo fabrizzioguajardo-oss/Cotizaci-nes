@@ -1,8 +1,10 @@
 node_modules
 .next
 out
-.env
-.env.local
+# Bloquea TODOS los .env (incluye .env.production / .env.staging / .env.development),
+# no solo .env y .env.local — Regla de Oro #1: secrets jamás a GitHub.
+.env*
+!.env.example
 .DS_Store
 *.log
 
