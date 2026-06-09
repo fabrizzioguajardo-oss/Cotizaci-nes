@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSupabase } from '@/lib/supabase';
+import { getSupabaseServer } from '@/lib/supabaseServer';
 import type { CostCatalogEntry, CostCategory } from '@/types';
+
+// Usa el cliente AUTENTICADO con cookies (no el anon). Con anon, la RLS de
+// cost_catalog devolvía 0 filas y el catálogo terminaba SIEMPRE en localStorage
+// del navegador (perdido entre dispositivos). Requiere la policy de lectura
+// para autenticados (migración 014). Si no está aplicada aún, el catalogClient
+// sigue cayendo a localStorage (comportamiento previo) — no rompe nada.
+export const runtime = 'nodejs';
 
 // GET /api/catalog?category=master  -> lista vigentes (opcionalmente filtra por categoria)
 export async function GET(req: NextRequest) {
-  const sb = getSupabase();
+  const sb = await getSupabaseServer();
   if (!sb) {
     return NextResponse.json({ entries: [], message: 'Supabase no configurado' });
   }
@@ -26,7 +33,7 @@ export async function GET(req: NextRequest) {
 // POST /api/catalog  -> crear nueva entrada (la marca como vigente y deja
 // las anteriores con el mismo (category,name) como obsoletas).
 export async function POST(req: NextRequest) {
-  const sb = getSupabase();
+  const sb = await getSupabaseServer();
   if (!sb) {
     return NextResponse.json(
       { saved: false, message: 'Supabase no configurado' },
@@ -61,7 +68,7 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/catalog?id=...  -> marca como obsoleta (no borra, mantiene historia)
 export async function DELETE(req: NextRequest) {
-  const sb = getSupabase();
+  const sb = await getSupabaseServer();
   if (!sb) {
     return NextResponse.json({ saved: false }, { status: 200 });
   }

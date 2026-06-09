@@ -180,8 +180,16 @@ aplicarse junto con SQL en Supabase para no romper la lectura en prod.
   las migraciones 002+; sin ellas las tablas quedan en deny-all (seguro).
 
 Con esto, las 3 áreas no cubiertas de la auditoría quedan cerradas (2 críticos +
-lotes B/A/C). Único diferido: M9 (catalog anónimo → localStorage), que necesita
-coordinar el cambio de ruta con una policy de lectura en Supabase.
+lotes B/A/C).
+
+### M9 — catalog persiste en Supabase (no en localStorage)
+
+`/api/catalog` pasó de cliente anónimo a cliente autenticado (cookies), así la
+RLS ve al usuario y el catálogo de costos se guarda en Supabase en vez de
+localStorage por dispositivo. ⚠️ **Requiere aplicar la migración
+014_cost_catalog_rls.sql en Supabase** (policy de lectura para autenticados +
+escritura admin). Si no se aplica, el catalogClient sigue cayendo a localStorage
+(comportamiento previo) — el cambio de ruta no rompe nada por sí solo.
 
 ### Fase A (lista) — fundación multi-empresa
 
