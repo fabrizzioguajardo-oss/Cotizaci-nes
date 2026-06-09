@@ -37,6 +37,7 @@ const SECCIONES: Seccion[] = [
     color: '#3E8EDE',
     titulo: 'Más claro y a prueba de errores',
     puntos: [
+      'Cotizar paso por paso: la pantalla ya no te muestra todo en ceros de golpe. Arranca pidiendo solo el pedido del cliente (Paso 1); el cono y los cálculos (Paso 2) y el precio (Paso 3) se van abriendo conforme llenas. Menos celdas vacías, más claro qué sigue.',
       'Pantalla más despejada: la empresa y el tipo de cotización ahora viven en una sola barra compacta arriba, dejando más espacio para capturar el pedido.',
       'Formulario más corto: el desglose de costo (que casi siempre se llena solo al elegir el cono) ahora arranca plegado. Lo abres con "Ajustar a mano" solo si necesitas cambiarlo.',
       'Indicadores más claros arriba: la Utilidad (lo que más importa de un vistazo) ahora resalta, y Revenue/Costo pasan a segundo plano para leer rápido cómo va el margen.',

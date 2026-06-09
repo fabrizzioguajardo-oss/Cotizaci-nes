@@ -11,6 +11,26 @@ Registro de cambios entre versiones. Las versiones más recientes aparecen prime
 
 ---
 
+## v2.0 — Cotizar paso por paso (revelado progresivo del formulario)
+
+Feedback del vendedor: la pantalla de cotizar mostraba TODO de golpe y en ceros
+(6 KPIs, barra de margen, 4 tarjetas calculadas, logística) antes de capturar
+nada — "un revoltijo de celdas vacías". Rediseño a flujo guiado:
+
+- **Paso 1 — Pedido del cliente** (siempre visible): descripción, cantidad,
+  medidas (ancho/calibre/largo), resina y color. Lo único que ve una línea nueva.
+- **Paso 2 — Cono y empaque**: el selector de cono guía siempre; las tarjetas
+  de PN/PB/kg, la logística y el desglose de costo **aparecen al capturar las
+  medidas** (`tieneSpec`).
+- **Paso 3 — Precio**: la sección de precio **aparece al elegir el cono**
+  (`tieneCono`).
+- **Resultados** (tira de 6 KPIs + barra de margen, en `TabPedido`): aparecen
+  **solo cuando hay precio** — antes salían siempre en ceros.
+- Cada paso lleva un número (1/2/3) con color, para que sea obvio qué sigue.
+
+Resultado: una línea nueva muestra ~3 bloques en vez de ~10; el resto se abre
+conforme el vendedor avanza.
+
 ## v2.0 (versión visible) — Multi-empresa: BioNovaPack (USA) + Extruidos (México)
 
 > **Lanzada y anunciada al equipo.** El indicador de la app, el modal de

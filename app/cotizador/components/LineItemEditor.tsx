@@ -116,8 +116,27 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
     setMatchWarnings(fill.warnings);
   };
 
+  // Revelado por etapas: para no abrumar con tarjetas vacías, el formulario
+  // arranca pidiendo SOLO el pedido del cliente; lo demás aparece conforme se
+  // llena (medidas → cono/cálculos; cono → precio).
+  const tieneSpec = item.aCliente > 0 && item.calCliente > 0 && item.lCliente > 0;
+  const tieneCono = item.cono > 0;
+
   return (
     <div className="space-y-5">
+      {/* Paso 1 — Pedido del cliente */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="w-5 h-5 rounded-full bg-bnp-cyan/20 text-bnp-cyan text-2xs font-bold flex items-center justify-center flex-shrink-0">
+          1
+        </span>
+        <h3 className="text-sm font-semibold text-text-primary">Pedido del cliente</h3>
+        {!tieneSpec && (
+          <span className="text-2xs text-text-muted">
+            Empieza aquí — lo demás (cono, cálculos y precio) se va abriendo conforme llenas las medidas.
+          </span>
+        )}
+      </div>
+
       {/* Descripción y unidad */}
       <div className="grid grid-cols-12 gap-3">
         <div className="col-span-7">
@@ -234,6 +253,19 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         </div>
       </section>
 
+      {/* Paso 2 — Cono y empaque */}
+      <div className="flex items-center gap-2 flex-wrap pt-1">
+        <span className="w-5 h-5 rounded-full bg-bnp-purple/20 text-bnp-purple text-2xs font-bold flex items-center justify-center flex-shrink-0">
+          2
+        </span>
+        <h3 className="text-sm font-semibold text-text-primary">Cono y empaque</h3>
+        <span className="text-2xs text-text-muted">
+          {tieneSpec
+            ? 'Elige el cono; el costo y la logística se llenan solos.'
+            : 'Disponible al capturar las medidas arriba.'}
+        </span>
+      </div>
+
       {/* === Selector de cono inteligente === */}
       <ConeSelectorPanel
         ancho={item.aCliente}
@@ -245,6 +277,8 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         onPick={handleConePick}
       />
 
+      {tieneSpec && (
+      <>
       {/* === Cards de spec calculado: PN/PB, kg tarima, rollos, kg item === */}
       <SpecCards item={item} result={result} />
 
@@ -554,11 +588,16 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         </>
         )}
       </section>
+      </>
+      )}
 
-      {/* === Precio del cliente (verde, prominente) === */}
+      {/* Paso 3 — Precio (aparece al elegir el cono) */}
+      {tieneCono && (
       <section className="border border-bnp-green/40 bg-bnp-green/5 rounded-lg p-4">
         <div className="flex items-center gap-2 mb-3">
-          <span className="w-2 h-2 rounded-full bg-bnp-green" />
+          <span className="w-5 h-5 rounded-full bg-bnp-green/20 text-bnp-green text-2xs font-bold flex items-center justify-center flex-shrink-0">
+            3
+          </span>
           <h4 className="text-xs font-semibold text-bnp-green uppercase tracking-wider">
             Precio negociado con el cliente ({esMexico ? 'MXN' : 'USD'} por {item.unit.toLowerCase()})
           </h4>
@@ -607,6 +646,7 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
           </div>
         </div>
       </section>
+      )}
     </div>
   );
 }
