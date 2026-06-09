@@ -104,6 +104,29 @@ Pendientes documentados (cobertura, no bugs): endpoint de autosave del draft,
 `lookupEngine`/parsers, modelo del middleware (fail-open + `/api/` exento, la
 defensa real es RLS dentro de cada ruta).
 
+### Auditoría de áreas no cubiertas — críticos cerrados
+
+Una segunda auditoría (autosave, lookupEngine/parsers, middleware/auth) halló
+2 bugs **críticos**, ambos cerrados:
+
+- **C1 — Escalada a admin (SEGURIDAD)**: la policy `users_update_own_profile`
+  (003) permitía a un vendedor hacer `update({role:'admin'})` sobre su propia
+  fila vía la anon key pública (Postgres no tiene RLS por columna). Migración
+  **013_lock_role_column.sql**: trigger `BEFORE UPDATE` que rechaza cambios de
+  `role` salvo por un admin. ⚠️ **Requiere aplicarse en Supabase** (igual que
+  011/012). Comentario engañoso de 003 corregido.
+- **C2 — `num()` rompía la coma decimal**: `lib/parsers/utils.ts` borraba todas
+  las comas antes de tratarlas como decimal (`"36,50"` → `3650`, `"0,3"` → `3`),
+  envenenando costos/cono/PB al parsear celdas-texto de los Excel de Diego.
+  Reescrito para manejar formato US y europeo (último separador = decimal).
+  Verificado con 11 casos.
+
+Pendientes de esta auditoría (no críticos, documentados para después): overwrite
+ciego del draft sin lock en el branch dedup (alto), fallback silencioso a precios
+estáticos del build ante 500 (alto), `isEmpty` que ignora desc/qty/cono, sin
+flush al cerrar, upload que parsea antes de autenticar, y varios de robustez en
+lookup/parsers/RLS.
+
 ### Fase A (lista) — fundación multi-empresa
 
 - **Pregunta al inicio**: selector "Cotizar para BioNovaPack · USA / Extruidos · México"

@@ -1,10 +1,33 @@
 // Utilidades compartidas por los parsers de Excel.
 
-// Convierte cualquier celda a numero o null
+// Convierte cualquier celda a numero o null.
+// Maneja separadores decimales y de millares en formato US y europeo SIN
+// destruir la coma decimal. El bug viejo (`replace(/[$,\s]/g,'').replace(',','.')`)
+// borraba TODAS las comas primero, así que "36,50" se volvía 3650 (×100) y
+// "0,3" (cono) → 3. Regla: si hay ambos separadores, el ÚLTIMO es el decimal y
+// el otro es de millares; si solo hay coma, es el decimal.
 export function num(v: unknown): number | null {
   if (v === null || v === undefined || v === '') return null;
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
-  const s = String(v).replace(/[$,\s]/g, '').replace(',', '.');
+  let s = String(v).trim().replace(/[$\s]/g, ''); // quita moneda/espacios, NO comas aún
+  if (s === '') return null;
+  const lastComma = s.lastIndexOf(',');
+  const lastDot = s.lastIndexOf('.');
+  if (lastComma !== -1 && lastDot !== -1) {
+    if (lastComma > lastDot) {
+      // Europeo "1.234,56" → puntos = millares, coma = decimal
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // US "1,234.56" → comas = millares
+      s = s.replace(/,/g, '');
+    }
+  } else if (lastComma !== -1) {
+    // Solo coma: es el separador decimal ("36,50" → "36.50", "0,3" → "0.3").
+    // (Un "1,234" sin decimales reales es rarísimo en este dominio —precios <500,
+    //  conos/PB <3— y normalmente llega como celda numérica, no texto.)
+    s = s.replace(',', '.');
+  }
+  // Solo punto, o sin separadores: ya está en formato parseable.
   const n = parseFloat(s);
   return Number.isFinite(n) ? n : null;
 }

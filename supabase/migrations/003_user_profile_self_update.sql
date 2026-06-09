@@ -8,10 +8,14 @@
 -- cotizador (modal de onboarding al primer login + botón editar después)
 -- y la API server-side hace UPDATE de user_profiles.name vía /api/profile.
 --
--- Seguridad: la policy permite UPDATE de la fila propia, pero el endpoint
--- /api/profile/route.ts es la única ruta autorizada — solo escribe el
--- campo `name`, jamás `role` ni `email`. Así un vendedor NO puede
--- auto-promoverse a admin aunque la policy diga "update on own row".
+-- ⚠️ SEGURIDAD — LEER 013_lock_role_column.sql:
+-- Esta policy permite UPDATE de la fila propia. El comentario original asumía
+-- que era seguro "porque solo /api/profile escribe `name`" — ESO ERA FALSO:
+-- Postgres no tiene RLS por columna, y un vendedor puede saltarse /api/profile
+-- y llamar a Supabase directo (anon key pública) para hacer
+-- `update({ role: 'admin' })` sobre su propia fila. La migración 013 agrega un
+-- trigger BEFORE UPDATE que bloquea cambios de `role` salvo por un admin; ESA
+-- es la defensa real. No confiar en que "solo el endpoint escribe name".
 
 DROP POLICY IF EXISTS "users_update_own_profile" ON user_profiles;
 CREATE POLICY "users_update_own_profile" ON user_profiles
