@@ -175,38 +175,22 @@ export async function POST(req: NextRequest) {
       // no existe → cae a insert nuevo
     }
   } else {
-    // === CLIENTE NO CONOCE NINGÚN DRAFT (sin id) → dedup ===
-    // Antes esto siempre INSERTABA, pudiendo crear un 2º draft para el mismo
-    // usuario (el GET solo devuelve el más reciente → el otro quedaba
-    // huérfano e invisible). Ahora buscamos el draft existente y lo
-    // actualizamos: un draft activo por usuario. Sin optimistic check porque
-    // el cliente no cargó ese draft — su contenido actual es el autoritativo.
+    // === CLIENTE NO CONOCE NINGÚN DRAFT (sin id) ===
+    // Si YA existe un draft del usuario, NO lo pisamos a ciegas. Un POST sin id
+    // mientras existe un draft significa que el cliente perdió su ancla: o es
+    // una 2ª pestaña recién abierta, o su loadDraft falló por red. Pisar aquí
+    // descartaba el trabajo de la otra pestaña sin aviso (bug A1 de la
+    // auditoría). Devolvemos CONFLICTO → el cliente recarga y recupera el draft
+    // real. Tras "Nueva cotización" (DELETE) NO hay existing → cae a insert.
     const { data: existing } = await sb
       .from('cotizaciones')
-      .select('id')
+      .select('id, updated_at')
       .eq('user_id', user.id)
       .eq('status', 'draft')
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (existing) {
-      const { data, error } = await sb
-        .from('cotizaciones')
-        .update(row)
-        .eq('id', existing.id)
-        .eq('user_id', user.id)
-        .select('id, updated_at')
-        .maybeSingle();
-      if (error) {
-        // eslint-disable-next-line no-console
-        console.error('[draft][dedup-update]', { code: error.code, message: error.message, user_id: user.id });
-        return NextResponse.json({ error: error.message, code: error.code }, { status: 500 });
-      }
-      if (data) {
-        return NextResponse.json({ saved: true, id: data.id, updated_at: data.updated_at });
-      }
-      // si desapareció entre el select y el update, cae a insert
-    }
+    if (existing) return conflictResponse(existing.updated_at);
   }
 
   // Insert nuevo draft
@@ -216,6 +200,21 @@ export async function POST(req: NextRequest) {
     .select('id, updated_at')
     .single();
   if (error) {
+    // 23505 = violación del índice único uniq_draft_por_usuario: otra
+    // pestaña/dispositivo creó el draft entre nuestro select y este insert.
+    // NO es un 500: devolvemos conflicto para que el cliente recargue (antes
+    // el cliente recibía 500 y reintentaba en bucle sin recuperarse — bug M1).
+    if (error.code === '23505') {
+      const { data: current } = await sb
+        .from('cotizaciones')
+        .select('id, updated_at')
+        .eq('user_id', user.id)
+        .eq('status', 'draft')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return conflictResponse(current?.updated_at ?? null);
+    }
     // eslint-disable-next-line no-console
     console.error('[draft][insert]', {
       code: error.code,

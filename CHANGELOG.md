@@ -145,9 +145,25 @@ usa cliente anónimo y el catálogo de costos termina en localStorage por
 dispositivo; el fix (ruta con auth + policy de lectura para autenticados) debe
 aplicarse junto con SQL en Supabase para no romper la lectura en prod.
 
-Pendientes restantes (Lotes A y C): overwrite ciego del draft sin lock (alto),
-`isEmpty` que ignora desc/qty/cono, sin flush al cerrar, upload que parsea antes
-de autenticar, rutas anónimas huérfanas y `schema.sql` con `allow_all_*`.
+### Lote A — autosave a prueba de pérdidas
+
+- **A1 — Overwrite ciego del draft (pérdida de datos entre pestañas)**: el
+  branch dedup (POST sin id) ya NO pisa el draft existente; devuelve conflicto
+  para que el cliente recargue y recupere el trabajo de la otra pestaña. Antes,
+  un loadDraft que fallaba por red hacía que la pestaña pisara el draft real.
+- **M1 — 500 en vez de 409 por colisión de índice único**: el insert ahora
+  detecta `23505` y responde conflicto (recuperable) en vez de un 500 que el
+  cliente reintentaba en bucle sin recuperarse.
+- **M2 — `isEmpty` ignoraba campos reales**: ahora considera "no vacío" también
+  descripción, cantidad, cono, rollos/tarima y tarimas/trailer del primer item.
+  Antes, arrancar por descripción+cantidad no programaba autosave y se perdía al
+  recargar.
+- **M3 — Sin flush al cerrar**: nuevo efecto que guarda lo pendiente en
+  `pagehide`, `visibilitychange→hidden` y al desmontar; antes el cleanup solo
+  hacía `clearTimeout` y se perdían hasta 2s de la última edición.
+
+Pendiente restante (Lote C): upload que parsea antes de autenticar (DoS), rutas
+anónimas huérfanas y `schema.sql` con `allow_all_*`.
 
 ### Fase A (lista) — fundación multi-empresa
 

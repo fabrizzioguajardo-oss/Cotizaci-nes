@@ -194,6 +194,12 @@ export function useCotizacionAutosave(
     // SOLO esos (flujo natural: primero datos del cliente) sin cliente ni
     // specs, nada se guardaba y se perdían al recargar — justo los campos que
     // las migraciones agregaron para persistir.
+    // Considera "no vacío" cualquier campo editable del primer item, no solo
+    // ancho/calibre/largo/precio. Antes, un vendedor que arrancaba por la
+    // DESCRIPCIÓN y la CANTIDAD (flujo natural) caía en isEmpty=true → no se
+    // programaba autosave → al recargar perdía desc+qty+cono+tarimas sin aviso
+    // (bug M2). Ahora desc/qty/cono/rollos/tarimas también cuentan.
+    const it0 = params.items[0];
     const isEmpty =
       !params.cliente.trim() &&
       !(params.contacto ?? '').trim() &&
@@ -202,10 +208,15 @@ export function useCotizacionAutosave(
       !(params.telefono_cliente ?? '').trim() &&
       !(params.anticipo ?? 0) &&
       params.items.length === 1 &&
-      params.items[0].aCliente === 0 &&
-      params.items[0].calCliente === 0 &&
-      params.items[0].lCliente === 0 &&
-      params.items[0].precioCliente === 0;
+      !((it0.desc ?? '').trim()) &&
+      !it0.qty &&
+      it0.aCliente === 0 &&
+      it0.calCliente === 0 &&
+      it0.lCliente === 0 &&
+      !it0.conoCliente &&
+      !it0.rollosPallet &&
+      !it0.palletTrailer &&
+      it0.precioCliente === 0;
 
     if (isEmpty) return;
 
@@ -241,6 +252,34 @@ export function useCotizacionAutosave(
     JSON.stringify(params.items),
     JSON.stringify(params.trailers),
   ]);
+
+  // Flush al cerrar/cambiar de pestaña o desmontar: si hay un guardado
+  // pendiente en el debounce, lo dispara. Antes el cleanup del efecto solo
+  // hacía clearTimeout → se perdían hasta `debounceMs` (2s) de la última
+  // edición al cerrar la pestaña o navegar (bug M3). Best-effort: en cierre
+  // real el fetch puede no completar, pero visibilitychange→hidden (cambio de
+  // pestaña) y el desmontaje sí alcanzan a guardar.
+  useEffect(() => {
+    const flushPendiente = () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+        timerRef.current = null;
+        void saveDraft();
+      }
+    };
+    const onVisibility = () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        flushPendiente();
+      }
+    };
+    window.addEventListener('pagehide', flushPendiente);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flushPendiente);
+      document.removeEventListener('visibilitychange', onVisibility);
+      flushPendiente(); // desmontaje (navegación SPA)
+    };
+  }, [saveDraft]);
 
   // Save manual inmediato (sin debounce)
   const saveNow = useCallback(async () => {
