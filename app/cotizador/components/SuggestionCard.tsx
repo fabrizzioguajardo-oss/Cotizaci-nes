@@ -61,19 +61,24 @@ export default function SuggestionCard({ item, suggestion, diagnosis, conoEfecti
     );
   }
 
+  // Semáforo según la política de Diego (10-jun-2026): verde hasta 5% (zona
+  // saludable), ámbar de 5 a 10% (requiere aprobación de JN), rojo arriba del
+  // 10% (fuera del ideal de la política).
   const reductionColor =
-    suggestion.reduction > 0.35
+    suggestion.reduction > 0.10
       ? '#EF4444'
-      : suggestion.reduction > 0.25
+      : suggestion.reduction > 0.05
       ? '#F59E0B'
       : '#5BAA47';
 
+  // Etiqueta alineada a la política de Diego: saludable hasta 5%, con
+  // aprobación de JN hasta 10%, fuera del ideal arriba de eso.
   const reductionLabel =
-    suggestion.reduction > 0.35
-      ? 'Alta'
-      : suggestion.reduction > 0.25
-      ? 'Media'
-      : 'Conservadora';
+    suggestion.reduction > 0.10
+      ? 'Fuera del ideal'
+      : suggestion.reduction > 0.05
+      ? 'Requiere aprobación'
+      : 'Saludable';
 
   // Cono final: override del vendedor o sugerencia. PB final se recalcula
   // contra el cono final para que la tarjeta muestre lo que de verdad se
@@ -212,15 +217,17 @@ export default function SuggestionCard({ item, suggestion, diagnosis, conoEfecti
             <div
               className="h-full transition-all duration-300 rounded-full"
               style={{
-                width: `${Math.min(100, suggestion.reduction * 100 / 0.4 * 100)}%`,
+                // Escala 0–10%: el rango que importa según la política
+                // (5% = límite saludable, 10% = tope del ideal).
+                width: `${Math.min(100, (suggestion.reduction / 0.10) * 100)}%`,
                 backgroundColor: reductionColor,
               }}
             />
           </div>
           <div className="flex justify-between text-2xs text-text-muted mono mt-1">
             <span>0%</span>
-            <span>20%</span>
-            <span className="text-bnp-amber">35% lím</span>
+            <span className="text-bnp-amber">5% (pide aprobación)</span>
+            <span>10% (tope ideal)</span>
           </div>
         </div>
 

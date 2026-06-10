@@ -34,12 +34,19 @@ Stack: **Next.js 14 (App Router) + TypeScript + Tailwind + Supabase + Vercel**.
    `private/`. **Antes de cada commit revisar `git status` para confirmar.**
 2. **`lib/version.ts` es la Single Source Of Truth de la versión.** Se cambia ahí y se
    propaga automático a TopBar, FeedbackModal, login page.
-3. **PN se trunca hacia abajo a 2 decimales** (convención Diego, no redondeo estándar):
-   usar `calcPNFacturable()` en cualquier flujo de costo/factura/kg trailer.
+3. **PN facturable: redondeo medio-para-abajo a 2 decimales** (regla corregida POR
+   DIEGO en la validación del 10-jun-2026: "si es ≤.5 hacia abajo y si >.5, hacia
+   arriba"; hasta v2.1 se truncaba con Math.floor). Usar `calcPNFacturable()` en
+   cualquier flujo de costo/factura/kg trailer.
 4. **Diego calcula costo por PN (peso neto), NO PB.** Verificado contra camiones reales.
    La fórmula es `costoRollo = (costoBase + transp/kg) * PN`.
 5. **Tolerancia natural de planta = ±0.5% del largo.** Más allá es decisión comercial
-   intencional (subir margen reduciendo material).
+   intencional (subir margen reduciendo material). POLÍTICA DIEGO (10-jun-2026):
+   reducción saludable hasta 5%; >5% requiere aprobación de JN; >10% fuera del
+   ideal ("35% sería bastante insano"). Cargo EDSA: +2.5 MXN/kg si PN < 1.3 kg.
+   Intenso: +1.25 MXN/kg. Márgenes por volumen y forma de pago: tabla
+   MARGEN_POLITICA (PUE 18/14/12.5/11, PPD 22/17/15.5/14.5) — BNP maneja otros
+   porcentajes (pendiente visita CDMX); el mínimo operativo sigue en 12%.
 6. **Multi-trailer**: el flete se distribuye SOLO entre las líneas de cada trailer
    individual (no global). Cada trailer tiene su propio `transport_usd` y `destino`.
 7. **Admin emails con override**: `lib/adminEmails.ts` mantiene un fallback hardcoded
@@ -64,14 +71,15 @@ Stack: **Next.js 14 (App Router) + TypeScript + Tailwind + Supabase + Vercel**.
 | **Real spec** | Lo que realmente se fabrica (potencialmente reducido). Solo el **largo** difiere — `aReal = aCliente`, `calReal = calCliente`. Solo `lReal ≤ lCliente`. |
 | **Compensación de cono** | Estrategia: al reducir `lReal`, el rollo pesa menos del PB cliente. Subir el cono compensa para que `PB_real ≈ PB_cliente`. El cliente pesa y "siente" lo esperado. |
 | **EDSA** | Proveedor de extrusión histórico de BioNovaPack. Sus precios son la base. |
-| **Reducción de material** | `1 - (PN_real / PN_cliente)`. Rango sano 5%–35%. |
+| **Reducción de material** | `1 - (PN_real / PN_cliente)`. Política Diego: saludable hasta 5%; >5% aprueba JN; >10% fuera del ideal. |
 
 **Fórmula PN raw**: `ancho × largo × calibre × 1.8148e-6` (verificado contra todos los
-camiones reales). Versión facturable: `Math.floor(raw * 100) / 100`.
+camiones reales). Versión facturable: redondeo medio-para-abajo a 2 decimales (`Math.ceil(raw*100 - 0.5 - 1e-9)/100`).
 
-**Fórmula Diego en Excel**: `=REDONDEAR(((B*(C/100)*D)/2500)*0.4536, 2)` — pero
-**siempre trunca hacia abajo** ("no regalar producto"). Por eso `calcPNFacturable` usa
-`Math.floor`.
+**Fórmula Diego en Excel**: `=REDONDEAR(((B*(C/100)*D)/2500)*0.4536, 2)`. Redondeo
+confirmado por Diego (10-jun-2026): medio-para-abajo (≤.5 baja, >.5 sube). La vieja
+premisa "siempre trunca (no regalar producto)" quedó corregida — `calcPNFacturable`
+ya NO usa Math.floor.
 
 ---
 
@@ -86,7 +94,7 @@ costoTotalKg       = costoBaseTotal + transpKgMXN
 pnReal_needed      = costoRolloMXN_max / costoTotalKg
 lReal_raw          = pnReal_needed / (aReal * calReal * 1.8148e-6)
 lReal              = Math.ceil(lReal_raw)        // ceil para garantizar margen
-pnReal_facturable  = floor(calcPN(aReal, lReal, calReal) * 100) / 100
+pnReal_facturable  = calcPNFacturable(aReal, lReal, calReal)  // redondeo medio-para-abajo
 ```
 
 **CAP importante**: si `lReal_raw >= lCliente`, el precio ya cubre el spec del cliente
@@ -328,6 +336,18 @@ de pushear directo."
 ```
 
 ---
+
+## Autoridad en reglas de negocio
+
+**La palabra de Diego (supply chain) es ley** en reglas de costo y política
+(instrucción de Fabrizzio, 10-jun-2026). Sus respuestas a la validación del
+proceso están en los comentarios del PDF "Proceso Cotizacion - COMENTARIOS DRAN"
+(Downloads) y resumidas en el CHANGELOG v2.2. Otras claves de esa validación:
+el flete de Castores en México SÍ se cobra (impactado al precio del rollo, no
+como línea aparte); el calibre NO afecta el precio (solo el peso; excepción:
+automático calibre 50); la lista de tarimas se deriva de la tabla maestra; el
+proceso completo de cotización es exclusivo de BNP (los vendedores de México
+no lo hacen); quien aprueba reducciones >5% es JN.
 
 ## Rutinas con Fabrizzio (preferencias del usuario)
 

@@ -7,6 +7,7 @@ import ConeSelectorPanel from './ConeSelectorPanel';
 import MatchQualityBadge from './MatchQualityBadge';
 import SpecCards from './SpecCards';
 import { usePriceData } from '@/lib/dataStore';
+import { INTENSO_MXN_KG } from '@/lib/pricingEngine';
 import { buildAutoFill, deriveResinClass, type ConoOption } from '@/lib/lookupEngine';
 import { useState } from 'react';
 import { ChevronRight, AlertTriangle } from 'lucide-react';
@@ -437,13 +438,26 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
           {/* Intenso */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">
+              <label
+                className="text-2xs font-semibold text-text-secondary uppercase tracking-wider"
+                title="Política (Diego): cada intenso suma 1.25 MXN/kg. Pica '1.25' para aplicarlo."
+              >
                 Intenso
               </label>
-              <CatalogPicker
-                category="intenso"
-                onPick={(e) => onChange({ intenso: e.precio_mxn_kg })}
-              />
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onChange({ intenso: INTENSO_MXN_KG })}
+                  className="text-2xs text-bnp-green font-semibold hover:underline"
+                  title="Política (Diego): cada intenso suma 1.25 MXN/kg"
+                >
+                  Aplicar {INTENSO_MXN_KG.toFixed(2)}
+                </button>
+                <CatalogPicker
+                  category="intenso"
+                  onPick={(e) => onChange({ intenso: e.precio_mxn_kg })}
+                />
+              </div>
             </div>
             <input
               type="number" step="0.1"

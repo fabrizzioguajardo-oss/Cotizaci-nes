@@ -2,13 +2,45 @@
 
 Registro de cambios entre versiones. Las versiones más recientes aparecen primero.
 
-> **Nota de versionado:** la versión que VE el usuario es **v2.1**. v2.0 estrenó
-> multi-empresa (BioNovaPack USA + Extruidos México); v2.1 trae el cotizar
-> guiado paso por paso y el cierre de las auditorías (robustez, seguridad,
-> precios, autosave, PDFs). Internamente el arco previo pasó por builds
-> 1.09 → 1.22. Subir `APP_VERSION` actualiza login/TopBar y reabre Novedades.
+> **Nota de versionado:** la versión que VE el usuario es **v2.2**. v2.0 estrenó
+> multi-empresa; v2.1 trajo el cotizar paso a paso y el cierre de auditorías;
+> v2.2 alinea las reglas de negocio a la validación de Diego (10-jun-2026).
+> Subir `APP_VERSION` actualiza login/TopBar y reabre Novedades.
 
 ---
+
+## v2.2 — Reglas de negocio validadas por Diego (10-jun-2026)
+
+Diego respondió el documento de validación del proceso ("Proceso Cotizacion -
+COMENTARIOS DRAN", 20 anotaciones). Por instrucción de Fabrizzio, **su palabra
+es ley**; estos cambios alinean el cotizador a sus correcciones:
+
+- **Umbral de aprobación de reducción: 35% → 5%** ("¿CÓMOOOO? una reducción del
+  35% sería bastante insana. Idealmente menos del 10%, lo saludable sería 5%
+  como límite. Aprueba JN si la baja es más del 5%"). `REDUCTION_WARN_HIGH` =
+  0.05 (dispara aprobación en modo revisión y riesgo alto en la comparación);
+  nuevo `REDUCTION_IDEAL_MAX` = 0.10 (aviso "fuera del ideal"); `REDUCTION_MIN`
+  baja a la tolerancia de planta (0.5%). Semáforos y copys actualizados
+  (SuggestionCard escala 0–10%, ToleranceWarning, ComparisonCard, page.tsx).
+- **Redondeo del PN facturable: medio-para-abajo** ("sí se redondea; si es ≤.5
+  hacia abajo y si >.5, hacia arriba") — `calcPNFacturable` deja Math.floor
+  (la premisa "no regalar producto" quedó corregida). Verificado: 6.60597 →
+  6.61 (antes 6.60); 2.80278 → 2.80.
+- **Cargo de rollos chicos**: +2.5 MXN/kg cuando PN < 1.3 kg (aumento anunciado
+  por EDSA). `buildAutoFill` lo suma al costo base al elegir cono y lo avisa.
+- **Intenso = +1.25 MXN/kg** ("está el modifier en la primera fila de cada
+  hoja"; la columna por fila viene vacía). Constante `INTENSO_MXN_KG` + botón
+  de un clic junto al campo Intenso.
+- **Tabla de márgenes por volumen y forma de pago** (corrige la 18/16/14/12.5
+  de la hoja EDSA): PUE 18/14/12.5/11 y PPD 22/17/15.5/14.5 por bandas <1t,
+  1–5t, 5–10t, >10t. Expuesta como `MARGEN_POLITICA` + helper
+  `margenMinimoPolitica()`; el mínimo operativo de las invariantes sigue en 12%
+  porque "para BNP se manejan otros porcentajes" (pendiente visita CDMX).
+- **CLAUDE.md actualizado**: reglas de oro 3 y 5, glosario, algoritmo inverso, y
+  nueva sección "Autoridad en reglas de negocio" con el resto de la validación
+  (Castores se cobra impactado al precio; el calibre no afecta el precio salvo
+  automático C50; la lista de tarimas se deriva de la tabla maestra; el proceso
+  completo es exclusivo de BNP; el 38.45 era un costo viejo).
 
 ## v2.1 — Cotizar paso por paso (revelado progresivo del formulario)
 

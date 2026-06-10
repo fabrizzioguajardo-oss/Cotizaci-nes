@@ -22,7 +22,7 @@ import type { QuoteResult } from './computeQuote';
 export const SNAPSHOT_SCHEMA_VERSION = 2;
 
 // Registro de aprobación cuando la cotización tocó una spec crítica
-// (hoy: reducción de largo > 35%) en modo 'optimizada_revision'.
+// (hoy: reducción de material > 5%, política Diego 10-jun-2026) en modo 'optimizada_revision'.
 export interface AprobacionInfo {
   aprobadoPor: string;   // nombre que el vendedor capturó
   aprobadoEn: string;    // ISO timestamp del momento de aprobación

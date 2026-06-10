@@ -61,7 +61,8 @@ export default function CotizadorPage() {
   // cliente pidió, sin optimización.
   const [tipoCotizacion, setTipoCotizacion] = useState<TipoCotizacion>('directa');
   // Aprobación (v1.22): nombre de quien aprueba + timestamp. Solo aplica en
-  // modo 'optimizada_revision' cuando algún spec crítico (reducción > 35%) se
+  // modo 'optimizada_revision' cuando algún spec crítico (reducción > 5%,
+  // política Diego 10-jun-2026) se
   // dispara. aprobadoEn se setea al confirmar la casilla.
   const [aprobadoPor, setAprobadoPor] = useState('');
   const [aprobadoEn, setAprobadoEn] = useState<string | null>(null);
@@ -148,7 +149,7 @@ export default function CotizadorPage() {
   }, [activeItem, trailers, tcCalc, trailerTotals.perTrailer]);
 
   // ¿La cotización requiere aprobación? Solo en modo 'optimizada_revision' y
-  // cuando alguna línea tiene reducción de material > 35% (la spec crítica
+  // cuando alguna línea tiene reducción de material > 5% (la spec crítica
   // elegida). materialReduction lo trae cada CalcResult.
   const requiereAprobacion =
     tipoCotizacion === 'optimizada_revision' &&
@@ -540,11 +541,11 @@ export default function CotizadorPage() {
   };
 
   // Gate de aprobación: en modo 'optimizada + revisión' con una reducción
-  // crítica (>35%), no se puede emitir hasta capturar la aprobación.
+  // crítica (>5%, política Diego), no se puede emitir hasta capturar la aprobación.
   const tieneAprobacion = (): boolean => {
     if (!requiereAprobacion || aprobadoEn) return true;
     window.alert(
-      'Esta cotización tiene una reducción de material mayor al 35% y está en modo "Optimizada + revisión". ' +
+      'Esta cotización tiene una reducción de material mayor al 5% (límite de política) y está en modo "Optimizada + revisión". ' +
         'Captura la aprobación (escribe el nombre y marca la casilla, arriba) antes de generar el documento.',
     );
     return false;
@@ -895,7 +896,7 @@ export default function CotizadorPage() {
                 {([
                   ['directa', 'Directa', 'Se fabrica EXACTAMENTE lo que pide el cliente. Sin optimización.'],
                   ['optimizada', 'Optimizada', 'El sistema propone una alternativa más rentable (reducir largo + compensar cono).'],
-                  ['optimizada_revision', 'Optimizada + revisión', 'Optimizada, pero un cambio de spec crítica (reducción > 35%) requiere aprobación.'],
+                  ['optimizada_revision', 'Optimizada + revisión', 'Optimizada, pero una reducción de material mayor al 5% requiere aprobación (política).'],
                 ] as [TipoCotizacion, string, string][]).map(([modo, label, hint]) => (
                   <button
                     key={modo}
@@ -919,12 +920,12 @@ export default function CotizadorPage() {
                 ? 'Tal cual lo pide el cliente.'
                 : tipoCotizacion === 'optimizada'
                 ? 'Propone una versión más rentable.'
-                : 'Optimizada; reducción >35% pide aprobación.'}
+                : 'Optimizada; reducción >5% pide aprobación.'}
             </span>
           </div>
 
           {/* Panel de aprobación (v1.22): aparece solo cuando el modo es
-              'optimizada + revisión' Y hay una reducción > 35% en alguna
+              'optimizada + revisión' Y hay una reducción > 5% en alguna
               línea. Captura ligera: nombre + casilla + timestamp. Bloquea la
               emisión de PDFs hasta que se confirme. */}
           {requiereAprobacion && (
@@ -933,10 +934,10 @@ export default function CotizadorPage() {
                 <ShieldAlert className="w-4 h-4 text-bnp-red flex-shrink-0 mt-0.5" />
                 <div>
                   <p className="text-2xs font-semibold text-bnp-red uppercase tracking-wider">
-                    Requiere aprobación comercial/técnica
+                    Requiere aprobación de JN (política: reducción mayor al 5%)
                   </p>
                   <p className="text-2xs text-text-secondary mt-0.5">
-                    Esta cotización reduce el material más de 35%. Captura quién lo aprueba
+                    Esta cotización reduce el material más del 5% (límite de política). Captura quién lo aprueba
                     antes de generar la cotización o la PO.
                   </p>
                 </div>

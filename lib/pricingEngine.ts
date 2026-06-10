@@ -59,14 +59,60 @@ export function conoEsperado(conoCliente: number, cono: number): number {
   return conoCliente > 0 ? conoCliente : cono;
 }
 
-// Rangos de validación históricos
-export const REDUCTION_MIN = 0.05;
-export const REDUCTION_MAX = 0.40;
-export const REDUCTION_WARN_HIGH = 0.35;
+// Rangos de reducción de material — política validada por Diego (10-jun-2026):
+// "idealmente menos del 10%, lo saludable sería 5% como límite. Aprueba JN si
+// la baja es más del 5%". (El 35% anterior le pareció "bastante insano".)
+export const REDUCTION_MIN = 0.005;        // bajo la tolerancia de planta: no es ajuste comercial
+export const REDUCTION_WARN_HIGH = 0.05;   // > 5% requiere aprobación de JN
+export const REDUCTION_IDEAL_MAX = 0.10;   // arriba del 10% sale del ideal de la política
+export const REDUCTION_MAX = 0.40;         // tope de cordura matemática (sugerencias absurdas)
 export const PRICE_PER_LB_MIN = 0.75;
 export const PRICE_PER_LB_MAX = 2.0;
 export const PRICE_PER_LB_WARN_LOW = 0.85;
 export const PRICE_PER_LB_WARN_HIGH = 1.60;
+
+// === Política de costos confirmada por Diego (validación 10-jun-2026) ===
+
+// "Cada intenso vale 1.25 extra; está el modifier en la primera fila de cada
+// hoja" del Excel de Color. La columna por fila viene vacía, así que este es
+// el valor de política para el adder de intenso.
+export const INTENSO_MXN_KG = 1.25;
+
+// "Estaremos aumentando 2.5 pesos por kg a rollos con peso neto inferior a
+// 1.3". Cargo de EDSA para rollos chicos — se aplica sobre el costo base al
+// auto-llenar (buildAutoFill) para no subcotizar contra el aumento anunciado.
+export const SMALL_ROLL_PN_MAX = 1.3;
+export const SMALL_ROLL_SURCHARGE_MXN_KG = 2.5;
+
+// Política de márgenes por volumen y forma de pago (tabla de Diego; corrige
+// la 18/16/14/12.5 que traía la hoja del Excel de EDSA). PUE = pago en una
+// exhibición (contado); PPD = pago en parcialidades/diferido (crédito).
+// OJO: "para BNP se manejan otros porcentajes" (pendiente de la visita CDMX) —
+// por eso el mínimo operativo de computeQuote sigue en MARGIN_MIN (12%) y esta
+// tabla se expone como referencia/objetivo, no como invariante dura.
+export const MARGEN_POLITICA: Record<'pue' | 'ppd', Array<{ hastaKg: number; margen: number }>> = {
+  pue: [
+    { hastaKg: 1000, margen: 0.18 },
+    { hastaKg: 5000, margen: 0.14 },
+    { hastaKg: 10000, margen: 0.125 },
+    { hastaKg: Infinity, margen: 0.11 },
+  ],
+  ppd: [
+    { hastaKg: 1000, margen: 0.22 },
+    { hastaKg: 5000, margen: 0.17 },
+    { hastaKg: 10000, margen: 0.155 },
+    { hastaKg: Infinity, margen: 0.145 },
+  ],
+};
+
+// Margen mínimo de política para un pedido, según forma de pago y tonelaje.
+export function margenMinimoPolitica(pago: 'pue' | 'ppd', kgTotales: number): number {
+  const tabla = MARGEN_POLITICA[pago];
+  for (const banda of tabla) {
+    if (kgTotales < banda.hastaKg) return banda.margen;
+  }
+  return tabla[tabla.length - 1].margen;
+}
 
 // Calcula el peso neto del rollo (kg) a partir de ancho (in), largo (ft) y calibre (GA).
 // Fórmula validada contra todos los camiones reales.
@@ -81,17 +127,19 @@ export function calcPN(ancho: number, largo: number, calibre: number): number {
   return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
-// Peso neto FACTURABLE: trunca el PN hacia abajo a 2 decimales (NO redondea
-// estandar). Convencion de Diego en su Excel: =REDONDEAR.MENOS(...,2). Para
-// 3″×70GA×1000′ el calculo da 0.381 kg → se factura 0.38 (no 0.39).
-// Razon: "no regalar producto" — siempre cobrar por el siguiente kg solo
-// cuando el rollo lo alcanza completo. Usado en TODOS los flujos de costo y
-// despliegue al cliente (calcLineItem, suggestRealSpec, PDFs, kg trailer).
+// Peso neto FACTURABLE: redondeo a 2 decimales según la regla de Diego
+// (validación del 10-jun-2026, comentario en el documento de proceso):
+// "sí se redondea; si es ≤.5 hacia abajo y si >.5, hacia arriba".
+// Es decir: medio-para-abajo (2.805 → 2.80; 2.8051 → 2.81).
+// NOTA HISTÓRICA: hasta v2.1 esto truncaba (Math.floor, REDONDEAR.MENOS)
+// bajo la premisa "no regalar producto"; Diego corrigió la regla y su
+// palabra es ley. Usado en TODOS los flujos de costo y despliegue
+// (calcLineItem, suggestRealSpec, PDFs, kg trailer).
 export function calcPNFacturable(ancho: number, largo: number, calibre: number): number {
-  // raw ya viene clampado a >= 0 finito desde calcPN, así que Math.floor()
-  // nunca redondea "hacia más negativo".
+  // raw ya viene clampado a >= 0 finito desde calcPN. El epsilon evita que
+  // un exacto-.5 representado como .50000000001 en flotante suba de más.
   const raw = calcPN(ancho, largo, calibre);
-  return Math.floor(raw * 100) / 100;
+  return Math.max(0, Math.ceil(raw * 100 - 0.5 - 1e-9) / 100);
 }
 
 // Convierte kg a lbs
@@ -108,9 +156,9 @@ export function calcLineItem(
   totalKgNetoTrailer: number,
 ): CalcResult {
   // Pesos del rollo real (lo que se fabrica).
-  // PN se factura redondeado HACIA ABAJO a 2 decimales (convencion Diego).
-  // Costo y kg trailer se calculan con el valor facturable para hacer match
-  // con su Excel y NO regalar producto.
+  // PN facturable: redondeo medio-para-abajo a 2 decimales (regla de Diego,
+  // validación 10-jun-2026). Costo y kg trailer usan el valor facturable
+  // para hacer match con su Excel.
   const pnReal = calcPNFacturable(item.aReal, item.lReal, item.calReal);
   const pbReal = pnReal + item.cono;
 
@@ -264,6 +312,13 @@ export function suggestRealSpec(params: {
   // ────────────────────────────────────────────────────────────────────────
   if (!isFinite(lReal_raw) || lReal_raw <= 0 || lReal_raw >= lCliente) {
     const pnAtCliente = calcPNFacturable(aReal, lCliente, calReal);
+    // Con el redondeo medio-para-abajo el PN facturable puede quedar un pelo
+    // ARRIBA del necesario incluso aquí: verificar la utilidad real antes de
+    // afirmar que el margen está cubierto (antes el texto lo aseguraba
+    // incondicionalmente y podía quedar hasta ~3pp corto en rollos chicos).
+    const costoNoOpMXN = pnAtCliente * costoTotalKg;
+    const utilidadNoOp = costoNoOpMXN > 0 ? (precio * tc) / costoNoOpMXN - 1 : null;
+    const cubreMargen = utilidadNoOp !== null && utilidadNoOp >= marginTarget - 1e-9;
     return {
       lReal: lCliente,
       pnReal: pnAtCliente,
@@ -272,7 +327,9 @@ export function suggestRealSpec(params: {
       pricePerLb,
       isValid: true,
       warnings: [
-        'El precio cubre el spec del cliente con el margen objetivo. Fabricar tal cual, sin reducir largo ni compensar cono.',
+        cubreMargen
+          ? 'El precio cubre el spec del cliente con el margen objetivo. Fabricar tal cual, sin reducir largo ni compensar cono.'
+          : `El precio casi cubre el spec del cliente: fabricando tal cual, el margen queda en ${utilidadNoOp !== null ? (utilidadNoOp * 100).toFixed(1) : '—'}% vs objetivo ${(marginTarget * 100).toFixed(0)}%.`,
       ],
       conoSugerido: cono,
       conoIdeal: cono,
@@ -283,11 +340,20 @@ export function suggestRealSpec(params: {
     };
   }
 
-  // Largo final (entero, redondeado hacia arriba para cubrir el PN minimo).
-  // Red de seguridad: clamp a lCliente como ultimo recurso por si el cap de
-  // arriba no atrapara algun edge case (NaN/Infinity en flotantes raros).
-  const lReal = Math.min(lCliente, Math.ceil(lReal_raw));
-  // PN final que se va a facturar — truncado igual que en calcLineItem.
+  // Largo final (entero). El ceil inicial puede dejar el PN facturable POR
+  // ENCIMA del necesario (con el redondeo medio-para-abajo el costo sube y el
+  // margen queda corto hasta ~3pp en rollos chicos — hallazgo de la revisión
+  // adversarial). Bajamos el largo de 1 en 1 hasta que el PN facturable quede
+  // <= al PN necesario: ESO garantiza utilidad >= objetivo, y coincide con la
+  // convención manual de Diego (en el camión 10 eligió 4,610 ft logrando
+  // 5.15%, no 4,613 con 4.99%). Converge en pocas iteraciones.
+  // Clamp a lCliente como último recurso por si el cap de arriba no atrapara
+  // algún edge case (NaN/Infinity en flotantes raros).
+  let lReal = Math.min(lCliente, Math.ceil(lReal_raw));
+  while (lReal > 1 && calcPNFacturable(aReal, lReal, calReal) > pnReal_needed_raw) {
+    lReal -= 1;
+  }
+  // PN final que se va a facturar — mismo redondeo que en calcLineItem.
   const pnReal_facturable = calcPNFacturable(aReal, lReal, calReal);
 
   const reduction = pnTeoricoCliente > 0
@@ -296,19 +362,24 @@ export function suggestRealSpec(params: {
 
   const pbRealKg = pnReal_facturable + cono;
 
+  // Política Diego: arriba del 10% la sugerencia sale del ideal → inválida
+  // para aplicar sin revisión. Una reducción chica (la zona saludable) ya NO
+  // invalida — solo genera la nota informativa de tolerancia de planta.
   const isValid =
-    reduction >= REDUCTION_MIN &&
-    reduction <= REDUCTION_MAX &&
+    reduction <= REDUCTION_IDEAL_MAX &&
     pricePerLb >= PRICE_PER_LB_MIN &&
     pricePerLb <= PRICE_PER_LB_MAX &&
     lReal > 0;
 
   const warnings: string[] = [];
   if (reduction > REDUCTION_WARN_HIGH) {
-    warnings.push(`Reducción ${(reduction * 100).toFixed(1)}% > 35%, revisar con Jennifer antes de mandar`);
+    warnings.push(`Reducción ${(reduction * 100).toFixed(1)}% > 5% — requiere aprobación de JN (política Diego)`);
+  }
+  if (reduction > REDUCTION_IDEAL_MAX) {
+    warnings.push(`Reducción ${(reduction * 100).toFixed(1)}% arriba del ideal de la política (menos del 10%)`);
   }
   if (reduction < REDUCTION_MIN) {
-    warnings.push('Reducción muy baja — quizá no necesitas ajuste de spec');
+    warnings.push('Reducción dentro de la tolerancia natural de planta (±0.5%) — no es un ajuste comercial');
   }
   if (pricePerLb < PRICE_PER_LB_WARN_LOW) {
     warnings.push(`Price/lb $${pricePerLb.toFixed(3)} muy bajo para mercado EUA`);

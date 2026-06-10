@@ -34,15 +34,16 @@ export default function ComparisonCard({ item, directResult, optimizedResult, re
     margenDirecto !== null && margenOpt !== null ? margenOpt - margenDirecto : null;
 
   // Riesgo + recomendación.
-  // - Reducción > 35% es la spec crítica que (en modo revisión) requiere
-  //   aprobación. La marcamos como riesgo alto.
+  // - Reducción > 5% (REDUCTION_WARN_HIGH, política Diego 10-jun-2026) es la
+  //   spec crítica que (en modo revisión) requiere aprobación de JN. La
+  //   marcamos como riesgo alto.
   const riesgoAlto = reduction > REDUCTION_WARN_HIGH;
   const margenBajoMin = margenOpt !== null && margenOpt < MARGIN_MIN;
 
   let recomendacion: { texto: string; tono: 'bien' | 'precaucion' | 'alto' };
   if (riesgoAlto) {
     recomendacion = {
-      texto: `La reducción de ${fmtPct(reduction)} supera el 35% — requiere aprobación comercial/técnica antes de emitir.`,
+      texto: `La reducción de ${fmtPct(reduction)} supera el 5% (límite de política) — requiere aprobación de JN/técnica antes de emitir.`,
       tono: 'alto',
     };
   } else if (ahorroPorRollo <= 0) {

@@ -31,7 +31,7 @@ export const IVA_MX = 0.16;
 //  - 'optimizada': el sistema propone una alternativa más rentable (hoy:
 //    reducir largo + compensar cono) y el vendedor la aplica.
 //  - 'optimizada_revision': igual que optimizada, pero si el cambio toca una
-//    spec crítica (hoy: reducción de largo > 35%) requiere aprobación antes
+//    spec crítica (hoy: reducción de material > 5%, política Diego) requiere aprobación antes
 //    de emitir el PDF.
 export type TipoCotizacion = 'directa' | 'optimizada' | 'optimizada_revision';
 export type ResinType = 'virgen' | 'reciclado' | 'color';

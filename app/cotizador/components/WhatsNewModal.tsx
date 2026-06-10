@@ -24,7 +24,19 @@ const SECCIONES: Seccion[] = [
   {
     icon: Rocket,
     color: '#5BAA47',
-    titulo: 'Novedades de esta versión (v2.1)',
+    titulo: 'Novedades de esta versión (v2.2) — reglas validadas con Diego',
+    puntos: [
+      'El límite de reducción de material cambió: la zona saludable es hasta 5%. Arriba del 5% se requiere aprobación de JN, y arriba del 10% el sistema lo marca fuera del ideal (antes solo pedía aprobación arriba del 35%).',
+      'El peso facturable ahora se redondea como lo hace Diego (mitad o menos hacia abajo, más de la mitad hacia arriba), en lugar de truncar siempre hacia abajo.',
+      'Rollos chicos: al elegir el cono, si el peso neto es menor a 1.3 kg el sistema suma solo el aumento de 2.5 pesos por kilo anunciado por EDSA, y te lo avisa.',
+      'Color intenso: junto al campo Intenso hay un botón para aplicar el 1.25 por kilo de política con un clic.',
+      'La tabla de márgenes por volumen y forma de pago (contado/crédito) quedó cargada como referencia; se conectará a las alertas cuando se confirmen los porcentajes de BNP en la visita.',
+    ],
+  },
+  {
+    icon: Rocket,
+    color: '#3E8EDE',
+    titulo: 'También reciente (v2.1)',
     puntos: [
       'Cotizar paso por paso: la pantalla ya no muestra todo en ceros de golpe. Arranca pidiendo solo el pedido del cliente (Paso 1); el cono y los cálculos (Paso 2) y el precio (Paso 3) se abren conforme llenas.',
       'Tu trabajo no se pierde: guarda desde el inicio (descripción y cantidad incluidas), conserva lo último al cerrar la pestaña, y ya no se duplican cotizaciones por doble-clic.',
@@ -69,7 +81,7 @@ const SECCIONES: Seccion[] = [
       'Elige el tipo de cotización arriba del panel: Directa, Optimizada u Optimizada + revisión.',
       'Directa: cotizas exactamente lo que pide el cliente, sin cambios.',
       'Optimizada: el sistema propone una versión más rentable y te muestra una comparación lado a lado (ahorro por rollo, ahorro total, cuánto sube el margen y una recomendación).',
-      'Optimizada + revisión: si la propuesta reduce el material más de 35%, te pide aprobación antes de generar el documento y lo deja registrado.',
+      'Optimizada + revisión: si la propuesta reduce el material más del 5% (política validada con Diego), te pide aprobación antes de generar el documento y lo deja registrado.',
     ],
   },
   {
@@ -78,7 +90,7 @@ const SECCIONES: Seccion[] = [
     titulo: 'Cálculos más exactos y confiables',
     puntos: [
       'El cono ahora distingue entre lo que el cliente espera y lo que se fabrica, y avisa si el paquete pesaría de más.',
-      'El peso neto se redondea siempre hacia abajo (no se regala producto).',
+      'El peso neto facturable se redondea con la regla de Diego: mitad o menos hacia abajo, más de la mitad hacia arriba.',
       'La sugerencia de largo usa el tipo de cambio real que pones en pantalla.',
       'Los PDFs cuadran: la cantidad por línea siempre suma con el total.',
       'Se agregaron 1,329 productos de la tabla maestra de EDSA como referencia para sugerir cono.',

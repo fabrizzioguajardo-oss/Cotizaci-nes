@@ -9,7 +9,12 @@
 //   4. lookupPrice({ancho, cono, PB, resin_class}) -> MXN/kg
 //   5. LineItemEditor se auto-llena
 
-import { calcPNFacturable } from './pricingEngine';
+import {
+  calcPN,
+  calcPNFacturable,
+  SMALL_ROLL_PN_MAX,
+  SMALL_ROLL_SURCHARGE_MXN_KG,
+} from './pricingEngine';
 import type {
   ParsedPriceRow,
   ParsedTarimaRow,
@@ -185,7 +190,14 @@ export function lookupConoOptions(params: {
             largo_aprox: exactMatch.largo_aprox,
           }
         : null,
-      precio_estimado_mxn_kg: priceMatch?.precio_mxn_kg ?? null,
+      // El preview incluye el cargo de rollo chico (+2.5 si PN crudo < 1.3)
+      // para que el precio NO salte entre elegir el cono y aplicarlo.
+      precio_estimado_mxn_kg: priceMatch
+        ? priceMatch.precio_mxn_kg +
+          (calcPN(ancho, largo_ft, calibre) > 0 && calcPN(ancho, largo_ft, calibre) < SMALL_ROLL_PN_MAX
+            ? SMALL_ROLL_SURCHARGE_MXN_KG
+            : 0)
+        : null,
       is_exact_catalog_match: !!exactMatch,
     });
   }
@@ -383,6 +395,24 @@ export function buildAutoFill(params: {
     warnings.push(`No encontre precio para ${ancho}" cono=${cono} PB=${pb.toFixed(2)} ${resin_class}`);
     return null;
   }
+
+  // Cargo de rollos chicos (política Diego, validación 10-jun-2026): EDSA
+  // aumenta 2.5 MXN/kg a rollos con PN < 1.3 kg. Se suma al costo base aquí
+  // (las listas aún no lo traen) para no subcotizar contra el aumento
+  // anunciado; el aviso lo hace visible al vendedor.
+  // OJO: la comparación usa el PN CRUDO (no el facturable) — el redondeo a
+  // 2 decimales subía 1.295–1.2999 a 1.30 y esos rollos escapaban el cargo.
+  // PENDIENTE (cuando EDSA publique listas con el aumento ya incluido): quitar
+  // este recargo para no cobrarlo doble.
+  const pnCrudo = calcPN(ancho, largo_ft, calibre);
+  let costoBaseFinal = price.precio_mxn_kg;
+  if (pnCrudo > 0 && pnCrudo < SMALL_ROLL_PN_MAX) {
+    costoBaseFinal += SMALL_ROLL_SURCHARGE_MXN_KG;
+    warnings.push(
+      `Rollo chico (PN ${pnCrudo.toFixed(3)} kg < ${SMALL_ROLL_PN_MAX}): se sumó el aumento de ` +
+      `${SMALL_ROLL_SURCHARGE_MXN_KG} MXN/kg anunciado por EDSA (base ${price.precio_mxn_kg.toFixed(2)} → ${costoBaseFinal.toFixed(2)})`,
+    );
+  }
   if (price.match_quality === 'interpolated') {
     warnings.push(`Match aproximado (PB diff ${price.match_distance_pb.toFixed(2)}kg) — verificar con Diego`);
   }
@@ -395,7 +425,7 @@ export function buildAutoFill(params: {
     rollos_por_tarima: rule?.total_rollos ?? 0,
     pz_por_cama: rule?.pz_por_cama ?? 0,
     camas_por_tarima: rule?.camas_por_tarima ?? 0,
-    costo_base_mxn_kg: price.precio_mxn_kg,
+    costo_base_mxn_kg: costoBaseFinal,
     master_mxn_kg: price.master_mxn_kg ?? 0,
     intenso_mxn_kg: price.intenso_mxn_kg ?? 0,
     source_note: `${price.source_file}/${price.source_sheet} - ${price.raw_description}`,

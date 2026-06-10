@@ -44,7 +44,14 @@ export default function ResultsStrip({ result, precioCliente }: Props) {
       label: 'Reducción',
       value: fmtPct(result.materialReduction),
       sub: 'vs decl.',
-      color: result.materialReduction > 0.35 ? '#F59E0B' : undefined,
+      // Política Diego: ámbar arriba del 5% (pide aprobación), rojo arriba
+      // del 10% (fuera del ideal).
+      color:
+        result.materialReduction > 0.10
+          ? '#EF4444'
+          : result.materialReduction > 0.05
+          ? '#F59E0B'
+          : undefined,
     },
   ];
 

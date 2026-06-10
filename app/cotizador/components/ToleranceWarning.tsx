@@ -1,7 +1,7 @@
 'use client';
 
 import { AlertTriangle, CheckCircle, Info } from 'lucide-react';
-import { PLANT_TOLERANCE_PCT } from '@/lib/pricingEngine';
+import { PLANT_TOLERANCE_PCT, REDUCTION_WARN_HIGH } from '@/lib/pricingEngine';
 import { fmtNum } from '@/lib/format';
 
 interface Props {
@@ -18,8 +18,8 @@ interface Props {
 //   ⚠ FUERA de tolerancia (amber): la sugerencia es intencional, ahorra material
 //     pero el cliente recibe menos de lo declarado. Vale la pena verificar el
 //     contrato.
-//   🚫 MUY FUERA (rojo): reducion fuerte (>10pp más allá de tolerancia).
-//     Riesgo alto, revisar con Jennifer.
+//   🚫 MUY FUERA (rojo): reducción arriba del límite saludable de la política
+//     (5%, validación Diego 10-jun-2026). Requiere aprobación de JN.
 export default function ToleranceWarning({ largoCliente, largoReal }: Props) {
   if (largoCliente <= 0 || largoReal <= 0) return null;
 
@@ -31,10 +31,11 @@ export default function ToleranceWarning({ largoCliente, largoReal }: Props) {
   const excedeTolerancia = largoReal < lowerBound;
   const excedeTolerancia_pp = excedeTolerancia ? reductionPct - tolPct : 0;
 
-  // Determinar nivel de warning
+  // Determinar nivel de warning. danger = la reducción rebasa el límite
+  // saludable de la política (5%): a partir de ahí JN debe aprobar.
   const level: 'ok' | 'warn' | 'danger' = !excedeTolerancia
     ? 'ok'
-    : excedeTolerancia_pp > 0.10  // 10pp más allá de la tolerancia
+    : reductionPct > REDUCTION_WARN_HIGH
     ? 'danger'
     : 'warn';
 
@@ -60,8 +61,8 @@ export default function ToleranceWarning({ largoCliente, largoReal }: Props) {
       color: '#EF4444',
       bg: 'rgba(239, 68, 68, 0.1)',
       border: 'rgba(239, 68, 68, 0.4)',
-      title: 'MUY POR DEBAJO de tolerancia',
-      desc: `Reducción agresiva. Riesgo de pérdida de cliente si detecta la diferencia. Considera validar con Jennifer antes de mandar.`,
+      title: 'ARRIBA DEL LÍMITE DE POLÍTICA (5%)',
+      desc: `Reducción mayor al límite saludable del 5%. Requiere aprobación de JN antes de mandar (política validada por Diego). Riesgo de pérdida de cliente si detecta la diferencia.`,
     },
   }[level];
 
