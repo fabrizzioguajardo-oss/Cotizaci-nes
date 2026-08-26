@@ -79,10 +79,17 @@ function LoginInner() {
     setLoading(false);
 
     if (error) {
-      setError(error.message);
+      // Traducir el límite de correos del plan de Supabase a algo accionable
+      setError(
+        /rate limit/i.test(error.message)
+          ? 'Se alcanzó el límite de correos por hora del sistema. Espera ~1 hora y vuelve a intentar (los intentos fallidos también cuentan).'
+          : error.message,
+      );
       return;
     }
-    router.push(`/auth/check-email?email=${encodeURIComponent(email.trim())}`);
+    router.push(
+      `/auth/check-email?email=${encodeURIComponent(email.trim())}&next=${encodeURIComponent(nextPath)}`,
+    );
   };
 
   return (
@@ -106,7 +113,7 @@ function LoginInner() {
         <div className="card p-7">
           <h2 className="text-base font-semibold mb-1">Inicia sesión</h2>
           <p className="text-sm text-text-secondary mb-5">
-            Te mandamos un enlace mágico a tu correo. Sin contraseñas.
+            Te mandamos un código de acceso a tu correo. Sin contraseñas.
           </p>
 
           {linkError && (
