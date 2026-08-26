@@ -17,7 +17,15 @@ export async function GET(request: NextRequest) {
   const next = searchParams.get('next') ?? '/cotizador';
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=missing_code`);
+    // Supabase redirige aquí con error/error_description cuando el enlace
+    // expiró, ya fue usado, o el flujo PKCE no cuadra. Propagar el motivo
+    // real a /login para que el usuario vea QUÉ pasó en lugar de un loop
+    // mudo que lo regresa a pedir el correo sin explicación.
+    const errDesc = searchParams.get('error_description');
+    const errCode = searchParams.get('error_code');
+    const err = searchParams.get('error');
+    const reason = errDesc || errCode || err || 'missing_code';
+    return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(reason)}`);
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

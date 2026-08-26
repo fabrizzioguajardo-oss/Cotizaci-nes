@@ -6,10 +6,47 @@ import { getSupabaseBrowser } from '@/lib/supabase';
 import { Package, Mail, Loader2, AlertCircle } from 'lucide-react';
 import { APP_VERSION_FULL, APP_ORG } from '@/lib/version';
 
+// Traduce el error técnico del magic link (que viene en ?error= desde
+// /auth/callback) a una explicación accionable en español. Antes el login
+// IGNORABA este parámetro: el enlace fallaba y el usuario solo veía otra vez
+// el campo de correo, sin pista alguna (loop mudo).
+function describeLinkError(raw: string): { titulo: string; detalle: string } {
+  const lower = raw.toLowerCase();
+  if (lower.includes('verifier') || lower.includes('challenge')) {
+    return {
+      titulo: 'El enlace se abrió en otro navegador',
+      detalle:
+        'Por seguridad, el enlace solo funciona en el mismo navegador donde pediste el correo. ' +
+        'Pide el enlace desde este navegador y ábrelo aquí mismo (si tu correo lo abre en otra app, ' +
+        'copia el enlace y pégalo en esta ventana).',
+    };
+  }
+  if (lower.includes('expired') || lower.includes('invalid') || lower.includes('otp')) {
+    return {
+      titulo: 'El enlace ya se usó o expiró',
+      detalle:
+        'Cada enlace sirve UNA sola vez. A veces el filtro del correo corporativo lo "abre" antes que tú ' +
+        'y lo gasta. Pide un enlace nuevo; si vuelve a pasar, avísale a Fabrizzio.',
+    };
+  }
+  if (lower === 'missing_code') {
+    return {
+      titulo: 'El enlace llegó incompleto',
+      detalle:
+        'Se abrió la página de acceso sin el código del enlace. Copia y pega el enlace completo del correo, ' +
+        'o pide uno nuevo desde aquí.',
+    };
+  }
+  return { titulo: 'No se pudo iniciar sesión con el enlace', detalle: raw };
+}
+
 function LoginInner() {
   const router = useRouter();
   const params = useSearchParams();
   const nextPath = params.get('next') || '/cotizador';
+  // Error del magic link propagado por /auth/callback
+  const linkErrorRaw = params.get('error');
+  const linkError = linkErrorRaw ? describeLinkError(linkErrorRaw) : null;
 
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -71,6 +108,16 @@ function LoginInner() {
           <p className="text-sm text-text-secondary mb-5">
             Te mandamos un enlace mágico a tu correo. Sin contraseñas.
           </p>
+
+          {linkError && (
+            <div className="flex items-start gap-2 text-2xs border border-bnp-red/30 bg-bnp-red/10 rounded p-2.5 mb-4">
+              <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-bnp-red" />
+              <div>
+                <p className="font-semibold text-bnp-red">{linkError.titulo}</p>
+                <p className="text-text-secondary mt-0.5">{linkError.detalle}</p>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
