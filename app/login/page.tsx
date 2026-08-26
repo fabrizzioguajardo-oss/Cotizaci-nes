@@ -161,7 +161,7 @@ function LoginInner() {
               ) : (
                 <>
                   <Mail className="w-4 h-4" />
-                  Enviarme enlace de acceso
+                  Enviarme código de acceso
                 </>
               )}
             </button>
