@@ -43,8 +43,10 @@ function Inner() {
       setError('Supabase no está configurado. Avísale a Fabrizzio.');
       return;
     }
-    if (code.length !== 6) {
-      setError('El código tiene 6 dígitos.');
+    // Supabase permite configurar el largo del OTP (este proyecto usa 8);
+    // aceptar 6-10 para no romper si cambia la config.
+    if (code.length < 6) {
+      setError('El código está incompleto — cópialo completo del correo.');
       return;
     }
     setVerifying(true);
@@ -82,16 +84,16 @@ function Inner() {
             <div className="text-left">
               <label className="label flex items-center gap-1.5">
                 <KeyRound className="w-3.5 h-3.5" />
-                Código de 6 dígitos
+                Código del correo
               </label>
               <input
                 type="text"
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                placeholder="000000"
-                className="input input-text mono text-center text-lg tracking-[0.4em]"
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                placeholder="00000000"
+                className="input input-text mono text-center text-lg tracking-[0.3em]"
                 autoFocus
                 disabled={verifying}
               />
@@ -106,7 +108,7 @@ function Inner() {
 
             <button
               type="submit"
-              disabled={verifying || code.length !== 6}
+              disabled={verifying || code.length < 6}
               className="btn-primary w-full"
             >
               {verifying ? (
