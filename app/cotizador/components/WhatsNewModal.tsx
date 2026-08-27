@@ -24,7 +24,20 @@ const SECCIONES: Seccion[] = [
   {
     icon: Rocket,
     color: '#5BAA47',
-    titulo: 'Novedades de esta versión (v2.2) — reglas validadas con Diego',
+    titulo: 'Novedades de esta versión (v2.3) — nueva cara y acceso con código',
+    puntos: [
+      'Entrar es más fácil: el correo ahora trae un CÓDIGO que tecleas en la pantalla, en lugar del enlace que a veces "moría" por los filtros del correo corporativo. Funciona en cualquier navegador.',
+      'Diseño renovado estilo SaaS profesional: fondo más profundo, tarjetas con bordes finos, números alineados como estado de cuenta y un solo color protagonista (verde BNP o azul Extruidos según la empresa).',
+      'La app abre al instante: los precios y catálogos se guardan en tu equipo y se actualizan solos en segundo plano. Mientras algo carga, ves su "esqueleto" en gris en lugar de una pantalla vacía o saltos.',
+      'Los indicadores de arriba (Revenue, Costo, Utilidad, KG) ahora se mueven suavecito y parpadean al cambiar — juega con el precio y ve el efecto al momento.',
+      'Pasa el cursor por los términos con puntitos (PN, PB, Utilidad, Calibre, Cono...) y te explica qué significan.',
+      'Los pasos 1/2/3 y las ventanas aparecen con una transición suave, y el botón de actualizar precios del admin ya no recarga toda la página.',
+    ],
+  },
+  {
+    icon: Rocket,
+    color: '#8A8F98',
+    titulo: 'Anterior (v2.2) — reglas validadas con Diego',
     puntos: [
       'El límite de reducción de material cambió: la zona saludable es hasta 5%. Arriba del 5% se requiere aprobación de JN, y arriba del 10% el sistema lo marca fuera del ideal (antes solo pedía aprobación arriba del 35%).',
       'El peso facturable ahora se redondea como lo hace Diego (mitad o menos hacia abajo, más de la mitad hacia arriba), en lugar de truncar siempre hacia abajo.',

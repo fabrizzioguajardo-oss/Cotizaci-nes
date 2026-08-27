@@ -11,6 +11,8 @@ import WhatsNewModal, { WHATS_NEW_KEY } from './WhatsNewModal';
 import { useAuth } from '@/lib/useAuth';
 import { APP_VERSION_LABEL, APP_ORG } from '@/lib/version';
 import { useAnimatedNumber, useValuePulse } from '@/lib/useValueAnimation';
+import Tooltip from './Tooltip';
+import { GLOSARIO } from '@/lib/glosario';
 
 interface Props {
   cliente: string;
@@ -261,13 +263,17 @@ export default function TopBar(p: Props) {
           {/* Revenue y Costo a gris: son auditoría, no la decisión del vendedor.
               Antes Revenue iba en verde y competía con el verde de marca/acción. */}
           <div className="bg-bg-surface border border-border-subtle rounded-md p-2.5 text-center">
-            <p className="text-2xs text-text-muted uppercase tracking-wider">Revenue {p.moneda}</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">
+              <Tooltip content={GLOSARIO.revenue} side="bottom" underline>Revenue {p.moneda}</Tooltip>
+            </p>
             <p className={`mono text-sm font-medium mt-0.5 text-text-secondary rounded ${revenuePulse}`}>
               {fmtUSD(revenueAnim)}
             </p>
           </div>
           <div className="bg-bg-surface border border-border-subtle rounded-md p-2.5 text-center">
-            <p className="text-2xs text-text-muted uppercase tracking-wider">Costo {p.moneda}</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">
+              <Tooltip content={GLOSARIO.costo} side="bottom" underline>Costo {p.moneda}</Tooltip>
+            </p>
             <p className={`mono text-sm font-medium mt-0.5 text-text-secondary rounded ${costoPulse}`}>
               {fmtUSD(costoAnim)}
             </p>
@@ -280,14 +286,16 @@ export default function TopBar(p: Props) {
             style={{ backgroundColor: `${utilidadColor}14`, borderColor: `${utilidadColor}55` }}
           >
             <p className="text-2xs uppercase tracking-wider font-semibold transition-colors duration-300" style={{ color: utilidadColor }}>
-              Utilidad
+              <Tooltip content={GLOSARIO.utilidad} side="bottom" underline>Utilidad</Tooltip>
             </p>
             <p className={`mono text-base font-semibold mt-0.5 transition-colors duration-300 rounded ${utilidadPulse}`} style={{ color: utilidadColor }}>
               {p.utilidadGlobal === null ? '—' : `${utilidadAnim.toFixed(1)}%`}
             </p>
           </div>
           <div className="bg-bg-surface border border-border-subtle rounded-md p-2.5 text-center">
-            <p className="text-2xs text-text-muted uppercase tracking-wider">KG neto</p>
+            <p className="text-2xs text-text-muted uppercase tracking-wider">
+              <Tooltip content={GLOSARIO.kg_neto} side="bottom" underline>KG neto</Tooltip>
+            </p>
             <p className={`mono text-sm font-medium mt-0.5 rounded ${kgPulse}`} style={{ color: kgColor }}>
               {p.usaTC
                 ? `${fmtNum(kgAnim, 0)} / ${fmtNum(TRAILER_MAX_KG, 0)}`

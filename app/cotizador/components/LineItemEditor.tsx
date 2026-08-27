@@ -6,6 +6,8 @@ import CatalogPicker from './CatalogPicker';
 import ConeSelectorPanel from './ConeSelectorPanel';
 import MatchQualityBadge from './MatchQualityBadge';
 import SpecCards from './SpecCards';
+import Tooltip from './Tooltip';
+import { GLOSARIO } from '@/lib/glosario';
 import { usePriceData } from '@/lib/dataStore';
 import { INTENSO_MXN_KG } from '@/lib/pricingEngine';
 import { buildAutoFill, deriveResinClass, type ConoOption } from '@/lib/lookupEngine';
@@ -193,11 +195,8 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
             />
           </div>
           <div>
-            <label
-              className="label"
-              title="Calibre (GA = gauge): el grosor de la película. Más GA = película más gruesa. Típico 60–90."
-            >
-              Calibre (GA)
+            <label className="label">
+              <Tooltip content={GLOSARIO.calibre} underline>Calibre (GA)</Tooltip>
             </label>
             <input
               type="number" step="1" min="0"
@@ -293,11 +292,8 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         </div>
         <div className="grid grid-cols-3 gap-3">
           <div>
-            <label
-              className="label"
-              title="Cono: el tubo de cartón en el centro del rollo. Su peso (kg) suma al peso bruto que el cliente recibe."
-            >
-              Cono (kg)
+            <label className="label">
+              <Tooltip content={GLOSARIO.cono} underline>Cono (kg)</Tooltip>
             </label>
             <input
               type="number" step="0.01" min="0"

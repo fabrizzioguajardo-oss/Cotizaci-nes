@@ -2,10 +2,62 @@
 
 Registro de cambios entre versiones. Las versiones más recientes aparecen primero.
 
-> **Nota de versionado:** la versión que VE el usuario es **v2.2**. v2.0 estrenó
+> **Nota de versionado:** la versión que VE el usuario es **v2.3**. v2.0 estrenó
 > multi-empresa; v2.1 trajo el cotizar paso a paso y el cierre de auditorías;
-> v2.2 alinea las reglas de negocio a la validación de Diego (10-jun-2026).
+> v2.2 alinea las reglas de negocio a la validación de Diego (10-jun-2026);
+> v2.3 trae el rediseño visual, el acceso por código y la velocidad percibida.
 > Subir `APP_VERSION` actualiza login/TopBar y reabre Novedades.
+
+---
+
+## v2.3 — Rediseño "Precisión de Planta", acceso por código y velocidad (30-jun-2026)
+
+Investigación de diseño (tendencias SaaS: Linear/Vercel/Stripe) + auditoría del
+código con 7 agentes → dirección "Precisión de Planta" implementada en 3 olas.
+
+**Acceso (fix crítico):**
+- El magic link moría con correos corporativos: el filtro de seguridad lo "abre"
+  antes que el usuario (un solo uso → `access_denied`) y solo funcionaba en el
+  navegador que lo pidió (PKCE). Ahora el correo trae un **código OTP** que se
+  teclea en `check-email` (verifyOtp, acepta 6-10 dígitos; este proyecto emite 8).
+- `/login` muestra el motivo real cuando un enlace falla (antes: loop mudo) y
+  traduce el rate limit de correos de Supabase (~2/hora en free tier).
+- Pendiente estructural: SMTP propio (Resend) para quitar el límite de correos.
+
+**Ola 1 — fundación visual (tokens):**
+- Paleta nueva con los MISMOS nombres de token: dark casi negro azul-frío
+  (#0C0D10/#14161B/#1A1D23), hairlines translúcidos, texto en 4 niveles.
+- Radios unificados (4/6/10), sombras card/popover/modal con highlight interior,
+  btn-primary con relieve, focus ring del acento (fuera ring-white/25).
+- Acento 100% conmutable por empresa: eliminados los hex #5BAA47 fijos en focus
+  del precio, sliders y valuePulse — en Extruidos todo eso ahora es navy.
+- Sistema de movimiento: easing out-quart, animate-reveal/overlay-in/modal-in/
+  shimmer, prefers-reduced-motion global, tabular-nums en toda la app.
+- Wizard 1/2/3 y resultados con animate-reveal; modales con entrada animada;
+  KPIs del TopBar animados (interpolación 200ms + pulso + semáforo suave).
+
+**Ola 2 — caché y skeletons:**
+- dataStore con stale-while-revalidate en 3 capas (memoria → localStorage TTL
+  24h → red) + suscripción: la app pinta precios al instante y revalida detrás.
+  El cache local se borra al cerrar sesión (precios confidenciales).
+- GlobalFreshnessBadge ya no descarga el dataset completo aparte (doble fetch).
+- Skeletons con geometría real: borrador de /cotizador, panel de conos, picker
+  de catálogo; empty state del panel de conos con propósito.
+- Catálogos con cache de módulo TTL 5min (las 8 tabs del admin no re-fetchean);
+  BasePricesView refresca in-place (fuera window.location.reload()).
+
+**Ola 3 — tooltips con glosario:**
+- Componente Tooltip CSS puro (delay 400ms, teclado, hairline+sombra popover)
+  + lib/glosario.ts como fuente única de definiciones (PN, PB, utilidad como
+  markup sobre costo, price/lb, reducción, calibre, cono, TC...).
+- Aplicado en KPIs del TopBar, ResultsStrip, SpecCards y labels del editor.
+
+**Análisis de listas (sin código):** la lista EDSA del 7-ago-2026 baja precios
+en las 350 filas (−4.58 MXN/kg prom.); el +2.5 de rollo chico NO viene incluido
+(el recargo automático sigue). La hoja "Política de M.C." del archivo contradice
+la tabla PUE/PPD de junio (18/16/14/12.5 y 22/20/18/17, corte en 12t) —
+pendiente confirmación de Diego. Script scripts/analyze-precios-agosto.ts para
+diffear listas.
 
 ---
 

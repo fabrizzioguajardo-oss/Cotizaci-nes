@@ -3,6 +3,8 @@
 import type { CalcResult } from '@/types';
 import { marginStatus } from '@/lib/pricingEngine';
 import { fmtUSD, fmtNum, fmtPct } from '@/lib/format';
+import Tooltip from './Tooltip';
+import { GLOSARIO } from '@/lib/glosario';
 
 interface Props {
   result: CalcResult;
@@ -13,11 +15,12 @@ interface Props {
 export default function ResultsStrip({ result, precioCliente }: Props) {
   const status = marginStatus(result.utilidad);
 
-  const cells: Array<{ label: string; value: string; color?: string; sub?: string }> = [
+  const cells: Array<{ label: string; value: string; color?: string; sub?: string; tip?: string }> = [
     {
       label: 'Costo / rollo',
       value: fmtUSD(result.costoRolloUSD),
       sub: `${fmtNum(result.costoRolloMXN)} MXN`,
+      tip: GLOSARIO.costo,
     },
     {
       label: 'Precio / rollo',
@@ -29,21 +32,25 @@ export default function ResultsStrip({ result, precioCliente }: Props) {
       value: fmtPct(result.utilidad),
       color: status.color,
       sub: status.level === 'ok' ? 'OK' : status.label.split(' ')[0],
+      tip: GLOSARIO.utilidad,
     },
     {
       label: 'Price / lb',
       value: fmtUSD(result.pricePerLb, 3),
       sub: 'entregado',
+      tip: GLOSARIO.price_lb,
     },
     {
       label: 'PN real',
       value: `${fmtNum(result.pnReal, 3)} kg`,
       sub: `${fmtNum(result.pnReal * 2.20462, 2)} lb`,
+      tip: GLOSARIO.pn,
     },
     {
       label: 'Reducción',
       value: fmtPct(result.materialReduction),
       sub: 'vs decl.',
+      tip: GLOSARIO.reduccion,
       // Política Diego: ámbar arriba del 5% (pide aprobación), rojo arriba
       // del 10% (fuera del ideal).
       color:
@@ -60,7 +67,13 @@ export default function ResultsStrip({ result, precioCliente }: Props) {
       {cells.map((c, i) => (
         <div key={i} className="bg-bg-elevated p-3">
           <p className="text-2xs font-semibold text-text-secondary uppercase tracking-wider">
-            {c.label}
+            {c.tip ? (
+              <Tooltip content={c.tip} underline>
+                {c.label}
+              </Tooltip>
+            ) : (
+              c.label
+            )}
           </p>
           <p
             className="mono text-lg font-semibold mt-1"

@@ -3,6 +3,8 @@
 import type { LineItem, CalcResult } from '@/types';
 import { fmtNum } from '@/lib/format';
 import { Scale, Box, Layers, Truck } from 'lucide-react';
+import Tooltip from './Tooltip';
+import { GLOSARIO } from '@/lib/glosario';
 
 interface Props {
   item: LineItem;
@@ -29,13 +31,17 @@ export default function SpecCards({ item, result }: Props) {
         </div>
         <div className="space-y-0.5">
           <div className="flex items-baseline justify-between">
-            <span className="text-2xs text-text-muted">PN (neto)</span>
+            <span className="text-2xs text-text-muted">
+              <Tooltip content={GLOSARIO.pn} underline>PN (neto)</Tooltip>
+            </span>
             <span className="mono text-sm font-semibold">
               {fmtNum(result.pnReal, 3)} <span className="text-2xs text-text-muted">kg</span>
             </span>
           </div>
           <div className="flex items-baseline justify-between">
-            <span className="text-2xs text-text-muted">PB (bruto)</span>
+            <span className="text-2xs text-text-muted">
+              <Tooltip content={GLOSARIO.pb} underline>PB (bruto)</Tooltip>
+            </span>
             <span className="mono text-sm font-semibold">
               {fmtNum(result.pbReal, 3)} <span className="text-2xs text-text-muted">kg</span>
             </span>
