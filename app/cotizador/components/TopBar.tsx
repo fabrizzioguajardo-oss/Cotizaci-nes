@@ -10,6 +10,7 @@ import OnboardingNameModal from './OnboardingNameModal';
 import WhatsNewModal, { WHATS_NEW_KEY } from './WhatsNewModal';
 import { useAuth } from '@/lib/useAuth';
 import { APP_VERSION_LABEL, APP_ORG } from '@/lib/version';
+import { useAnimatedNumber, useValuePulse } from '@/lib/useValueAnimation';
 
 interface Props {
   cliente: string;
@@ -75,6 +76,17 @@ export default function TopBar(p: Props) {
 
   const kgPct = (p.kgNetoTotal / TRAILER_MAX_KG) * 100;
   const kgColor = kgPct > 100 ? '#EF4444' : kgPct > 95 ? '#F59E0B' : '#5BAA47';
+
+  // KPIs vivos: el número interpola 200ms hacia el valor nuevo y la celda
+  // pulsa con el acento — el vendedor "ve" el efecto de mover el precio.
+  const revenueAnim = useAnimatedNumber(p.totalRevenue);
+  const costoAnim = useAnimatedNumber(p.totalCost);
+  const utilidadAnim = useAnimatedNumber((p.utilidadGlobal ?? 0) * 100);
+  const kgAnim = useAnimatedNumber(p.kgNetoTotal);
+  const revenuePulse = useValuePulse(p.totalRevenue);
+  const costoPulse = useValuePulse(p.totalCost);
+  const utilidadPulse = useValuePulse(p.utilidadGlobal);
+  const kgPulse = useValuePulse(p.kgNetoTotal);
 
   // En EUA el TC es obligatorio: si el vendedor lo borra y queda en 0, las
   // conversiones de costo a USD se corrompen en silencio (margen/precio mal).
@@ -248,35 +260,38 @@ export default function TopBar(p: Props) {
         <div className="col-span-4 grid grid-cols-4 gap-3 items-stretch">
           {/* Revenue y Costo a gris: son auditoría, no la decisión del vendedor.
               Antes Revenue iba en verde y competía con el verde de marca/acción. */}
-          <div className="bg-bg-surface rounded-md p-2.5 text-center">
+          <div className="bg-bg-surface border border-border-subtle rounded-md p-2.5 text-center">
             <p className="text-2xs text-text-muted uppercase tracking-wider">Revenue {p.moneda}</p>
-            <p className="mono text-sm font-medium mt-0.5 text-text-secondary">
-              {fmtUSD(p.totalRevenue)}
+            <p className={`mono text-sm font-medium mt-0.5 text-text-secondary rounded ${revenuePulse}`}>
+              {fmtUSD(revenueAnim)}
             </p>
           </div>
-          <div className="bg-bg-surface rounded-md p-2.5 text-center">
+          <div className="bg-bg-surface border border-border-subtle rounded-md p-2.5 text-center">
             <p className="text-2xs text-text-muted uppercase tracking-wider">Costo {p.moneda}</p>
-            <p className="mono text-sm font-medium mt-0.5 text-text-secondary">{fmtUSD(p.totalCost)}</p>
+            <p className={`mono text-sm font-medium mt-0.5 text-text-secondary rounded ${costoPulse}`}>
+              {fmtUSD(costoAnim)}
+            </p>
           </div>
           {/* Utilidad: el dato que importa de un vistazo — ÚNICO KPI resaltado
-              (borde + color del semáforo + número más grande). */}
+              (borde + color del semáforo + número más grande). El semáforo
+              cambia de color en suave (transition-colors). */}
           <div
-            className="rounded-md p-2.5 text-center border"
+            className="rounded-md p-2.5 text-center border transition-colors duration-300"
             style={{ backgroundColor: `${utilidadColor}14`, borderColor: `${utilidadColor}55` }}
           >
-            <p className="text-2xs uppercase tracking-wider font-semibold" style={{ color: utilidadColor }}>
+            <p className="text-2xs uppercase tracking-wider font-semibold transition-colors duration-300" style={{ color: utilidadColor }}>
               Utilidad
             </p>
-            <p className="mono text-base font-bold mt-0.5" style={{ color: utilidadColor }}>
-              {p.utilidadGlobal === null ? '—' : `${(p.utilidadGlobal * 100).toFixed(1)}%`}
+            <p className={`mono text-base font-semibold mt-0.5 transition-colors duration-300 rounded ${utilidadPulse}`} style={{ color: utilidadColor }}>
+              {p.utilidadGlobal === null ? '—' : `${utilidadAnim.toFixed(1)}%`}
             </p>
           </div>
-          <div className="bg-bg-surface rounded-md p-2.5 text-center">
+          <div className="bg-bg-surface border border-border-subtle rounded-md p-2.5 text-center">
             <p className="text-2xs text-text-muted uppercase tracking-wider">KG neto</p>
-            <p className="mono text-sm font-medium mt-0.5" style={{ color: kgColor }}>
+            <p className={`mono text-sm font-medium mt-0.5 rounded ${kgPulse}`} style={{ color: kgColor }}>
               {p.usaTC
-                ? `${fmtNum(p.kgNetoTotal, 0)} / ${fmtNum(TRAILER_MAX_KG, 0)}`
-                : fmtNum(p.kgNetoTotal, 0)}
+                ? `${fmtNum(kgAnim, 0)} / ${fmtNum(TRAILER_MAX_KG, 0)}`
+                : fmtNum(kgAnim, 0)}
             </p>
           </div>
         </div>

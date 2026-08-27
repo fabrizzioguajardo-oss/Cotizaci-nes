@@ -70,13 +70,13 @@ export default function OnboardingNameModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm modal-overlay"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.8)' }}
       // En modo onboarding NO se cierra al picar fuera. En modo edit sí.
       onClick={mode === 'edit' ? onCancel : undefined}
     >
       <div
-        className="card max-w-md w-full p-6"
+        className="card max-w-md w-full p-6 modal-panel"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3 mb-4">

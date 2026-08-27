@@ -93,12 +93,12 @@ export default function FeedbackModal({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm modal-overlay"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
       onClick={onClose}
     >
       <div
-        className="card max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        className="card max-w-lg w-full max-h-[90vh] overflow-y-auto modal-panel"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="card-header">

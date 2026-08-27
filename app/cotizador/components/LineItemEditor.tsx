@@ -279,7 +279,7 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
       />
 
       {tieneSpec && (
-      <>
+      <div className="space-y-5 animate-reveal">
       {/* === Cards de spec calculado: PN/PB, kg tarima, rollos, kg item === */}
       <SpecCards item={item} result={result} />
 
@@ -602,12 +602,12 @@ export default function LineItemEditor({ item, result, esMexico, onChange }: Pro
         </>
         )}
       </section>
-      </>
+      </div>
       )}
 
       {/* Paso 3 — Precio (aparece al elegir el cono) */}
       {tieneCono && (
-      <section className="border border-bnp-green/40 bg-bnp-green/5 rounded-lg p-4">
+      <section className="border border-bnp-green/40 bg-bnp-green/5 rounded-lg p-4 animate-reveal">
         <div className="flex items-center gap-2 mb-3">
           <span className="w-5 h-5 rounded-full bg-bnp-green/20 text-bnp-green text-2xs font-bold flex items-center justify-center flex-shrink-0">
             3

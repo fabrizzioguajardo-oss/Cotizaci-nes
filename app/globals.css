@@ -4,19 +4,19 @@
 
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
+/* Paleta "Precisión de Planta" — espejo de tailwind.config.ts (mismos nombres
+   de token que la paleta anterior: los componentes no se tocan). */
 :root {
-  --color-bg: #0D1117;
-  --color-bg-elevated: #161B22;
-  --color-bg-surface: #1C2129;
-  --color-bg-hover: #21262D;
-  --color-border: #30363D;
-  --color-border-subtle: #21262D;
-  --color-text-primary: #E6EDF3;
-  --color-text-secondary: #8B949E;
-  --color-text-muted: #6E7681;
-  --color-bnp-green: #5BAA47;
+  --color-bg: #0C0D10;
+  --color-bg-elevated: #14161B;
+  --color-bg-surface: #1A1D23;
+  --color-bg-hover: rgba(255, 255, 255, 0.05);
+  --color-border: #2A2E37;
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-text-primary: #F7F8F8;
+  --color-text-secondary: #B4B8BF;
+  --color-text-muted: #8A8F98;
   --color-bnp-purple: #6B2C91;
-  --color-bnp-cyan: #009FE3;
   --color-bnp-amber: #F59E0B;
   --color-bnp-red: #EF4444;
 
@@ -49,11 +49,23 @@ html, body {
   color: var(--color-text-primary);
   font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
   font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  /* Números tabulares en TODA la app: precios, pesos y totales alinean en
+     columnas y no "bailan" al cambiar — el look auditable de fintech. */
+  font-variant-numeric: tabular-nums;
   margin: 0;
   padding: 0;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Accesibilidad: si el usuario pide menos movimiento, todo se vuelve
+   instantáneo sin romper estados finales (animation-fill-mode both). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Tipografía monoespaciada para números */
@@ -72,13 +84,17 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
+.input:disabled {
+  @apply bg-bg-surface text-text-muted cursor-not-allowed;
+}
+
 .input-text {
   font-family: 'DM Sans', system-ui, sans-serif;
 }
 
 .input-cyan:focus {
-  border-color: #009FE3;
-  box-shadow: 0 0 0 3px rgba(0, 159, 227, 0.15);
+  border-color: rgb(var(--bnp-cyan));
+  box-shadow: 0 0 0 3px rgb(var(--bnp-cyan) / 0.15);
 }
 
 .input-purple:focus {
@@ -86,9 +102,10 @@ html, body {
   box-shadow: 0 0 0 3px rgba(107, 44, 145, 0.15);
 }
 
+/* Acento conmutable: en Extruidos este focus se vuelve navy solo. */
 .input-green:focus {
-  border-color: #5BAA47;
-  box-shadow: 0 0 0 3px rgba(91, 170, 71, 0.15);
+  border-color: rgb(var(--bnp-green));
+  box-shadow: 0 0 0 3px rgb(var(--bnp-green) / 0.15);
 }
 
 .label {
@@ -97,14 +114,20 @@ html, body {
 
 .btn {
   @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md text-sm font-medium
-         transition-all disabled:opacity-50 disabled:cursor-not-allowed
-         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/25
+         transition-all duration-150 ease-out-quart disabled:opacity-50 disabled:cursor-not-allowed
+         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-bnp-green/50
          active:translate-y-px;
 }
 
+/* Relieve físico: highlight interior superior (la "luz de arriba") + sombra
+   corta; al hover, glow tenue del acento. Hace el CTA tangible sin ruido. */
 .btn-primary {
   @apply btn bg-bnp-green hover:bg-bnp-green-dark text-white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.btn-primary:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 8px rgb(var(--bnp-green) / 0.25);
 }
 
 .btn-secondary {
@@ -113,14 +136,13 @@ html, body {
 
 .btn-purple {
   @apply btn bg-bnp-purple hover:bg-bnp-purple-dark text-white;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
-/* Profundidad sutil para las tarjetas (el tema oscuro pide sombras muy
-   tenues; demasiado se ve sucio). Da sensación de "elevado" sin ruido. */
+/* Profundidad sutil para las tarjetas: sombra corta + highlight interior
+   superior de 1px (border-first: la separación la dan los hairlines). */
 .card {
-  @apply bg-bg-elevated border border-border rounded-lg;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+  @apply bg-bg-elevated border border-border rounded-lg shadow-card;
 }
 
 .card-header {
@@ -129,6 +151,36 @@ html, body {
 
 .card-body {
   @apply p-4;
+}
+
+/* Overlays de modal: backdrop con fade de 150ms, panel con scale 0.96→1 en
+   180ms out-quart. El cierre queda instantáneo a propósito (salidas más
+   rápidas que entradas). */
+.modal-overlay {
+  @apply animate-overlay-in;
+}
+
+.modal-panel {
+  @apply animate-modal-in shadow-modal;
+}
+
+/* Skeleton con shimmer: bloque fantasma que barre luz. Usar con la geometría
+   REAL del contenido que va a llegar (cero salto de layout). */
+.skeleton {
+  @apply relative overflow-hidden rounded-md bg-bg-surface;
+}
+
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.045), transparent);
+  animation: shimmer 2s linear infinite;
+}
+
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
 }
 
 /* Slider personalizado */
@@ -141,7 +193,7 @@ input[type="range"] {
 }
 
 input[type="range"]::-webkit-slider-runnable-track {
-  background: #21262D;
+  background: rgba(255, 255, 255, 0.08);
   height: 6px;
   border-radius: 9999px;
 }
@@ -149,13 +201,13 @@ input[type="range"]::-webkit-slider-runnable-track {
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  background: #5BAA47;
+  background: rgb(var(--bnp-green));
   height: 18px;
   width: 18px;
   border-radius: 50%;
-  border: 2px solid #0D1117;
+  border: 2px solid var(--color-bg);
   margin-top: -6px;
-  box-shadow: 0 0 0 3px rgba(91, 170, 71, 0.2);
+  box-shadow: 0 0 0 3px rgb(var(--bnp-green) / 0.2);
   transition: transform 0.1s;
 }
 
@@ -164,18 +216,18 @@ input[type="range"]::-webkit-slider-thumb:hover {
 }
 
 input[type="range"]::-moz-range-track {
-  background: #21262D;
+  background: rgba(255, 255, 255, 0.08);
   height: 6px;
   border-radius: 9999px;
 }
 
 input[type="range"]::-moz-range-thumb {
-  background: #5BAA47;
+  background: rgb(var(--bnp-green));
   height: 18px;
   width: 18px;
   border-radius: 50%;
-  border: 2px solid #0D1117;
-  box-shadow: 0 0 0 3px rgba(91, 170, 71, 0.2);
+  border: 2px solid var(--color-bg);
+  box-shadow: 0 0 0 3px rgb(var(--bnp-green) / 0.2);
   cursor: pointer;
 }
 
@@ -195,14 +247,14 @@ input[type="range"]::-moz-range-thumb {
   height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #0D1117;
+  background: #0C0D10;
 }
 ::-webkit-scrollbar-thumb {
-  background: #30363D;
+  background: #2A2E37;
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #484F58;
+  background: #3A3F49;
 }
 
 /* Utility para esconder spinner de inputs number */
@@ -215,12 +267,12 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
-/* Animación sutil de cambio de valor */
+/* Animación sutil de cambio de valor (conmutable por empresa) */
 .value-pulse {
   animation: valuePulse 0.4s ease-out;
 }
 @keyframes valuePulse {
-  0% { background-color: rgba(91, 170, 71, 0.2); }
+  0% { background-color: rgb(var(--bnp-green) / 0.2); }
   100% { background-color: transparent; }
 }
 

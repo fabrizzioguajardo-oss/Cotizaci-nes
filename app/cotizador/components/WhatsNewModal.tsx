@@ -47,7 +47,7 @@ const SECCIONES: Seccion[] = [
   },
   {
     icon: Building2,
-    color: '#1F2A4D',
+    color: '#3E8EDE',
     titulo: 'Multi-empresa: cotizas para dos empresas',
     puntos: [
       'Al entrar eliges para quién cotizas: BioNovaPack (Estados Unidos, en dólares) o Extruidos (México, en pesos).',
@@ -150,12 +150,12 @@ export default function WhatsNewModal({ open, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-sm modal-overlay"
       style={{ backgroundColor: 'rgba(0, 0, 0, 0.7)' }}
       onClick={onClose}
     >
       <div
-        className="card max-w-2xl w-full max-h-[88vh] overflow-y-auto"
+        className="card max-w-2xl w-full max-h-[88vh] overflow-y-auto modal-panel"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

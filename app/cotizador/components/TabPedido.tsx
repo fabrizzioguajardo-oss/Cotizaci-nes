@@ -22,12 +22,12 @@ export default function TabPedido({ item, result, esMexico, onChange }: Props) {
   return (
     <div className="space-y-4">
       {tienePrecio && (
-        <>
+        <div className="space-y-4 animate-reveal">
           <ResultsStrip result={result} precioCliente={item.precioCliente} />
           <div className="card p-3">
             <MarginBar utilidad={result.utilidad} />
           </div>
-        </>
+        </div>
       )}
 
       <div className="card p-5">
