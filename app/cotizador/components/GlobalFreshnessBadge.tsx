@@ -1,38 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import FreshnessBadge from './FreshnessBadge';
-import { freshnessFromDate, type FreshnessInfo } from '@/lib/freshness';
+import { freshnessFromDate } from '@/lib/freshness';
 import { useAuth } from '@/lib/useAuth';
+import { usePriceData } from '@/lib/dataStore';
 
 // Badge global de "última actualización de precios".
 // Visible para TODOS los usuarios (vendedores y admins).
 // Para admins es link al panel de admin; para vendedores es informativo.
 //
-// Lee de /api/data/current que devuelve generated_at (la fecha del último
-// upload de Diego en /cotizador/precios). Esto es la fuente de verdad de
-// cuándo se actualizaron los precios.
+// Lee del MISMO dataStore que usa el cotizador (antes hacía su propio fetch a
+// /api/data/current y descargaba el dataset completo DOS veces por carga).
+// generated_at = fecha del último upload de Diego = fuente de verdad.
 export default function GlobalFreshnessBadge() {
   const { isAdmin } = useAuth();
-  const [info, setInfo] = useState<FreshnessInfo | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [edsaFile, setEdsaFile] = useState<string | null>(null);
+  const { data, loading } = usePriceData();
 
-  useEffect(() => {
-    fetch('/api/data/current', { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.generated_at) {
-          setInfo(freshnessFromDate(data.generated_at));
-          setEdsaFile(data.source_files?.edsa ?? null);
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+  const info = data?.generated_at ? freshnessFromDate(data.generated_at) : null;
+  const edsaFile = data?.source_files?.edsa ?? null;
 
-  if (loading) return null;
+  // Placeholder con la geometría del badge final: el nav no brinca al llegar.
+  if (loading) return <div className="skeleton h-7 w-36" aria-hidden />;
 
   // Cuando no hay datos cargados aún, mostrar un warning visible
   if (!info) {

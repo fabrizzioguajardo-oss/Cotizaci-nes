@@ -7,6 +7,7 @@ import { useEffect, useState, useCallback } from 'react';
 import type { User, AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { getSupabaseBrowser } from './supabase';
 import { isAdminEmail } from './adminEmails';
+import { clearPriceCache } from './dataStore';
 
 export type UserRole = 'admin' | 'vendedor';
 
@@ -100,6 +101,9 @@ export function useAuth(): AuthState {
   const signOut = useCallback(async () => {
     const sb = getSupabaseBrowser();
     if (!sb) return;
+    // Precios = confidenciales: el cache local no sobrevive al logout
+    // (equipos compartidos).
+    clearPriceCache();
     await sb.auth.signOut();
     if (typeof window !== 'undefined') {
       window.location.href = '/login';

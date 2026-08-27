@@ -65,9 +65,13 @@ export default function CatalogPicker({
             className="fixed inset-0 z-10"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 top-full mt-1 w-72 bg-bg-elevated border border-border rounded-md shadow-xl z-20 max-h-72 overflow-y-auto">
+          <div className="absolute right-0 top-full mt-1 w-72 bg-bg-elevated border border-border rounded-md shadow-popover z-20 max-h-72 overflow-y-auto animate-modal-in">
             {!loaded ? (
-              <p className="p-3 text-xs text-text-muted text-center">Cargando...</p>
+              <div className="p-3 space-y-2" aria-hidden>
+                <div className="skeleton h-7 w-full" />
+                <div className="skeleton h-7 w-full" />
+                <div className="skeleton h-7 w-3/4" />
+              </div>
             ) : entries.length === 0 ? (
               <p className="p-3 text-xs text-text-muted text-center">
                 Sin entradas vigentes — agrega en /admin

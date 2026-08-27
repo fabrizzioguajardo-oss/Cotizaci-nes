@@ -21,8 +21,33 @@ function writeLocal(entries: CostCatalogEntry[]): void {
   window.localStorage.setItem(LS_KEY, JSON.stringify(entries));
 }
 
-// Carga entradas vigentes (opcionalmente filtradas por categoria)
-export async function loadCatalog(category?: CostCategory): Promise<CostCatalogEntry[]> {
+// === Cache de módulo (stale-while-revalidate, TTL 5 min) ===
+// Cambiar entre las 8 tabs del admin o abrir el picker YA NO re-descarga la
+// categoría cada vez: se sirve el cache al instante y se revalida si caducó.
+const CATALOG_TTL_MS = 5 * 60 * 1000;
+const _catalogCache = new Map<string, { entries: CostCatalogEntry[]; fetchedAt: number }>();
+
+function cacheKey(category?: CostCategory): string {
+  return category ?? '__all__';
+}
+
+// Invalida una categoría (o todo) — la llaman saveEntry/deleteEntry.
+export function invalidateCatalog(category?: CostCategory): void {
+  if (category) {
+    _catalogCache.delete(category);
+    _catalogCache.delete('__all__');
+  } else {
+    _catalogCache.clear();
+  }
+}
+
+// Lectura sincrónica del cache (para pintar al instante mientras se revalida).
+export function peekCatalog(category?: CostCategory): CostCatalogEntry[] | null {
+  const hit = _catalogCache.get(cacheKey(category));
+  return hit ? hit.entries : null;
+}
+
+async function fetchCatalog(category?: CostCategory): Promise<CostCatalogEntry[]> {
   try {
     const url = category ? `/api/catalog?category=${category}` : '/api/catalog';
     const res = await fetch(url, { cache: 'no-store' });
@@ -38,7 +63,31 @@ export async function loadCatalog(category?: CostCategory): Promise<CostCatalogE
   }
 }
 
+// Carga entradas vigentes (opcionalmente filtradas por categoria).
+// Sirve cache fresco si existe; si está caducado lo devuelve igual pero
+// dispara revalidación en background (onFresh notifica si algo cambió).
+export async function loadCatalog(
+  category?: CostCategory,
+  onFresh?: (entries: CostCatalogEntry[]) => void,
+): Promise<CostCatalogEntry[]> {
+  const key = cacheKey(category);
+  const hit = _catalogCache.get(key);
+  if (hit) {
+    if (Date.now() - hit.fetchedAt > CATALOG_TTL_MS) {
+      void fetchCatalog(category).then((fresh) => {
+        _catalogCache.set(key, { entries: fresh, fetchedAt: Date.now() });
+        onFresh?.(fresh);
+      });
+    }
+    return hit.entries;
+  }
+  const entries = await fetchCatalog(category);
+  _catalogCache.set(key, { entries, fetchedAt: Date.now() });
+  return entries;
+}
+
 export async function saveEntry(entry: CostCatalogEntry): Promise<CostCatalogEntry> {
+  invalidateCatalog(entry.category);
   try {
     const res = await fetch('/api/catalog', {
       method: 'POST',
@@ -68,6 +117,7 @@ export async function saveEntry(entry: CostCatalogEntry): Promise<CostCatalogEnt
 }
 
 export async function deleteEntry(id: string): Promise<void> {
+  invalidateCatalog();
   try {
     await fetch(`/api/catalog?id=${id}`, { method: 'DELETE' });
   } catch {}

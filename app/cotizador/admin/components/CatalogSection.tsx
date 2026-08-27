@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { CostCatalogEntry, CostCategory, CostSource } from '@/types';
-import { loadCatalog, saveEntry, deleteEntry } from '@/lib/catalogClient';
+import { loadCatalog, peekCatalog, saveEntry, deleteEntry } from '@/lib/catalogClient';
 import { fmtNum } from '@/lib/format';
 import { Plus, Trash2, MessageCircle, Mail, FileSpreadsheet, Pencil } from 'lucide-react';
 import FreshnessBadge from '@/app/cotizador/components/FreshnessBadge';
@@ -66,8 +66,12 @@ export default function CatalogSection({
   const [sourceNote, setSourceNote] = useState('');
 
   const refresh = async () => {
-    setLoading(true);
-    const data = await loadCatalog(category);
+    // Con el cache de módulo, cambiar de tab pinta al instante lo cacheado;
+    // "Cargando" solo aparece en la PRIMERA visita a la categoría.
+    const cached = peekCatalog(category);
+    if (cached) setEntries(cached);
+    setLoading(!cached);
+    const data = await loadCatalog(category, (fresh) => setEntries(fresh));
     setEntries(data);
     setLoading(false);
   };

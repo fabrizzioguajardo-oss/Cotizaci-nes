@@ -706,7 +706,24 @@ export default function CotizadorPage() {
         kgNetoTotal={trailerTotals.kgNetoTotal}
       />
 
-      <div className="flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden">
+      {/* Skeleton mientras carga el borrador: la geometría del layout real
+          (sidebar + panel), con shimmer. Antes se mostraba el formulario VACÍO
+          interactivo y el draft pisaba lo que el vendedor alcanzara a teclear. */}
+      {!draftLoaded && (
+        <div className="flex-1 grid grid-cols-12 gap-4 p-4" aria-hidden>
+          <div className="col-span-3 space-y-3">
+            <div className="skeleton h-28 rounded-lg" />
+            <div className="skeleton h-44 rounded-lg" />
+          </div>
+          <div className="col-span-9 space-y-4">
+            <div className="skeleton h-9 w-72 rounded-lg" />
+            <div className="skeleton h-64 rounded-lg" />
+            <div className="skeleton h-44 rounded-lg" />
+          </div>
+        </div>
+      )}
+
+      <div className={`flex-1 grid grid-cols-12 gap-4 p-4 overflow-hidden ${!draftLoaded ? 'hidden' : ''}`}>
         {/* Sidebar: en USA bloques de trailer; en México panel de transporte simple */}
         <aside className="col-span-3 max-h-[calc(100vh-180px)] overflow-y-auto pr-1 space-y-3">
           {!info.multiTrailer && (

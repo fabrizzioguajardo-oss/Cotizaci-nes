@@ -49,9 +49,21 @@ export default function ConeSelectorPanel({
   }, [data, ancho, calibre, largo, resinType, tipoColor]);
 
   if (loading) {
+    // Skeleton con la MISMA geometría del grid real de opciones de cono:
+    // al llegar los datos no hay salto de layout, solo se "rellena".
     return (
-      <div className="card p-4 text-center text-sm text-text-muted">
-        Cargando datos de precios…
+      <div className="card p-3">
+        <div className="skeleton h-3 w-40 mb-3" />
+        <div className="grid grid-cols-3 gap-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="border border-border-subtle rounded-md p-2.5 space-y-2">
+              <div className="skeleton h-4 w-16" />
+              <div className="skeleton h-3 w-full" />
+              <div className="skeleton h-3 w-3/4" />
+              <div className="skeleton h-3.5 w-20" />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -76,9 +88,19 @@ export default function ConeSelectorPanel({
   }
 
   if (ancho <= 0 || calibre <= 0 || largo <= 0) {
+    // Empty state con personalidad: dice QUÉ va a aparecer aquí y qué falta.
     return (
-      <div className="card p-4 text-center text-sm text-text-muted">
-        Llena <span className="text-bnp-cyan">ancho, calibre y largo</span> arriba para ver opciones de cono y rollos por tarima.
+      <div className="card p-6 text-center">
+        <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-bg-surface border border-border-subtle mb-3">
+          <Sparkles className="w-5 h-5 text-text-muted" />
+        </div>
+        <p className="text-sm font-medium text-text-secondary">
+          Las opciones de cono aparecen aquí
+        </p>
+        <p className="text-2xs text-text-muted mt-1">
+          Llena <span className="text-bnp-cyan">ancho, calibre y largo</span> arriba para ver conos,
+          rollos por tarima y precio estimado.
+        </p>
       </div>
     );
   }

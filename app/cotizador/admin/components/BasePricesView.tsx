@@ -32,9 +32,11 @@ export default function BasePricesView() {
   const [resinFilter, setResinFilter] = useState<ResinClass | 'all'>('all');
   const [search, setSearch] = useState('');
 
+  // Refetch in-place: invalidatePriceData recarga en background y usePriceData
+  // (suscrito al dataStore) repinta solo — sin window.location.reload(), que
+  // tiraba TODO el estado de la página por un refresh de datos.
   const handleRefresh = () => {
     invalidatePriceData();
-    window.location.reload();
   };
 
   // EDSA rows (virgen + reciclado, sin color)
